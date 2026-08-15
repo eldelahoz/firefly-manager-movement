@@ -3,8 +3,9 @@
 | Champ | Valeur |
 |---|---|
 | Projet | firefly-manager-movement |
-| Version | 0.1 (draft initial) |
-| Date | 2026-08-14 |
+| Version | 0.2 |
+| Créé le | 2026-08-14 |
+| Dernière modification | 2026-08-15 |
 | Auteur | A. Delahoz |
 | Statut | En cours de rédaction |
 
@@ -12,17 +13,17 @@
 
 ## 1. Problème et contexte
 
-Firefly III est un gestionnaire de finances personnelles self-hosted largement adopté. Il permet de suivre comptes, budgets, catégories et transactions. Cependant, il ne propose **aucun module natif de rapprochement bancaire** : il est impossible d'importer un relevé de transactions bancaires, de le comparer aux transactions déjà enregistrées, de visualiser les écarts et de créer automatiquement les transactions manquantes.
+Firefly III est un gestionnaire de finances personnelles self-hosted. Il permet de suivre comptes, budgets, catégories et transactions. Cependant, il ne propose **aucun module natif de rapprochement bancaire** : il est impossible d'importer un relevé de transactions bancaires, de le comparer aux transactions déjà enregistrées, de visualiser les écarts et de créer automatiquement les transactions manquantes.
 
 Conséquences pour l'utilisateur :
 
-- Saisie manuelle fastidieuse ou double saisie (banque + Firefly III).
+- Saisie manuelle et parfois si la personne a laissé passé le temps, par exemple, il va y a voir mouvement de toute une semaine et la personne doit saise manuellement.
 - Aucune garantie d'exhaustivité : des transactions bancaires peuvent manquer dans Firefly III sans que personne ne s'en aperçoive.
 - Aucune vue comparative : impossible de savoir rapidement « ce qui est dans la banque mais pas dans mon budget ».
 
 ### Énoncé du problème
 
-> En tant qu'utilisateur de Firefly III, je veux importer mes relevés bancaires, les comparer aux transactions existantes, voir clairement ce qui correspond / ce qui manque, et créer en un clic les transactions manquantes — afin que mon suivi financier soit exhaustif et sans double saisie.
+> En tant qu'utilisateur de Firefly III, je veux importer mes relevés bancaires, les comparer aux transactions existantes, voir clairement ce qui correspond / ce qui manque, et créer en un clic les transactions manquantes afin que mon suivi financier soit exhaustif et sans double saisie.
 
 ---
 
@@ -34,11 +35,12 @@ Conséquences pour l'utilisateur :
 | O2 | Comparer automatiquement relevé vs Firefly III | ≥ 95 % des correspondances exactes détectées sans intervention |
 | O3 | Rendre les écarts visibles et actionnables | L'utilisateur identifie les manquants en < 30 s après import |
 | O4 | Créer les transactions manquantes dans Firefly III à la demande | 0 transaction créée sans action explicite de l'utilisateur |
+| O5 | Nettoyer les doublons dans Firefly III (suppression sur action explicite) | 0 suppression sans confirmation explicite |
 
 ### Non-objectifs (v1)
 
-- Connexion directe aux banques via API (GoCardless/Nordigen, Tink, etc.) — architecture prévue pour l'ajouter ensuite.
-- Synchronisation bidirectionnelle ou modification/suppression de transactions existantes dans Firefly III.
+- Connexion directe aux banques via API architecture prévue pour l'ajouter ensuite.
+- Synchronisation bidirectionnelle et modification de transactions existantes dans Firefly III (la suppression reste possible uniquement pour les doublons, cf. O5).
 - Rapprochement multi-utilisateurs / multi-foyers.
 - Catégorisation automatique par ML des transactions importées.
 - Remplacement du Data Importer officiel de Firefly III (outil complémentaire, pas concurrent).
@@ -61,6 +63,8 @@ Utilise Firefly III en Docker chez lui. Télécharge chaque mois un CSV/OFX depu
 | CU-4 | Consulter les résultats | Vue en 3 groupes : rapprochés / manquants dans Firefly III / présents dans Firefly III mais absents du relevé. |
 | CU-5 | Créer les manquants | Alex sélectionne tout ou partie des manquants, choisit compte de contrepartie/catégorie, et valide la création dans Firefly III. |
 | CU-6 | Historique des imports | Alex retrouve ses imports passés (batchs) et leur état. |
+| CU-7 | Consulter les mouvements d'un compte | Alex choisit un compte Firefly III et une période (date min / date max) et consulte la liste de ses mouvements, indépendamment de tout import. |
+| CU-8 | Supprimer un doublon | Alex identifie une transaction dupliquée dans Firefly III (via le rapprochement ou la vue compte) et la supprime après confirmation. |
 
 ---
 
@@ -112,6 +116,7 @@ Paramètres configurables par l'utilisateur :
 Cas particuliers :
 
 - **Correspondances multiples** (deux mouvements identiques montant+date) : matching 1-pour-1 par ordre chronologique ; les excédents restent `missing`/`extra`.
+- **Doublons côté Firefly III** : si plusieurs transactions Firefly III correspondent au même mouvement bancaire (même montant/sens dans la tolérance de date), la première (chronologique) devient `matched` ; les suivantes sont signalées `duplicate` dans le groupe extras.
 - **Frais bancaires / intérêts** : aucun traitement spécial en v1 ; ils apparaissent comme `missing`.
 
 ### Groupes de résultat
@@ -120,7 +125,21 @@ Cas particuliers :
 |---|---|---|
 | **Rapprochés** (`matched`) | Mouvements présents des deux côtés | Aucune (lecture seule) |
 | **Manquants** (`missing`) | Dans le relevé, absents de Firefly III | Créer dans Firefly III (individuel ou en lot) |
-| **Extras** (`extra`) | Dans Firefly III, absents du relevé | Informatif uniquement en v1 |
+| **Extras** (`extra`) | Dans Firefly III, absents du relevé | Informatif en v1 ; suppression possible si signalé `duplicate` |
+
+### Suppression des doublons dans Firefly III
+
+- Concerne les transactions signalées `duplicate` par le moteur de rapprochement, visibles dans le groupe extras.
+- L'utilisateur consulte le détail de la transaction, puis confirme explicitement la suppression (double confirmation avec récapitulatif).
+- La suppression appelle l'API Firefly III (`DELETE /api/v1/transactions/{id}`).
+- Avant suppression, un snapshot JSON de la transaction est conservé en base (audit) pour traçabilité.
+- **Aucune suppression n'est faite sans action explicite.** Pas de suppression automatique ni en lot en v1.
+
+### Consultation des mouvements d'un compte
+
+- L'utilisateur choisit un compte Firefly III et une période (date min / date max).
+- Le système affiche les mouvements du compte sur la période (via l'API Firefly III), avec leurs détails.
+- Cette vue est indépendante de tout batch d'import ; elle sert aussi à repérer des doublons hors rapprochement.
 
 ### Création des transactions manquantes
 
@@ -150,6 +169,8 @@ Cas particuliers :
 | RF-12 | Les transactions créées portent une trace d'origine (tag ou note : fichier + batch). | P1 |
 | RF-13 | Le système gère plusieurs devises : la devise du relevé doit correspondre à celle du compte cible, sinon avertissement bloquant. | P1 |
 | RF-14 | L'utilisateur peut re-lancer un rapprochement sur un batch existant. | P1 |
+| RF-15 | Le système affiche les mouvements d'un compte Firefly III sélectionné sur une période donnée (date min / date max). | P0 |
+| RF-16 | Le système signale les doublons (plusieurs transactions Firefly III correspondant au même mouvement bancaire) et permet leur suppression unitaire avec double confirmation ; un snapshot JSON de la transaction supprimée est conservé en audit. | P0 |
 
 ## 6. Exigences non fonctionnelles
 
@@ -188,6 +209,7 @@ Le détail technique (modèle de données, endpoints, intégration API Firefly I
 | Faux positifs de matching | < 1 % |
 | Temps pour passer de l'upload à la liste des manquants | < 30 s |
 | Transactions créées sans action utilisateur | 0 |
+| Transactions supprimées sans confirmation explicite | 0 |
 
 ---
 
@@ -199,6 +221,7 @@ Le détail technique (modèle de données, endpoints, intégration API Firefly I
 | Pagination/volume de l'API Firefly III sur longues fenêtres | Rapprochement lent/incomplet | Pagination exhaustive côté client API ; fenêtre de date bornée |
 | Doublons côté banque (même montant/date légitimes) | Matching 1-pour-1 incorrect | Appariement chronologique + revue manuelle des excédents |
 | Création accidentelle en lot | Pollution de Firefly III | Confirmation explicite, traçabilité (tag batch), jamais d'auto-création |
+| Suppression accidentelle d'une transaction | Perte de données dans Firefly III | Double confirmation avec récapitulatif, scope limité aux transactions visibles dans le contexte (rapprochement/période), snapshot JSON d'audit conservé en base |
 | Token API compromis | Accès complet à Firefly III | Token côté backend uniquement, rotation documentée |
 
 ---
