@@ -3,8 +3,9 @@
 | Champ | Valeur |
 |---|---|
 | Projet | firefly-manager-movement |
-| Version | 0.1 (draft initial) |
-| Date | 2026-08-14 |
+| Version | 0.2 |
+| Créé le | 2026-08-14 |
+| Dernière modification | 2026-08-15 |
 | PRD associé | [`2026-08-14-prd-rapprochement-bancaire.md`](./2026-08-14-prd-rapprochement-bancaire.md) |
 | Statut | En cours de rédaction |
 
@@ -14,15 +15,11 @@
 
 Application web self-hosted en 3 services, déployable en Docker Compose à côté de Firefly III :
 
-```
-┌────────────┐     REST      ┌──────────────┐    API v1    ┌─────────────┐
-│  Frontend  │ ────────────► │   Backend    │ ───────────► │ Firefly III │
-│ React/TS   │               │ Rust (axum)  │              │ (existant)  │
-└────────────┘               └──────┬───────┘              └─────────────┘
-                                    │ SQL
-                             ┌──────▼───────┐
-                             │    MySQL     │
-                             └──────────────┘
+```mermaid
+flowchart LR
+    FE["Frontend<br/>React/TS"] -->|REST| BE["Backend<br/>Rust (axum)"]
+    BE -->|API v1| FF3["Firefly III<br/>(existant)"]
+    BE -->|SQL| DB[("MySQL")]
 ```
 
 | Service | Technologie | Rôle |
@@ -42,6 +39,7 @@ movements(id, batch_id, line_no, date, amount_cents, direction,
 reconciliations(id, batch_id, tolerance_days, window_start, window_end,
                 matched, missing, extra, ran_at)
 csv_mappings(id, header_signature, mapping_json, created_at)
+deleted_audit(id, ff3_transaction_id, snapshot_json, deleted_at)
 ```
 
 Contraintes clés :
@@ -63,6 +61,8 @@ Contraintes clés :
 | GET | `/api/imports/{id}/results` | Résultats en 3 groupes |
 | POST | `/api/imports/{id}/apply` | Créer les manquants sélectionnés dans Firefly III |
 | GET | `/api/firefly/accounts` | Proxy lecture des comptes d'actif |
+| GET | `/api/firefly/accounts/{id}/transactions?start=..&end=..` | Proxy lecture des mouvements d'un compte sur une période (RF-15) |
+| DELETE | `/api/firefly/transactions/{id}` | Suppression d'un doublon avec snapshot d'audit (RF-16) |
 
 Notes :
 
@@ -77,6 +77,7 @@ Notes :
 | Comptes | `GET /api/v1/accounts?type=asset` |
 | Transactions | `GET /api/v1/accounts/{id}/transactions?start=..&end=..` (pagination exhaustive) |
 | Création | `POST /api/v1/transactions` |
+| Suppression | `DELETE /api/v1/transactions/{id}` |
 | Santé | `GET /api/v1/about` |
 
 Configuration backend (variables d'environnement) :
@@ -101,7 +102,7 @@ Le frontend ne parle jamais directement à Firefly III : tout passe par le backe
 1. Charger les mouvements du batch (`status != ignored`).
 2. Récupérer les transactions Firefly III du compte cible sur `[min_date - fenêtre, max_date + fenêtre]`, pagination exhaustive.
 3. Indexer les deux jeux par clé `(montant_cents, sens)`.
-4. Pour chaque clé, apparier chronologiquement 1-pour-1 dans la tolérance de date.
+4. Pour chaque clé, apparier chronologiquement 1-pour-1 dans la tolérance de date ; les transactions Firefly III surnuméraires face à un même mouvement bancaire sont marquées `duplicate` (RF-16).
 5. Produire les 3 groupes ; persister une ligne `reconciliations` + mise à jour des statuts des mouvements.
 
 Complexité cible : O(n log n) sur le relevé ; 1 000 mouvements < 5 s hors latence API (NFR-04).
