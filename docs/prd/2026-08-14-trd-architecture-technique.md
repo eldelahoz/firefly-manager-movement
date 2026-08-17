@@ -30,16 +30,58 @@ flowchart LR
 
 ## 2. Modèle de données
 
-```
-batches(id, filename, file_hash, format, currency, account_ff3_id,
-        status, created_at)
-movements(id, batch_id, line_no, date, amount_cents, direction,
-          description, raw_json, status[imported|matched|missing|created|ignored],
-          ff3_transaction_id NULL, created_at)
-reconciliations(id, batch_id, tolerance_days, window_start, window_end,
-                matched, missing, extra, ran_at)
-csv_mappings(id, header_signature, mapping_json, created_at)
-deleted_audit(id, ff3_transaction_id, snapshot_json, deleted_at)
+```mermaid
+erDiagram
+    BATCHES ||--o{ MOVEMENTS : "contient"
+    BATCHES ||--o{ RECONCILIATIONS : "produit"
+    BATCHES }o--|| CSV_MAPPINGS : "utilise (optionnel)"
+
+    BATCHES {
+        bigint id PK
+        varchar filename
+        varchar file_hash
+        varchar format
+        char currency
+        int account_ff3_id
+        varchar status
+        datetime created_at
+    }
+    MOVEMENTS {
+        bigint id PK
+        bigint batch_id FK
+        int line_no
+        date date
+        bigint amount_cents
+        enum direction
+        text description
+        json raw_json
+        enum status "imported|matched|missing|created|ignored"
+        bigint ff3_transaction_id "NULL"
+        datetime created_at
+    }
+    RECONCILIATIONS {
+        bigint id PK
+        bigint batch_id FK
+        int tolerance_days
+        date window_start
+        date window_end
+        int matched
+        int missing
+        int extra
+        datetime ran_at
+    }
+    CSV_MAPPINGS {
+        bigint id PK
+        varchar header_signature
+        json mapping_json
+        datetime created_at
+    }
+    DELETED_AUDIT {
+        bigint id PK
+        bigint ff3_transaction_id
+        json snapshot_json
+        datetime deleted_at
+    }
 ```
 
 Contraintes clés :
@@ -61,13 +103,14 @@ Contraintes clés :
 | GET | `/api/imports/{id}/results` | Résultats en 3 groupes |
 | POST | `/api/imports/{id}/apply` | Créer les manquants sélectionnés dans Firefly III |
 | GET | `/api/firefly/accounts` | Proxy lecture des comptes d'actif |
-| GET | `/api/firefly/accounts/{id}/transactions?start=..&end=..` | Proxy lecture des mouvements d'un compte sur une période (RF-14) |
+| QUERY | `/api/firefly/accounts/{id}/transactions` | Proxy lecture des mouvements d'un compte sur une période — filtres en body : `{start, end}` (RF-14) |
 | DELETE | `/api/firefly/transactions/{id}` | Suppression d'un doublon avec snapshot d'audit (RF-15) |
 
 Notes :
 
 - `POST /apply` est idempotent par `(batch, movement)` : avant chaque création, vérifier l'état en base ; ignorer les mouvements déjà `created`.
 - Erreurs de l'API Firefly III lors d'un `apply` en lot : traitement par mouvement, le lot continue, rapport final par mouvement (succès/échec/raison).
+- **Méthode QUERY (RFC 9295)** : utilisée uniquement pour les routes à filtres complexes en body (lectures avec critères de recherche). Les récupérations simples par ID ou listes complètes restent en GET. Le backend traduit `QUERY` → `GET` lors de l'appel à l'API Firefly III (qui reste en GET). Nécessite d'enregistrer la méthode explicitement dans axum (`Route::on("QUERY", handler)` ou macro équivalente).
 
 ## 4. Intégration Firefly III (API v1)
 
@@ -75,7 +118,7 @@ Notes :
 |---|---|
 | Auth | Header `Authorization: Bearer <token>` (personal access token ; OAuth2 supporté aussi) |
 | Comptes | `GET /api/v1/accounts?type=asset` |
-| Transactions | `GET /api/v1/accounts/{id}/transactions?start=..&end=..` (pagination exhaustive) |
+| Transactions | `GET /api/v1/accounts/{id}/transactions?start=..&end=..` (pagination exhaustive) — appelé par le backend en traduisant notre `QUERY` interne |
 | Création | `POST /api/v1/transactions` |
 | Suppression | `DELETE /api/v1/transactions/{id}` |
 | Santé | `GET /api/v1/about` |
