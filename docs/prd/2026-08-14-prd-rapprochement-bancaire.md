@@ -3,9 +3,9 @@
 | Champ | Valeur |
 |---|---|
 | Projet | firefly-manager-movement |
-| Version | 0.2 |
+| Version | 0.3 |
 | Créé le | 2026-08-14 |
-| Dernière modification | 2026-08-15 |
+| Dernière modification | 2026-08-17 |
 | Auteur | A. Delahoz |
 | Statut | En cours de rédaction |
 
@@ -31,7 +31,7 @@ Conséquences pour l'utilisateur :
 
 | # | Objectif | Mesure de succès |
 |---|---|---|
-| O1 | Importer des relevés bancaires (CSV/OFX) sans configuration bancaire | 100 % des fichiers de test importés avec succès |
+| O1 | Importer des relevés bancaires (CSV) sans configuration bancaire | 100 % des fichiers de test importés avec succès |
 | O2 | Comparer automatiquement relevé vs Firefly III | ≥ 95 % des correspondances exactes détectées sans intervention |
 | O3 | Rendre les écarts visibles et actionnables | L'utilisateur identifie les manquants en < 30 s après import |
 | O4 | Créer les transactions manquantes dans Firefly III à la demande | 0 transaction créée sans action explicite de l'utilisateur |
@@ -49,22 +49,22 @@ Conséquences pour l'utilisateur :
 
 ## 3. Personas et cas d'utilisation
 
-### Persona principal : « Alex », utilisateur self-hosted
+### Persona principal : « David », utilisateur self-hosted
 
-Utilise Firefly III en Docker chez lui. Télécharge chaque mois un CSV/OFX depuis le site de sa banque. Veut vérifier que tout est bien tracé sans ressaisir.
+Utilise Firefly III en Docker chez lui. Télécharge chaque mois un XLSX depuis le site de sa banque. Veut vérifier que tout est bien tracé sans ressaisir.
 
 ### Cas d'utilisation
 
 | ID | Cas | Description |
 |---|---|---|
-| CU-1 | Importer un relevé | Alex upload un fichier CSV ou OFX ; le système le parse, détecte le format et affiche un aperçu des mouvements. |
-| CU-2 | Mapper les colonnes (CSV) | Si le CSV n'est pas reconnu automatiquement, Alex mappe colonnes → champs (date, montant, description, compte). |
-| CU-3 | Lancer le rapprochement | Alex choisit le compte Firefly III cible et lance la comparaison. |
+| CU-1 | Importer un relevé | David upload un fichier CSV ; le système le parse, détecte le format et affiche un aperçu des mouvements. |
+| CU-2 | Mapper les colonnes (CSV) | Si le CSV n'est pas reconnu automatiquement, David mappe colonnes → champs (date, montant, description, compte). |
+| CU-3 | Lancer le rapprochement | David choisit le compte Firefly III cible et lance la comparaison. |
 | CU-4 | Consulter les résultats | Vue en 3 groupes : rapprochés / manquants dans Firefly III / présents dans Firefly III mais absents du relevé. |
-| CU-5 | Créer les manquants | Alex sélectionne tout ou partie des manquants, choisit compte de contrepartie/catégorie, et valide la création dans Firefly III. |
-| CU-6 | Historique des imports | Alex retrouve ses imports passés (batchs) et leur état. |
-| CU-7 | Consulter les mouvements d'un compte | Alex choisit un compte Firefly III et une période (date min / date max) et consulte la liste de ses mouvements, indépendamment de tout import. |
-| CU-8 | Supprimer un doublon | Alex identifie une transaction dupliquée dans Firefly III (via le rapprochement ou la vue compte) et la supprime après confirmation. |
+| CU-5 | Créer les manquants | David sélectionne tout ou partie des manquants, choisit compte de contrepartie/catégorie, et valide la création dans Firefly III. |
+| CU-6 | Historique des imports | David retrouve ses imports passés (batchs) et leur état. |
+| CU-7 | Consulter les mouvements d'un compte | David choisit un compte Firefly III et une période (date min / date max) et consulte la liste de ses mouvements, indépendamment de tout import. |
+| CU-8 | Supprimer un doublon | David identifie une transaction dupliquée dans Firefly III (via le rapprochement ou la vue compte) et la supprime après confirmation. |
 
 ---
 
@@ -72,21 +72,23 @@ Utilise Firefly III en Docker chez lui. Télécharge chaque mois un CSV/OFX depu
 
 Pipeline en 3 étapes : **Importer → Rapprocher → Appliquer**.
 
-```
-[Fichier CSV/OFX]
-      │ upload
-      ▼
-  (1) IMPORT ──► parsing + validation ──► aperçu + mapping
-      │                                        │
-      │            batch immuable persisté (MySQL)
-      ▼
-  (2) RAPPROCHEMENT ──► appel API Firefly III (transactions du compte cible,
-      │                  fenêtre de date) ──► moteur de matching
-      │                                        │
-      │            résultats persistés : matched / missing / extra
-      ▼
-  (3) APPLICATION ──► sélection utilisateur ──► création via API Firefly III
-                       ──► re-rapprochement pour confirmer
+```mermaid
+flowchart TD
+    A[Fichier CSV] -->|upload| B
+    subgraph S1[1. IMPORT]
+        B[parsing + validation] --> C[aperçu + mapping]
+    end
+    C --> D[(Batch immuable - MySQL)]
+    D --> E
+    subgraph S2[2. RAPPROCHEMENT]
+        E[Appel API Firefly III<br/>compte cible + fenêtre de date] --> F[Moteur de matching]
+    end
+    F --> G[(Résultats: matched / missing / extra)]
+    G --> H
+    subgraph S3[3. APPLICATION]
+        H[Sélection utilisateur] --> I[Création API Firefly III]
+        I --> J[Re-rapprochement confirmation]
+    end
 ```
 
 ### États d'un mouvement importé
@@ -155,35 +157,34 @@ Cas particuliers :
 
 | ID | Exigence | Priorité |
 |---|---|---|
-| RF-01 | Le système permet l'upload de fichiers CSV et OFX (taille max 10 Mo). | P0 |
-| RF-02 | Le système parse l'OFX sans configuration. | P0 |
-| RF-03 | Le système parse le CSV avec mapping manuel des colonnes ; il mémorise le mapping par signature de fichier (en-têtes). | P0 |
-| RF-04 | Le système détecte et signale les lignes invalides (date illisible, montant vide) sans bloquer l'import ; les lignes valides sont conservées. | P0 |
-| RF-05 | Le système liste les comptes d'actif Firefly III pour choisir le compte cible du rapprochement. | P0 |
-| RF-06 | Le système récupère les transactions du compte cible via l'API Firefly III sur la fenêtre de date. | P0 |
-| RF-07 | Le moteur de rapprochement applique les règles de la section 4 avec tolérance de date configurable. | P0 |
-| RF-08 | Les résultats sont présentés en 3 groupes (rapprochés / manquants / extras) avec mise en évidence visuelle des écarts. | P0 |
-| RF-09 | L'utilisateur peut créer en lot les transactions manquantes dans Firefly III. | P0 |
-| RF-10 | Chaque batch d'import est immuable et consultable a posteriori (historique). | P1 |
-| RF-11 | L'utilisateur peut ignorer manuellement un mouvement (`ignored`). | P1 |
-| RF-12 | Les transactions créées portent une trace d'origine (tag ou note : fichier + batch). | P1 |
-| RF-13 | Le système gère plusieurs devises : la devise du relevé doit correspondre à celle du compte cible, sinon avertissement bloquant. | P1 |
-| RF-14 | L'utilisateur peut re-lancer un rapprochement sur un batch existant. | P1 |
-| RF-15 | Le système affiche les mouvements d'un compte Firefly III sélectionné sur une période donnée (date min / date max). | P0 |
-| RF-16 | Le système signale les doublons (plusieurs transactions Firefly III correspondant au même mouvement bancaire) et permet leur suppression unitaire avec double confirmation ; un snapshot JSON de la transaction supprimée est conservé en audit. | P0 |
+| RF-01 | Le système permet l'upload de fichiers CSV (taille max 10 Mo). Les fichiers XLSX doivent être convertis manuellement en CSV par l'utilisateur avant import. | P0 |
+| RF-02 | Le système parse le CSV avec mapping manuel des colonnes ; il mémorise le mapping par signature de fichier (en-têtes). | P0 |
+| RF-03 | Le système détecte et signale les lignes invalides (date illisible, montant vide) sans bloquer l'import ; les lignes valides sont conservées. | P0 |
+| RF-04 | Le système liste les comptes d'actif Firefly III pour choisir le compte cible du rapprochement. | P0 |
+| RF-05 | Le système récupère les transactions du compte cible via l'API Firefly III sur la fenêtre de date. | P0 |
+| RF-06 | Le moteur de rapprochement applique les règles de la section 4 avec tolérance de date configurable. | P0 |
+| RF-07 | Les résultats sont présentés en 3 groupes (rapprochés / manquants / extras) avec mise en évidence visuelle des écarts. | P0 |
+| RF-08 | L'utilisateur peut créer en lot les transactions manquantes dans Firefly III. | P0 |
+| RF-09 | Chaque batch d'import est immuable et consultable a posteriori (historique). | P1 |
+| RF-10 | L'utilisateur peut ignorer manuellement un mouvement (`ignored`). | P1 |
+| RF-11 | Les transactions créées portent une trace d'origine (tag ou note : fichier + batch). | P1 |
+| RF-12 | Le système gère plusieurs devises : la devise du relevé doit correspondre à celle du compte cible, sinon avertissement bloquant. | P1 |
+| RF-13 | L'utilisateur peut re-lancer un rapprochement sur un batch existant. | P1 |
+| RF-14 | Le système affiche les mouvements d'un compte Firefly III sélectionné sur une période donnée (date min / date max). | P0 |
+| RF-15 | Le système signale les doublons (plusieurs transactions Firefly III correspondant au même mouvement bancaire) et permet leur suppression unitaire avec double confirmation ; un snapshot JSON de la transaction supprimée est conservé en audit. | P0 |
 
 ## 6. Exigences non fonctionnelles
 
 | ID | Exigence |
 |---|---|
-| NFR-01 | **Architecture** : application web indépendante ; backend Rust, frontend React, base MySQL. Déployable en Docker Compose à côté de Firefly III. |
+| NFR-01 | **Architecture** : application web indépendante ; backend Rust, frontend React, base MySQL. Déployable en Docker Compose. |
 | NFR-02 | **Sécurité** : le token d'API Firefly III est stocké côté backend uniquement (variables d'environnement / coffre local), jamais exposé au navigateur. Aucune donnée bancaire n'est envoyée à un service tiers. |
 | NFR-03 | **Confidentialité** : self-hosted uniquement ; aucune télémétrie. |
 | NFR-04 | **Performance** : rapprochement d'un relevé de 1 000 mouvements < 5 s (hors latence API Firefly III). |
 | NFR-05 | **Fiabilité** : les créations dans Firefly III sont idempotentes par batch+mouvement (pas de double création en cas de retry). |
 | NFR-06 | **Montants** : manipulés en entiers (centimes) ou decimal exact, jamais en flottants. |
 | NFR-07 | **Observabilité** : logs structurés des imports, rapprochements et créations. |
-| NFR-08 | **Internationalisation** : interface en français et espagnol (défaut : français) ; montants et dates formatés selon la locale. |
+| NFR-08 | **Internationalisation** : interface en français, anglais et espagnol (défaut : anglais) ; montants et dates formatés selon la locale. |
 
 ---
 
@@ -194,7 +195,7 @@ Cas particuliers :
 | Backend | Rust |
 | Frontend | React |
 | Base de données | MySQL |
-| Déploiement | Docker Compose, à côté de Firefly III |
+| Déploiement | Docker Compose |
 
 Le détail technique (modèle de données, endpoints, intégration API Firefly III) est décrit dans le TRD : [`2026-08-14-trd-architecture-technique.md`](./2026-08-14-trd-architecture-technique.md).
 
@@ -228,7 +229,8 @@ Le détail technique (modèle de données, endpoints, intégration API Firefly I
 
 ## 10. Hors périmètre / futur
 
-- **V2** : connexion bancaire directe (GoCardless/Nordigen) via le même pipeline (le connecteur remplace l'upload).
+- **V2** : connexion bancaire directe via le même pipeline (le connecteur remplace l'upload).
+- **V2** : support natif d'autres formats de fichiers (OFX, XLSX, parsing sans conversion manuelle).
 - **V2** : règles de matching par description (fuzzy), suggestions de contrepartie.
 - **V2** : gestion du groupe `extra` (marquer comme attendu, alertes).
 - **V3** : catégorisation automatique, rapports d'exhaustivité, multi-comptes en un rapprochement.
