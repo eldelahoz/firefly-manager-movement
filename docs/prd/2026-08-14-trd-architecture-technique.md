@@ -24,7 +24,7 @@ flowchart LR
 
 | Service | Technologie | Rôle |
 |---|---|---|
-| Backend | Rust — axum + tokio, reqwest (client HTTP), Diesel (ORM, MySQL) | API REST interne, parsing CSV/OFX, moteur de rapprochement, client Firefly III |
+| Backend | Rust — axum + tokio, reqwest (client HTTP), Diesel (ORM, MySQL) | API REST interne, parsing CSV, moteur de rapprochement, client Firefly III |
 | Frontend | React + Vite + TypeScript | SPA : upload, mapping, tableau de rapprochement, création en lot |
 | Base | MySQL 8 | Persistance des batchs, mouvements, résultats, mappings CSV |
 
@@ -61,8 +61,8 @@ Contraintes clés :
 | GET | `/api/imports/{id}/results` | Résultats en 3 groupes |
 | POST | `/api/imports/{id}/apply` | Créer les manquants sélectionnés dans Firefly III |
 | GET | `/api/firefly/accounts` | Proxy lecture des comptes d'actif |
-| GET | `/api/firefly/accounts/{id}/transactions?start=..&end=..` | Proxy lecture des mouvements d'un compte sur une période (RF-15) |
-| DELETE | `/api/firefly/transactions/{id}` | Suppression d'un doublon avec snapshot d'audit (RF-16) |
+| GET | `/api/firefly/accounts/{id}/transactions?start=..&end=..` | Proxy lecture des mouvements d'un compte sur une période (RF-14) |
+| DELETE | `/api/firefly/transactions/{id}` | Suppression d'un doublon avec snapshot d'audit (RF-15) |
 
 Notes :
 
@@ -93,16 +93,15 @@ Le frontend ne parle jamais directement à Firefly III : tout passe par le backe
 
 ## 5. Parsing des fichiers
 
-- **OFX** : parseur dédié (structure normalisée, pas de mapping nécessaire).
-- **CSV** : détection du délimiteur et de l'encodage ; si les en-têtes correspondent à un mapping mémorisé (`csv_mappings.header_signature`, hash des en-têtes normalisés), application automatique ; sinon mapping manuel requis.
-- Lignes invalides : conservées avec erreur attachée, exposées dans l'aperçu (RF-04).
+- **CSV** : détection du délimiteur et de l'encodage ; si les en-têtes correspondent à un mapping mémorisé (`csv_mappings.header_signature`, hash des en-têtes normalisés), application automatique ; sinon mapping manuel requis. Les fichiers XLSX doivent être convertis en CSV par l'utilisateur avant import (support natif XLSX/OFX prévu en V2).
+- Lignes invalides : conservées avec erreur attachée, exposées dans l'aperçu (RF-03).
 
 ## 6. Moteur de rapprochement
 
 1. Charger les mouvements du batch (`status != ignored`).
 2. Récupérer les transactions Firefly III du compte cible sur `[min_date - fenêtre, max_date + fenêtre]`, pagination exhaustive.
 3. Indexer les deux jeux par clé `(montant_cents, sens)`.
-4. Pour chaque clé, apparier chronologiquement 1-pour-1 dans la tolérance de date ; les transactions Firefly III surnuméraires face à un même mouvement bancaire sont marquées `duplicate` (RF-16).
+4. Pour chaque clé, apparier chronologiquement 1-pour-1 dans la tolérance de date ; les transactions Firefly III surnuméraires face à un même mouvement bancaire sont marquées `duplicate` (RF-15).
 5. Produire les 3 groupes ; persister une ligne `reconciliations` + mise à jour des statuts des mouvements.
 
 Complexité cible : O(n log n) sur le relevé ; 1 000 mouvements < 5 s hors latence API (NFR-04).
