@@ -4,4 +4,5 @@
 
 pub mod entities;
 pub mod ids;
+pub mod matching_engine;
 pub mod value_objects;
