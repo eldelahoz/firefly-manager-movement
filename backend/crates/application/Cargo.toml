@@ -6,3 +6,6 @@ rust-version.workspace = true
 
 [dependencies]
 ffm-domain = { path = "../domain" }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
