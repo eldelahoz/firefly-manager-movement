@@ -1,0 +1,1 @@
+//! ffm-presentation — capa HTTP (axum + utoipa/Scalar). Wiring de DI en main.
