@@ -1,2 +1,5 @@
-//! ffm-infrastructure — adaptadores: persistencia (Diesel), cliente Firefly III (reqwest), CSV.
+//! ffm-infrastructure — adaptadores: persistencia (Diesel/MySQL), cliente Firefly III, CSV.
 //! Implementa los traits definidos en ffm-application.
+
+pub mod models;
+pub mod schema;
