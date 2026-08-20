@@ -2,4 +2,6 @@
 //! Única dependencia externa permitida: `chrono` (tipo de dato para fechas).
 //! (Dependency Rule: nada de frameworks/serde/diesel entra aquí.)
 
+pub mod entities;
+pub mod ids;
 pub mod value_objects;
