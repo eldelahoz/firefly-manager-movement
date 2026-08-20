@@ -8,7 +8,12 @@ async fn health_returns_ok_json() {
     let router = app();
 
     let response = router
-        .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
 
