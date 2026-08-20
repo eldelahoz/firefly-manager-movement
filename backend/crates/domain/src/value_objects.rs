@@ -227,6 +227,9 @@ impl std::str::FromStr for BatchStatus {
 /// Firma de los encabezados de un CSV, para memorizar el mapping (RF-02).
 /// Se computa normalizando (trim + lowercase) cada header y uniendo con `|`.
 /// Es determinista y estable entre versiones (sin hash criptográfico).
+///
+/// **El orden de los headers es significativo** (`["a","b"]` ≠ `["b","a"]`).
+/// Caveata: si un header contiene `|` puede haber colisión teórica (raro en CSV bancarios).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HeaderSignature(String);
 
