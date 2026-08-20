@@ -32,3 +32,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 dotenvy = "0.15"
 # Fechas (domain)
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+# Errores y traits async (application)
+thiserror = "2"
+async-trait = "0.1"
