@@ -157,6 +157,98 @@ fn is_valid_thousands(s: &str, sep: char) -> bool {
     groups.all(|g| g.len() == 3)
 }
 
+/// Estado de un movimiento importado (PRD §4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MovementStatus {
+    Imported,
+    Matched,
+    Missing,
+    Created,
+    Ignored,
+}
+
+impl MovementStatus {
+    /// Representación en texto para persistencia (VARCHAR en DB).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            MovementStatus::Imported => "imported",
+            MovementStatus::Matched => "matched",
+            MovementStatus::Missing => "missing",
+            MovementStatus::Created => "created",
+            MovementStatus::Ignored => "ignored",
+        }
+    }
+}
+
+impl std::str::FromStr for MovementStatus {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "imported" => Ok(Self::Imported),
+            "matched" => Ok(Self::Matched),
+            "missing" => Ok(Self::Missing),
+            "created" => Ok(Self::Created),
+            "ignored" => Ok(Self::Ignored),
+            _ => Err(()),
+        }
+    }
+}
+
+/// Estado del ciclo de vida de un batch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BatchStatus {
+    Parsed,
+    Reconciled,
+    Applied,
+}
+
+impl BatchStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            BatchStatus::Parsed => "parsed",
+            BatchStatus::Reconciled => "reconciled",
+            BatchStatus::Applied => "applied",
+        }
+    }
+}
+
+impl std::str::FromStr for BatchStatus {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "parsed" => Ok(Self::Parsed),
+            "reconciled" => Ok(Self::Reconciled),
+            "applied" => Ok(Self::Applied),
+            _ => Err(()),
+        }
+    }
+}
+
+/// Firma de los encabezados de un CSV, para memorizar el mapping (RF-02).
+/// Se computa normalizando (trim + lowercase) cada header y uniendo con `|`.
+/// Es determinista y estable entre versiones (sin hash criptográfico).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HeaderSignature(String);
+
+impl HeaderSignature {
+    /// Computa la firma a partir de la lista de encabezados del CSV.
+    pub fn from_headers(headers: &[String]) -> Self {
+        let normalized: Vec<String> = headers.iter().map(|h| h.trim().to_lowercase()).collect();
+        Self(normalized.join("|"))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::str::FromStr for HeaderSignature {
+    type Err = ();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(s.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -244,5 +336,40 @@ mod tests {
         assert!(neg.is_debit());
         let pos = AmountCents::from_str("50,00").unwrap();
         assert!(pos.is_credit());
+    }
+
+    #[test]
+    fn movement_status_roundtrip() {
+        for s in ["imported", "matched", "missing", "created", "ignored"] {
+            let parsed = MovementStatus::from_str(s).unwrap();
+            assert_eq!(parsed.as_str(), s);
+        }
+        assert!(MovementStatus::from_str("unknown").is_err());
+    }
+
+    #[test]
+    fn batch_status_roundtrip() {
+        for s in ["parsed", "reconciled", "applied"] {
+            let parsed = BatchStatus::from_str(s).unwrap();
+            assert_eq!(parsed.as_str(), s);
+        }
+        assert!(BatchStatus::from_str("unknown").is_err());
+    }
+
+    #[test]
+    fn header_signature_normalizes() {
+        let sig = HeaderSignature::from_headers(&[
+            "Date".to_string(),
+            "  Amount ".to_string(),
+            "DESCRIPTION".to_string(),
+        ]);
+        assert_eq!(sig.as_str(), "date|amount|description");
+    }
+
+    #[test]
+    fn header_signature_distinct_headers_distinct_sig() {
+        let a = HeaderSignature::from_headers(&["a".to_string(), "b".to_string()]);
+        let b = HeaderSignature::from_headers(&["b".to_string(), "a".to_string()]);
+        assert_ne!(a, b, "el orden de headers importa");
     }
 }
