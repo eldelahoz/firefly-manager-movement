@@ -35,8 +35,7 @@ pub fn app() -> axum::Router {
 
     // 2) Pre-serializamos la spec a un Value (Clone + Send + Sync) para servir el JSON
     //    sin necesitar que OpenApi: Clone.
-    let openapi_value =
-        serde_json::to_value(&openapi).expect("la spec OpenAPI debe serializarse");
+    let openapi_value = serde_json::to_value(&openapi).expect("la spec OpenAPI debe serializarse");
 
     // 3) Scalar standalone: HTML pre-renderado (sin feature "axum" → evita acoplamiento
     //    de versión de axum entre utoipa-scalar y nuestro axum 0.8).
