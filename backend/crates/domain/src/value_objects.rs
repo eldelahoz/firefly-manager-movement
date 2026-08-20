@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 /// Monto monetario en centavos con signo.
 /// - Valor positivo = crédito (depósito).
-/// - Valor negativo = débito (retraito/withdrawal).
+/// - Valor negativo = débito (retiro/withdrawal).
 ///   (TRD D2: BIGINT signé, sens dérivé du signe — sin enum Direction, sin floats.)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AmountCents(i64);
@@ -24,12 +24,12 @@ impl AmountCents {
         self.0
     }
 
-    /// true si el monto es negativo (débito / retraito).
+    /// true si el monto es negativo (débito / retiro).
     pub fn is_debit(self) -> bool {
         self.0 < 0
     }
 
-    /// true si el monto es positivo (crédito / dépósito).
+    /// true si el monto es positivo (crédito / depósito).
     pub fn is_credit(self) -> bool {
         self.0 > 0
     }
