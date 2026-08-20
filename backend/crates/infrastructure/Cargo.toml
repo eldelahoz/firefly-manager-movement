@@ -1,0 +1,8 @@
+[package]
+name = "ffm-infrastructure"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+ffm-application = { path = "../application" }
