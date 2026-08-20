@@ -441,6 +441,7 @@ dependencies = [
 name = "ffm-infrastructure"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "chrono",
  "diesel",
  "diesel-async",
@@ -448,6 +449,7 @@ dependencies = [
  "ffm-application",
  "ffm-domain",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]

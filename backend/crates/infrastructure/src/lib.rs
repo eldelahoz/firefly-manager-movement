@@ -2,4 +2,5 @@
 //! Implementa los traits definidos en ffm-application.
 
 pub mod models;
+pub mod persistence;
 pub mod schema;
