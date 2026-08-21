@@ -1,6 +1,6 @@
-//! ffm-domain — entidades y value objects del dominio.
-//! Única dependencia externa permitida: `chrono` (tipo de dato para fechas).
-//! (Dependency Rule: nada de frameworks/serde/diesel entra aquí.)
+//! ffm-domain — domain entities and value objects.
+//! Only allowed external dependency: `chrono` (data type for dates).
+//! (Dependency Rule: no frameworks/serde/diesel enter here.)
 
 pub mod entities;
 pub mod ids;

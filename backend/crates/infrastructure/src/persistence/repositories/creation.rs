@@ -1,4 +1,4 @@
-//! `MysqlCreationRepository` — implementa `CreationRepository`.
+//! `MysqlCreationRepository` — implements `CreationRepository`.
 
 use async_trait::async_trait;
 use diesel::prelude::*;
@@ -81,7 +81,7 @@ impl CreationRepository for MysqlCreationRepository {
             .get()
             .await
             .map_err(|e| ApplicationError::Database(e.to_string()))?;
-        // `creations` no tiene batch_id: se llega al batch vía movements.
+        // `creations` has no batch_id: the batch is reached via movements.
         creations::table
             .inner_join(movements::table.on(movements::id.eq(creations::movement_id)))
             .filter(movements::batch_id.eq(batch_id.as_i64()))

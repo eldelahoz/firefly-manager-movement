@@ -1,5 +1,5 @@
--- batches: lote de movimientos importados (inmutable, RF-09).
--- account_id FK → ff3_accounts (nullable hasta que se elige cuenta target).
+-- batches: batch of imported movements (immutable, RF-09).
+-- account_id FK → ff3_accounts (nullable until the target account is chosen).
 
 CREATE TABLE batches (
     id         BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,

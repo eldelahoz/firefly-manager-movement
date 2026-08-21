@@ -77,7 +77,7 @@ async fn reconcile_flow_ff3_transactions_matches_creations() {
         .await
         .expect("insert reconciliation");
 
-    // ff3_transactions: bulk insert + by_reconciliation ordenado por fecha.
+    // ff3_transactions: bulk insert + by_reconciliation ordered by date.
     transactions
         .insert_batch(vec![
             NewFf3Transaction {
@@ -108,7 +108,7 @@ async fn reconcile_flow_ff3_transactions_matches_creations() {
     assert_eq!(fetched_txs[0].ff3_id, 102, "orden por fecha asc");
     assert_eq!(fetched_txs[1].ff3_id, 101);
 
-    // matches: apareo 1-a-1 entre un movement y una ff3_transaction.
+    // matches: 1-to-1 pairing between a movement and an ff3_transaction.
     let mov = movements.by_batch(batch_id).await.expect("movements");
     let lunch_mov = mov
         .iter()
@@ -130,7 +130,7 @@ async fn reconcile_flow_ff3_transactions_matches_creations() {
     assert_eq!(fetched_matches[0].movement_id, lunch_mov.id);
     assert_eq!(fetched_matches[0].ff3_transaction_id, lunch_tx.id);
 
-    // creations: insert + by_movement + by_batch (vía join con movements).
+    // creations: insert + by_movement + by_batch (via join with movements).
     let creation_id = creations
         .insert(NewCreation {
             movement_id: lunch_mov.id,

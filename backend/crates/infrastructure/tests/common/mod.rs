@@ -1,4 +1,4 @@
-//! Helper para tests de integración: crea el pool y limpia tablas antes de cada test.
+//! Helper for integration tests: creates the pool and cleans tables before each test.
 
 use diesel_async::pooled_connection::deadpool::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
@@ -12,8 +12,8 @@ use ffm_infrastructure::schema::{
 
 pub type DbPool = Pool<AsyncMysqlConnection>;
 
-/// `diesel::delete` de cada tabla sobre la misma conexión (las tablas tienen
-/// tipos distintos, así que no se puede iterar un array heterogéneo).
+/// `diesel::delete` on each table over the same connection (tables have
+/// distinct types, so a heterogeneous array cannot be iterated).
 macro_rules! truncate {
     ($conn:expr, $($table:expr),+ $(,)?) => {
         $(
@@ -29,7 +29,7 @@ pub async fn setup_pool() -> DbPool {
     Pool::builder(config).max_size(4).build().expect("pool")
 }
 
-/// Trunca todas las tablas (con FK checks desactivados) para un estado limpio.
+/// Truncates all tables (with FK checks disabled) for a clean state.
 pub async fn clean(db: &DbPool) {
     let mut conn = db.get().await.expect("conn");
     diesel::sql_query("SET FOREIGN_KEY_CHECKS = 0")

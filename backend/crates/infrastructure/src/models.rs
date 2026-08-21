@@ -1,7 +1,7 @@
-//! Modelos Diesel (tablas) y conversiones hacia/desde las entidades del dominio.
+//! Diesel models (tables) and conversions to/from domain entities.
 //!
-//! Los campos JSON se mapean a `serde_json::Value` en el modelo (diesel `Json`)
-//! y se convierten a `String` en el dominio (que trata el JSON como texto).
+//! JSON fields are mapped to `serde_json::Value` in the model (diesel `Json`)
+//! and converted to `String` in the domain (which treats JSON as text).
 
 use chrono::{NaiveDate, NaiveDateTime};
 use diesel::prelude::*;

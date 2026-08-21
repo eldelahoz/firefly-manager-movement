@@ -1,4 +1,4 @@
-//! `MysqlReconciliationRepository` — implementa `ReconciliationRepository`.
+//! `MysqlReconciliationRepository` — implements `ReconciliationRepository`.
 
 use async_trait::async_trait;
 use diesel::prelude::*;

@@ -1,5 +1,5 @@
-//! `MysqlMatchRepository` — implementa `MatchRepository`.
-//! El módulo se llama `match_repo` porque `match` es una palabra reservada.
+//! `MysqlMatchRepository` — implements `MatchRepository`.
+//! The module is named `match_repo` because `match` is a reserved keyword.
 
 use async_trait::async_trait;
 use diesel::prelude::*;

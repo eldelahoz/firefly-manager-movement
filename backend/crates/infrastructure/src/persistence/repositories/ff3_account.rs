@@ -1,6 +1,6 @@
-//! `MysqlFf3AccountRepository` — implementa `Ff3AccountRepository`.
-//! El upsert usa SQL crudo con `ON DUPLICATE KEY UPDATE` (MySQL no tiene
-//! `ON CONFLICT` de Postgres). La columna `type` se llama `type_` en diesel.
+//! `MysqlFf3AccountRepository` — implements `Ff3AccountRepository`.
+//! The upsert uses raw SQL with `ON DUPLICATE KEY UPDATE` (MySQL has no
+//! Postgres `ON CONFLICT`). The `type` column is named `type_` in diesel.
 
 use async_trait::async_trait;
 use diesel::prelude::*;

@@ -1,4 +1,4 @@
--- ff3_transactions: caché por run de las tx FF3 examinadas (grupo extra + flag duplicate).
+-- ff3_transactions: per-run cache of the examined FF3 txs (extra group + duplicate flag).
 
 CREATE TABLE ff3_transactions (
     id                BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY,

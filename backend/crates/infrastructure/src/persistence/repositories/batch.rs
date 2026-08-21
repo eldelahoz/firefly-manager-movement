@@ -1,4 +1,4 @@
-//! `MysqlBatchRepository` — implementa `BatchRepository`.
+//! `MysqlBatchRepository` — implements `BatchRepository`.
 
 use async_trait::async_trait;
 use diesel::prelude::*;
@@ -47,8 +47,8 @@ impl BatchRepository for MysqlBatchRepository {
             .execute(&mut conn)
             .await
             .map_err(map_diesel_err)?;
-        // MySQL no soporta RETURNING en diesel 2.x: se lee el auto-increment
-        // con `LAST_INSERT_ID()` en la misma conexión.
+        // MySQL does not support RETURNING in diesel 2.x: the auto-increment
+        // is read with `LAST_INSERT_ID()` on the same connection.
         diesel::select(diesel::dsl::sql::<diesel::sql_types::BigInt>(
             "LAST_INSERT_ID()",
         ))

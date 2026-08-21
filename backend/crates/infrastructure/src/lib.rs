@@ -1,5 +1,5 @@
-//! ffm-infrastructure — adaptadores: persistencia (Diesel/MySQL), cliente Firefly III, CSV.
-//! Implementa los traits definidos en ffm-application.
+//! ffm-infrastructure — adapters: persistence (Diesel/MySQL), Firefly III client, CSV.
+//! Implements the traits defined in ffm-application.
 
 pub mod models;
 pub mod persistence;

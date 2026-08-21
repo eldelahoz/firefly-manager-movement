@@ -43,7 +43,7 @@ async fn upsert_and_by_signature_idempotent() {
     assert_eq!(got.header_signature, sig);
     assert_eq!(got.mapping_json, r#"{"amount":"monto"}"#);
 
-    // Misma firma con otro mapping: misma fila, mapping actualizado.
+    // Same signature with a different mapping: same row, mapping updated.
     let id2 = repo
         .upsert(NewCsvMapping {
             header_signature: signature(),

@@ -1,4 +1,4 @@
--- Índices secundarios (TRD §2): filtrado por estado/fecha de movimientos, búsqueda por monto en ff3_transactions.
+-- Secondary indexes (TRD §2): filter movements by status/date, search ff3_transactions by amount.
 
 CREATE INDEX idx_movements_batch_status ON movements (batch_id, status);
 CREATE INDEX idx_movements_batch_date ON movements (batch_id, date);

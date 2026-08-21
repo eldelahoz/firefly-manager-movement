@@ -1,5 +1,5 @@
--- matches: emparejamientos 1-a-1 historizados por run (el 1-a-1 lo garantiza el schema).
--- creations: trazabilidad de tx creadas por nosotros (UNIQUE(movement_id) = idempotencia NFR-05).
+-- matches: 1-to-1 pairings historized per run (the 1-to-1 is guaranteed by the schema).
+-- creations: traceability of txs we created (UNIQUE(movement_id) = idempotency NFR-05).
 
 CREATE TABLE matches (
     id                  BIGINT   NOT NULL AUTO_INCREMENT PRIMARY KEY,

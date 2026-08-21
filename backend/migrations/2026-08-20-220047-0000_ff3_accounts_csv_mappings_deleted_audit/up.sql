@@ -1,5 +1,5 @@
--- Tablas independientes (sin FKs): cache de cuentas FF3, mappings CSV, audit de borrados.
--- Los JSON se almacenan como JSON nativo de MySQL (validación DB-level).
+-- Standalone tables (no FKs): FF3 account cache, CSV mappings, deletion audit.
+-- JSON is stored as native MySQL JSON (DB-level validation).
 
 CREATE TABLE ff3_accounts (
     id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,

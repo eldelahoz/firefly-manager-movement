@@ -1,4 +1,4 @@
-//! `MysqlFf3TransactionRepository` — implementa `Ff3TransactionRepository`.
+//! `MysqlFf3TransactionRepository` — implements `Ff3TransactionRepository`.
 
 use async_trait::async_trait;
 use diesel::prelude::*;
