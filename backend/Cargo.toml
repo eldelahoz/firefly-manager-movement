@@ -19,7 +19,7 @@ axum = "0.8"
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["trace", "cors", "limit"] }
 # OpenAPI + Scalar
-utoipa = { version = "5", features = ["axum_extras"] }
+utoipa = { version = "5", features = ["axum_extras", "chrono"] }
 utoipa-axum = "0.2"
 utoipa-scalar = "0.3"
 # Serialización
@@ -31,7 +31,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 # Config
 dotenvy = "0.15"
 # Fechas (domain)
-chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 # Errores y traits async (application)
 thiserror = "2"
 async-trait = "0.1"
@@ -39,3 +39,5 @@ async-trait = "0.1"
 diesel = { version = "2", default-features = false, features = ["mysql", "chrono", "serde_json"] }
 diesel-async = { version = "0.9", features = ["mysql", "deadpool", "migrations"] }
 diesel_migrations = "2"
+# HTTP client (infrastructure)
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
