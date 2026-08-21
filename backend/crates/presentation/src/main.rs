@@ -1,3 +1,5 @@
+use ffm_infrastructure::persistence::migrations::run_migrations;
+use ffm_infrastructure::persistence::pool::create_pool;
 use ffm_presentation::app;
 
 #[tokio::main]
@@ -10,6 +12,13 @@ async fn main() {
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .init();
+
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL debe estar definida");
+    let pool = create_pool(&database_url).expect("no se pudo crear el pool MySQL");
+    run_migrations(&pool)
+        .await
+        .expect("no se pudieron ejecutar las migraciones");
+    tracing::info!("migraciones aplicadas");
 
     let app = app();
 
