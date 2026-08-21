@@ -30,3 +30,12 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 # Config
 dotenvy = "0.15"
+# Fechas (domain)
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+# Errores y traits async (application)
+thiserror = "2"
+async-trait = "0.1"
+# ORM MySQL (infrastructure)
+diesel = { version = "2", default-features = false, features = ["mysql", "chrono", "serde_json"] }
+diesel-async = { version = "0.9", features = ["mysql", "deadpool", "migrations"] }
+diesel_migrations = "2"

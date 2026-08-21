@@ -6,3 +6,13 @@ rust-version.workspace = true
 
 [dependencies]
 ffm-application = { path = "../application" }
+ffm-domain = { path = "../domain" }
+diesel = { workspace = true }
+diesel-async = { workspace = true }
+diesel_migrations = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

@@ -19,6 +19,7 @@ utoipa-scalar = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 dotenvy = { workspace = true }
+ffm-infrastructure = { path = "../infrastructure" }
 
 [dev-dependencies]
 tower = { workspace = true }

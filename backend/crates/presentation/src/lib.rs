@@ -1,4 +1,4 @@
-//! ffm-presentation — capa HTTP (axum + utoipa/Scalar).
+//! ffm-presentation — HTTP layer (axum + utoipa/Scalar).
 
 use axum::response::Html;
 use axum::routing::get;
@@ -9,7 +9,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 use utoipa_scalar::Scalar;
 
-/// Respuesta del health check.
+/// Health check response.
 #[derive(Serialize, ToSchema)]
 pub struct HealthResponse {
     pub status: String,
@@ -26,19 +26,19 @@ async fn health() -> Json<HealthResponse> {
     })
 }
 
-/// Construye el router axum con los endpoints + Scalar + spec JSON.
+/// Builds the axum router with the endpoints + Scalar + JSON spec.
 pub fn app() -> axum::Router {
-    // 1) Router de endpoints documentados + spec OpenAPI resultante.
+    // 1) Router of documented endpoints + resulting OpenAPI spec.
     let (router, openapi) = OpenApiRouter::new()
         .routes(routes!(health))
         .split_for_parts();
 
-    // 2) Pre-serializamos la spec a un Value (Clone + Send + Sync) para servir el JSON
-    //    sin necesitar que OpenApi: Clone.
+    // 2) Pre-serialize the spec to a Value (Clone + Send + Sync) to serve the JSON
+    //    without requiring OpenApi: Clone.
     let openapi_value = serde_json::to_value(&openapi).expect("la spec OpenAPI debe serializarse");
 
-    // 3) Scalar standalone: HTML pre-renderado (sin feature "axum" → evita acoplamiento
-    //    de versión de axum entre utoipa-scalar y nuestro axum 0.8).
+    // 3) Standalone Scalar: pre-rendered HTML (no "axum" feature → avoids axum version
+    //    coupling between utoipa-scalar and our axum 0.8).
     let scalar_html = Scalar::new(openapi).to_html();
 
     router
