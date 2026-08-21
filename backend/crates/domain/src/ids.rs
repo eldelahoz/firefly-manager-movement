@@ -1,5 +1,5 @@
-//! Identificadores tipados del dominio.
-//! Previene mezclar IDs de distintas entidades (p. ej. pasar un MovementId donde se espera un BatchId).
+//! Typed identifiers for the domain.
+//! Prevents mixing IDs of different entities (e.g. passing a MovementId where a BatchId is expected).
 
 macro_rules! define_id {
     ($name:ident) => {

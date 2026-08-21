@@ -1,7 +1,7 @@
-//! `MysqlCsvMappingRepository` — implementa `CsvMappingRepository`.
-//! Upsert por `header_signature` (UNIQUE) con `ON DUPLICATE KEY UPDATE`;
-//! `LAST_INSERT_ID(id)` en el UPDATE mantiene el id de la fila accesible
-//! para `LAST_INSERT_ID()` posterior (se inserte o se actualice).
+//! `MysqlCsvMappingRepository` — implements `CsvMappingRepository`.
+//! Upsert by `header_signature` (UNIQUE) with `ON DUPLICATE KEY UPDATE`;
+//! `LAST_INSERT_ID(id)` in the UPDATE keeps the row id accessible to a
+//! subsequent `LAST_INSERT_ID()` (whether it inserted or updated).
 
 use async_trait::async_trait;
 use diesel::prelude::*;

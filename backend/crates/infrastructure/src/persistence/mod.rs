@@ -1,4 +1,4 @@
-//! Adaptadores de persistencia (MySQL vía Diesel asíncrono).
+//! Persistence adapters (MySQL via async Diesel).
 
 pub mod migrations;
 pub mod pool;

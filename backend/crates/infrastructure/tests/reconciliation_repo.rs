@@ -42,7 +42,7 @@ async fn insert_and_latest_by_batch() {
     common::clean(&pool).await;
     let repo = MysqlReconciliationRepository::new(pool.clone());
 
-    // Sin reconciliaciones: None, no error.
+    // No reconciliations: None, not an error.
     assert!(repo
         .latest_by_batch(BatchId::new(999))
         .await
@@ -59,9 +59,9 @@ async fn insert_and_latest_by_batch() {
         .await
         .expect("insert 2");
 
-    // ran_at es DATETIME con resolución de segundo: dos inserts en el mismo
-    // segundo quedan empatados. Forzamos ran_at distintos con SQL crudo para
-    // verificar el `ORDER BY ran_at DESC` de forma determinista.
+    // ran_at is a DATETIME with second resolution: two inserts in the same
+    // second end up tied. We force distinct ran_at values with raw SQL to
+    // verify `ORDER BY ran_at DESC` deterministically.
     let mut conn = pool.get().await.expect("conn");
     diesel::sql_query("UPDATE reconciliations SET ran_at = '2026-01-01 00:00:01' WHERE id = ?")
         .bind::<diesel::sql_types::BigInt, _>(id1.as_i64())
@@ -82,7 +82,7 @@ async fn insert_and_latest_by_batch() {
     assert_eq!(latest.id, id2, "la más reciente por ran_at");
     assert_eq!(latest.matched_count, 5);
 
-    // Otra batch sin reconciliaciones: None.
+    // Another batch with no reconciliations: None.
     assert!(repo
         .latest_by_batch(BatchId::new(1234))
         .await

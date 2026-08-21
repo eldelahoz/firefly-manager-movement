@@ -1,4 +1,4 @@
-//! `MysqlDeletedAuditRepository` — implementa `DeletedAuditRepository`.
+//! `MysqlDeletedAuditRepository` — implements `DeletedAuditRepository`.
 
 use async_trait::async_trait;
 use diesel_async::RunQueryDsl;

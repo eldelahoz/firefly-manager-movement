@@ -1,11 +1,11 @@
-//! Value objects del dominio.
+//! Domain value objects.
 
 use std::str::FromStr;
 
-/// Monto monetario en centavos con signo.
-/// - Valor positivo = crédito (depósito).
-/// - Valor negativo = débito (retiro/withdrawal).
-///   (TRD D2: BIGINT signé, sens dérivé du signe — sin enum Direction, sin floats.)
+/// Monetary amount in signed cents.
+/// - Positive value = credit (deposit).
+/// - Negative value = debit (withdrawal).
+///   (TRD D2: signed BIGINT, sense derived from the sign — no Direction enum, no floats.)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AmountCents(i64);
 
@@ -24,12 +24,12 @@ impl AmountCents {
         self.0
     }
 
-    /// true si el monto es negativo (débito / retiro).
+    /// true if the amount is negative (debit / withdrawal).
     pub fn is_debit(self) -> bool {
         self.0 < 0
     }
 
-    /// true si el monto es positivo (crédito / depósito).
+    /// true if the amount is positive (credit / deposit).
     pub fn is_credit(self) -> bool {
         self.0 > 0
     }
@@ -38,21 +38,21 @@ impl AmountCents {
 impl FromStr for AmountCents {
     type Err = AmountParseError;
 
-    /// Parsea una cadena de monto a centavos con signo.
+    /// Parses an amount string into signed cents.
     ///
-    /// Acepta:
-    /// - separador decimal `,` (EU) o `.` (US)
-    /// - separador de miles opcional (agrupaciones de 3 dígitos)
-    /// - signo `-` ASCII o `−` U+2212
-    /// - sin decimales (se asume valor en unidades enteras → ×100)
+    /// Accepts:
+    /// - decimal separator `,` (EU) or `.` (US)
+    /// - optional thousands separator (groups of 3 digits)
+    /// - `-` ASCII sign or `−` U+2212
+    /// - no decimals (value assumed in whole units → ×100)
     ///
-    /// Reglas de detección de decimales:
-    /// - Sin separadores: entero (×100).
-    /// - Un solo separador con exactamente 2 dígitos tras él → decimales.
-    /// - Un solo separador con 3 dígitos tras él → miles (entero ×100).
-    /// - Ambos separadores: el último es decimal (2 dígitos tras él), el otro miles
-    ///   (agrupaciones de exactamente 3 dígitos).
-    /// - Cualquier otra combinación (p. ej. `"12,3,4"`) → `InvalidFormat`.
+    /// Decimal detection rules:
+    /// - No separators: integer (×100).
+    /// - A single separator with exactly 2 digits after it → decimals.
+    /// - A single separator with 3 digits after it → thousands (integer ×100).
+    /// - Both separators: the last one is decimal (2 digits after it), the other is thousands
+    ///   (groups of exactly 3 digits).
+    /// - Any other combination (e.g. `"12,3,4"`) → `InvalidFormat`.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.trim();
         if s.is_empty() {
@@ -147,7 +147,7 @@ impl FromStr for AmountCents {
     }
 }
 
-/// Valida agrupaciones de miles: la primera puede tener 1-3 dígitos, el resto exactamente 3.
+/// Validates thousands groupings: the first may have 1-3 digits, the rest exactly 3.
 fn is_valid_thousands(s: &str, sep: char) -> bool {
     let mut groups = s.split(sep);
     match groups.next() {
@@ -157,7 +157,7 @@ fn is_valid_thousands(s: &str, sep: char) -> bool {
     groups.all(|g| g.len() == 3)
 }
 
-/// Estado de un movimiento importado (PRD §4).
+/// Status of an imported movement (PRD §4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MovementStatus {
     Imported,
@@ -168,7 +168,7 @@ pub enum MovementStatus {
 }
 
 impl MovementStatus {
-    /// Representación en texto para persistencia (VARCHAR en DB).
+    /// Text representation for persistence (VARCHAR in DB).
     pub fn as_str(self) -> &'static str {
         match self {
             MovementStatus::Imported => "imported",
@@ -194,7 +194,7 @@ impl std::str::FromStr for MovementStatus {
     }
 }
 
-/// Estado del ciclo de vida de un batch.
+/// Batch lifecycle status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BatchStatus {
     Parsed,
@@ -224,17 +224,17 @@ impl std::str::FromStr for BatchStatus {
     }
 }
 
-/// Firma de los encabezados de un CSV, para memorizar el mapping (RF-02).
-/// Se computa normalizando (trim + lowercase) cada header y uniendo con `|`.
-/// Es determinista y estable entre versiones (sin hash criptográfico).
+/// Signature of a CSV's headers, used to memorize the mapping (RF-02).
+/// Computed by normalizing (trim + lowercase) each header and joining with `|`.
+/// Deterministic and stable across versions (no cryptographic hash).
 ///
-/// **El orden de los headers es significativo** (`["a","b"]` ≠ `["b","a"]`).
-/// Caveata: si un header contiene `|` puede haber colisión teórica (raro en CSV bancarios).
+/// **Header order is significant** (`["a","b"]` ≠ `["b","a"]`).
+/// Caveat: if a header contains `|` there can be a theoretical collision (rare in bank CSVs).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HeaderSignature(String);
 
 impl HeaderSignature {
-    /// Computa la firma a partir de la lista de encabezados del CSV.
+    /// Computes the signature from the CSV header list.
     pub fn from_headers(headers: &[String]) -> Self {
         let normalized: Vec<String> = headers.iter().map(|h| h.trim().to_lowercase()).collect();
         Self(normalized.join("|"))
@@ -270,7 +270,7 @@ mod tests {
 
     #[test]
     fn parse_eu_comma_decimal() {
-        // "12,34" -> 1234 céntimos
+        // "12,34" -> 1234 cents
         assert_eq!(AmountCents::from_str("12,34").map(|a| a.as_i64()), Ok(1234));
         assert_eq!(
             AmountCents::from_str("-12,34").map(|a| a.as_i64()),
@@ -280,7 +280,7 @@ mod tests {
 
     #[test]
     fn parse_us_dot_decimal() {
-        // "12.34" -> 1234 céntimos
+        // "12.34" -> 1234 cents
         assert_eq!(AmountCents::from_str("12.34").map(|a| a.as_i64()), Ok(1234));
         assert_eq!(
             AmountCents::from_str("-12.34").map(|a| a.as_i64()),
@@ -299,12 +299,12 @@ mod tests {
 
     #[test]
     fn parse_thousands_separator_optional() {
-        // "1.234,56" (EU: miles con punto, decimales con coma) -> 123456
+        // "1.234,56" (EU: dot for thousands, comma for decimals) -> 123456
         assert_eq!(
             AmountCents::from_str("1.234,56").map(|a| a.as_i64()),
             Ok(123456)
         );
-        // "1,234.56" (US: miles con coma, decimales con punto) -> 123456
+        // "1,234.56" (US: comma for thousands, dot for decimals) -> 123456
         assert_eq!(
             AmountCents::from_str("1,234.56").map(|a| a.as_i64()),
             Ok(123456)

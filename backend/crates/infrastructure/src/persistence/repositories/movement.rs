@@ -1,4 +1,4 @@
-//! `MysqlMovementRepository` — implementa `MovementRepository`.
+//! `MysqlMovementRepository` — implements `MovementRepository`.
 
 use async_trait::async_trait;
 use diesel::prelude::*;

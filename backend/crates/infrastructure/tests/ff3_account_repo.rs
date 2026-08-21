@@ -38,7 +38,7 @@ async fn upsert_by_ff3_id_and_all_asset() {
     assert_eq!(assets.len(), 2);
     assert!(assets.iter().all(|a| a.account_type == "asset"));
 
-    // Re-upsert del mismo ff3_id con otro nombre: actualiza, no inserta.
+    // Re-upsert of the same ff3_id with a different name: updates, does not insert.
     repo.upsert_batch(vec![account(1, "Cuenta Corriente Renovada", "asset")])
         .await
         .expect("re-upsert");

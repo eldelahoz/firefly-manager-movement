@@ -1,5 +1,5 @@
--- movements: movimiento importado. amount_cents con signo (sens derivado), sin direction ni ff3_transaction_id.
--- reconciliations: snapshot congelado de un run (contadores de audit).
+-- movements: imported movement. Signed amount_cents (sense derived), no direction or ff3_transaction_id.
+-- reconciliations: frozen snapshot of a run (audit counters).
 
 CREATE TABLE movements (
     id           BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY,

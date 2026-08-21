@@ -1,7 +1,7 @@
-//! Puertos (traits) de la capa de aplicación.
+//! Application layer ports (traits).
 //!
-//! Los adaptadores de infraestructura implementan estos traits. Los casos
-//! de uso dependen de las interfaces, no de las implementaciones concretas
+//! Infrastructure adapters implement these traits. Use cases depend
+//! on the interfaces, not on concrete implementations
 //! (Dependency Inversion).
 
 use async_trait::async_trait;
@@ -111,7 +111,7 @@ pub trait DeletedAuditRepository: Send + Sync {
     async fn insert(&self, audit: NewDeletedAudit) -> Result<DeletedAuditId, ApplicationError>;
 }
 
-/// Puerto del cliente HTTP de Firefly III (API v1).
+/// Port for the Firefly III HTTP client (API v1).
 #[async_trait]
 pub trait FireflyClient: Send + Sync {
     async fn about(&self) -> Result<About, ApplicationError>;
@@ -129,12 +129,12 @@ pub trait FireflyClient: Send + Sync {
     async fn delete_transaction(&self, ff3_id: i64) -> Result<(), ApplicationError>;
 }
 
-/// Reloj para lógica de tiempo testeable.
+/// Clock for testable time logic.
 pub trait Clock: Send + Sync {
     fn now(&self) -> NaiveDateTime;
 }
 
-/// Decodificador de archivos (encoding + delimitador) — detalle de infra.
+/// File decoder (encoding + delimiter) — infra detail.
 #[async_trait]
 pub trait CsvDecoder: Send + Sync {
     async fn decode(&self, bytes: Vec<u8>) -> Result<String, ApplicationError>;

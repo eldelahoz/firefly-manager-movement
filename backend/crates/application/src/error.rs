@@ -1,11 +1,11 @@
-//! Errores de la capa de aplicación.
+//! Application layer errors.
 //!
-//! `ApplicationError` es agnóstico a los detalles de infraestructura (no
-//! referencia `diesel::result::Error` ni `reqwest::Error`): los adaptadores
-//! de infraestructura mapean sus errores concretos a estas variantes.
-//! Así se preserva la Dependency Rule (application no conoce los frameworks).
+//! `ApplicationError` is agnostic to infrastructure details (it does not
+//! reference `diesel::result::Error` or `reqwest::Error`): infrastructure
+//! adapters map their concrete errors to these variants.
+//! This preserves the Dependency Rule (application knows no frameworks).
 
-/// Error de un caso de uso.
+/// A use case error.
 #[derive(Debug, thiserror::Error)]
 pub enum ApplicationError {
     #[error("recurso no encontrado: {0}")]

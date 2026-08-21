@@ -1,5 +1,5 @@
-//! ffm-application — casos de uso y puertos (traits).
-//! Depende solo de ffm-domain (+ thiserror, async-trait para definir traits).
+//! ffm-application — use cases and ports (traits).
+//! Depends only on ffm-domain (+ thiserror, async-trait to define traits).
 
 pub mod dtos;
 pub mod error;

@@ -1,14 +1,14 @@
-//! DTOs de la capa de aplicación: tipos de creación (entradas a los
-//! repositorios) y DTOs del cliente Firefly III (salidas del puerto
-//! `FireflyClient`, shape de la API externa — sin IDs locales).
+//! Application layer DTOs: creation types (inputs to the
+//! repositories) and Firefly III client DTOs (outputs of the
+//! `FireflyClient` port, external API shape — no local IDs).
 
 use chrono::NaiveDate;
 
 use ffm_domain::ids::{BatchId, Ff3AccountId, Ff3TransactionId, MovementId, ReconciliationId};
 use ffm_domain::value_objects::{AmountCents, BatchStatus, HeaderSignature, MovementStatus};
 
-// ---- Tipos de creación (entradas a `*Repository::insert*`) ----
-// Sin `id` ni timestamps (asignados por la DB / Clock en infra).
+// ---- Creation types (inputs to `*Repository::insert*`) ----
+// No `id` or timestamps (assigned by the DB / Clock in infra).
 
 #[derive(Debug, Clone)]
 pub struct NewBatch {
@@ -85,15 +85,15 @@ pub struct NewFf3Account {
     pub currency: String,
 }
 
-// ---- DTOs del cliente Firefly III (shape de la API externa) ----
+// ---- Firefly III client DTOs (external API shape) ----
 
-/// Respuesta de `GET /api/v1/about` (salud de FF3).
+/// Response of `GET /api/v1/about` (FF3 health).
 #[derive(Debug, Clone)]
 pub struct About {
     pub version: String,
 }
 
-/// Cuenta de activo tal como la devuelve la API de Firefly III (sin ID local).
+/// Asset account as returned by the Firefly III API (no local ID).
 #[derive(Debug, Clone)]
 pub struct Ff3AccountDto {
     pub ff3_id: i64,
@@ -102,7 +102,7 @@ pub struct Ff3AccountDto {
     pub currency: String,
 }
 
-/// Transacción de Firefly III tal como la devuelve la API (sin ID local).
+/// Firefly III transaction as returned by the API (no local ID).
 #[derive(Debug, Clone)]
 pub struct Ff3TransactionDto {
     pub ff3_id: i64,
@@ -111,7 +111,7 @@ pub struct Ff3TransactionDto {
     pub description: String,
 }
 
-/// Datos para crear una transacción en Firefly III (RF-08/RF-11).
+/// Data to create a transaction in Firefly III (RF-08/RF-11).
 #[derive(Debug, Clone)]
 pub struct NewFf3TransactionCreation {
     pub transaction_type: String,

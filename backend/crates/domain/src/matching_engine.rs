@@ -1,9 +1,9 @@
-//! Motor de rapprochement (servicio de dominio, función pura).
+//! Rapprochement engine (domain service, pure function).
 //!
-//! Aparea movimientos importados con transacciones de Firefly III por
-//! monto en centavos con signo (el signo codifica el sens) dentro de una
-//! tolerancia de fecha, 1-a-1 cronológico. Los excedentes FF3 dentro de la
-//! ventana de algún movimiento se marcan como duplicados (RF-15).
+//! Pairs imported movements with Firefly III transactions by signed
+//! amount in cents (the sign encodes the sense) within a date
+//! tolerance, 1-to-1 chronological. Surplus FF3 transactions inside
+//! the window of some movement are flagged as duplicates (RF-15).
 
 use chrono::NaiveDate;
 use std::collections::HashMap;
@@ -11,14 +11,14 @@ use std::collections::HashMap;
 use crate::entities::{Ff3Transaction, Movement};
 use crate::ids::{Ff3TransactionId, MovementId};
 
-/// Par emparejado movimiento ↔ transacción FF3.
+/// Paired movement ↔ FF3 transaction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MatchPair {
     pub movement_id: MovementId,
     pub ff3_transaction_id: Ff3TransactionId,
 }
 
-/// Resultado de un run de rapprochement.
+/// Result of a rapprochement run.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct MatchResult {
     pub matches: Vec<MatchPair>,
@@ -27,20 +27,20 @@ pub struct MatchResult {
     pub duplicates: Vec<Ff3TransactionId>,
 }
 
-/// Ejecuta el motor de matching.
+/// Runs the matching engine.
 ///
-/// - `movements`: movimientos del batch. El llamador debe excluir los `ignored`.
-/// - `ff3_transactions`: transacciones FF3 del cuenta target en la ventana.
-/// - `tolerance_days`: tolerancia ±N días sobre la fecha.
+/// - `movements`: movements of the batch. The caller must exclude `ignored` ones.
+/// - `ff3_transactions`: FF3 transactions of the target account within the window.
+/// - `tolerance_days`: ±N days tolerance on the date.
 ///
-/// Algoritmo (TRD §6, PRD §4):
-/// 1. Indexar por `amount_cents` con signo (el signo codifica el sens).
-/// 2. Por clave, emparejar 1-a-1 cronológico dentro de la tolerancia.
-/// 3. Excedentes batch → `missing`; excedentes FF3 → `extra` o `duplicate`.
-/// 4. Un FF3 sin pareja es `duplicate` si está dentro de la tolerancia de
-///    algún movimiento de su grupo; si no, `extra`.
+/// Algorithm (TRD §6, PRD §4):
+/// 1. Index by signed `amount_cents` (the sign encodes the sense).
+/// 2. Per key, pair 1-to-1 chronologically within the tolerance.
+/// 3. Batch surplus → `missing`; FF3 surplus → `extra` or `duplicate`.
+/// 4. An unpaired FF3 is `duplicate` if it is within the tolerance of
+///    some movement in its group; otherwise, `extra`.
 ///
-/// Salidas ordenadas por id para determinismo.
+/// Outputs sorted by id for determinism.
 pub fn run_matching(
     movements: &[Movement],
     ff3_transactions: &[Ff3Transaction],
@@ -48,7 +48,7 @@ pub fn run_matching(
 ) -> MatchResult {
     let tol = tolerance_days as i64;
 
-    // Indexar por amount_cents con signo (el signo codifica el sens).
+    // Index by signed amount_cents (the sign encodes the sense).
     let mut by_amount: HashMap<i64, (Vec<usize>, Vec<usize>)> = HashMap::new();
     for (i, m) in movements.iter().enumerate() {
         by_amount
@@ -71,13 +71,13 @@ pub fn run_matching(
     let mut duplicates = Vec::new();
 
     for (_, (mut m_idx, mut t_idx)) in by_amount {
-        // Ordenar por fecha ascendente (cronológico).
+        // Sort by ascending date (chronological).
         m_idx.sort_by_key(|&i| movements[i].date);
         t_idx.sort_by_key(|&i| ff3_transactions[i].date);
 
         let mut t_used = vec![false; t_idx.len()];
 
-        // Greedy 1-a-1: cada movimiento con el primer FF3 no usado dentro de la ventana.
+        // Greedy 1-to-1: each movement with the first unused FF3 within the window.
         for &mi in &m_idx {
             let m_date = movements[mi].date;
             let paired = t_idx
@@ -96,7 +96,7 @@ pub fn run_matching(
             }
         }
 
-        // Clasificar FF3 no emparejados: duplicate si hay algún movimiento cerca, si no extra.
+        // Classify unmatched FF3: duplicate if some movement is near, otherwise extra.
         for (j, &ti) in t_idx.iter().enumerate() {
             if t_used[j] {
                 continue;
@@ -113,7 +113,7 @@ pub fn run_matching(
         }
     }
 
-    // Determinismo: ordenar salidas por id.
+    // Determinism: sort outputs by id.
     matches.sort_by_key(|p| (p.movement_id, p.ff3_transaction_id));
     missing.sort();
     extra.sort();
@@ -194,21 +194,21 @@ mod tests {
     #[test]
     fn tolerance_plus_one_two_three() {
         let m = [mv(1, "2026-01-05", 10000)];
-        // dentro de ±3
+        // within ±3
         assert_eq!(
             run_matching(&m, &[ff3(10, "2026-01-08", 10000)], 3)
                 .matches
                 .len(),
             1
         );
-        // exactamente en el límite ±2
+        // exactly at the ±2 boundary
         assert_eq!(
             run_matching(&m, &[ff3(10, "2026-01-07", 10000)], 2)
                 .matches
                 .len(),
             1
         );
-        // fuera de ±1
+        // outside ±1
         let r = run_matching(&m, &[ff3(10, "2026-01-08", 10000)], 1);
         assert!(r.matches.is_empty());
         assert_eq!(r.missing, vec![MovementId::new(1)]);
@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn duplicate_ff3_within_window() {
-        // 1 movimiento, 2 FF3 dentro de la ventana → 1 match + 1 duplicate
+        // 1 movement, 2 FF3 within the window → 1 match + 1 duplicate
         let m = [mv(1, "2026-01-05", 10000)];
         let t = [ff3(10, "2026-01-05", 10000), ff3(11, "2026-01-06", 10000)];
         let r = run_matching(&m, &t, 2);
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn ff3_surplus_far_is_extra() {
-        // FF3 sin ningún movimiento cerca en su grupo → extra
+        // FF3 with no nearby movement in its group → extra
         let m = [mv(1, "2026-01-05", 10000)];
         let t = [ff3(10, "2026-01-05", 10000), ff3(11, "2026-04-20", 10000)];
         let r = run_matching(&m, &t, 2);
@@ -252,7 +252,7 @@ mod tests {
 
     #[test]
     fn repeated_legitimate_amounts_pair_independently() {
-        // 2 movimientos + 2 FF3 mismo monto, fechas distintas → 2 matches
+        // 2 movements + 2 FF3 same amount, different dates → 2 matches
         let m = [mv(1, "2026-01-05", 5000), mv(2, "2026-02-05", 5000)];
         let t = [ff3(10, "2026-01-05", 5000), ff3(11, "2026-02-05", 5000)];
         let r = run_matching(&m, &t, 0);
@@ -264,7 +264,7 @@ mod tests {
 
     #[test]
     fn empty_movements_all_ff3_extra() {
-        // sin movimientos, ningún FF3 puede ser duplicate (no hay movimiento cerca)
+        // with no movements, no FF3 can be a duplicate (no nearby movement)
         let t = [ff3(10, "2026-01-05", 10000), ff3(11, "2026-01-06", 10000)];
         let r = run_matching(&[], &t, 2);
         assert!(r.matches.is_empty());
@@ -297,7 +297,7 @@ mod tests {
 
     #[test]
     fn sign_matters_opposite_signs_do_not_match() {
-        // movimiento +100 (crédito) vs FF3 -100 (débito) → no matchean
+        // movement +100 (credit) vs FF3 -100 (debit) → no match
         let m = [mv(1, "2026-01-05", 10000)];
         let t = [ff3(10, "2026-01-05", -10000)];
         let r = run_matching(&m, &t, 2);
@@ -317,7 +317,7 @@ mod tests {
 
     #[test]
     fn chronological_pairing_does_not_cross() {
-        // M1@05, M2@10; T1@06, T2@09; tol=2 → M1-T1, M2-T2 (no cruzan)
+        // M1@05, M2@10; T1@06, T2@09; tol=2 → M1-T1, M2-T2 (no crossing)
         let m = [mv(1, "2026-01-05", 10000), mv(2, "2026-01-10", 10000)];
         let t = [ff3(10, "2026-01-06", 10000), ff3(11, "2026-01-09", 10000)];
         let r = run_matching(&m, &t, 2);
@@ -334,7 +334,7 @@ mod tests {
 
     #[test]
     fn duplicate_of_already_matched_movement() {
-        // 2 movimientos + 3 FF3 (todos mismo monto, todos dentro de ventana de M1/M2)
+        // 2 movements + 3 FF3 (all same amount, all within M1/M2's window)
         let m = [mv(1, "2026-01-05", 10000), mv(2, "2026-01-06", 10000)];
         let t = [
             ff3(10, "2026-01-05", 10000),
@@ -344,7 +344,7 @@ mod tests {
         let r = run_matching(&m, &t, 2);
         assert_eq!(r.matches.len(), 2);
         assert!(r.missing.is_empty());
-        // T12@07 está dentro de ventana de M1([03,07]) y M2([04,08]) → duplicate
+        // T12@07 is within M1's ([03,07]) and M2's ([04,08]) window → duplicate
         assert_eq!(r.duplicates, vec![Ff3TransactionId::new(12)]);
         assert!(r.extra.is_empty());
     }
