@@ -19,7 +19,11 @@ utoipa-scalar = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 dotenvy = { workspace = true }
+chrono = { workspace = true }
 ffm-infrastructure = { path = "../infrastructure" }
+ffm-application = { path = "../application" }
+ffm-domain = { path = "../domain" }
 
 [dev-dependencies]
 tower = { workspace = true }
+async-trait = { workspace = true }
