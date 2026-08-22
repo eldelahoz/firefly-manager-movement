@@ -15,7 +15,10 @@ fn exact_user_rows() {
     for m in &r.valid {
         eprintln!(
             "line {} date {} amount_cents {} desc {}",
-            m.line_no, m.date, m.amount_cents.as_i64(), m.description
+            m.line_no,
+            m.date,
+            m.amount_cents.as_i64(),
+            m.description
         );
     }
     assert_eq!(r.valid.len(), 4);

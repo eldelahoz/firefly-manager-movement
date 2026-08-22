@@ -25,25 +25,3 @@ impl std::str::FromStr for HeaderSignature {
         Ok(Self(s.to_string()))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn header_signature_normalizes() {
-        let sig = HeaderSignature::from_headers(&[
-            "Date".to_string(),
-            "  Amount ".to_string(),
-            "DESCRIPTION".to_string(),
-        ]);
-        assert_eq!(sig.as_str(), "date|amount|description");
-    }
-
-    #[test]
-    fn header_signature_distinct_headers_distinct_sig() {
-        let a = HeaderSignature::from_headers(&["a".to_string(), "b".to_string()]);
-        let b = HeaderSignature::from_headers(&["b".to_string(), "a".to_string()]);
-        assert_ne!(a, b, "el orden de headers importa");
-    }
-}

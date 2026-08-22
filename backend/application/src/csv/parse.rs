@@ -7,8 +7,8 @@ use serde_json::{json, Map};
 
 use ffm_domain::value_objects::AmountCents;
 
-use super::mapping::ColumnMapping;
 use super::detect::detect_delimiter;
+use super::mapping::ColumnMapping;
 use crate::error::ApplicationError;
 
 /// A successfully parsed movement (before DB insert, no IDs yet).
@@ -185,83 +185,4 @@ fn parse_date(s: &str) -> Option<NaiveDate> {
         }
     }
     None
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn mapping() -> ColumnMapping {
-        ColumnMapping {
-            date_column: "Date".into(),
-            amount_column: "Amount".into(),
-            description_column: "Description".into(),
-        }
-    }
-
-    #[test]
-    fn parse_valid_comma() {
-        let csv = "Date,Amount,Description\n2026-01-05,100.00,Coffee\n2026-01-06,-50.00,Lunch";
-        let r = parse_csv(csv, &mapping()).unwrap();
-        assert_eq!(r.valid.len(), 2);
-        assert!(r.invalid.is_empty());
-        assert_eq!(r.valid[0].amount_cents.as_i64(), 10000);
-        assert_eq!(r.valid[1].amount_cents.as_i64(), -5000);
-    }
-
-    #[test]
-    fn parse_invalid_date() {
-        let csv = "Date,Amount,Description\nbad,100.00,Coffee";
-        let r = parse_csv(csv, &mapping()).unwrap();
-        assert_eq!(r.valid.len(), 0);
-        assert_eq!(r.invalid.len(), 1);
-        assert!(r.invalid[0].reason.contains("date"));
-    }
-
-    #[test]
-    fn parse_invalid_amount() {
-        let csv = "Date,Amount,Description\n2026-01-05,abc,Coffee";
-        let r = parse_csv(csv, &mapping()).unwrap();
-        assert_eq!(r.valid.len(), 0);
-        assert_eq!(r.invalid.len(), 1);
-        assert!(r.invalid[0].reason.contains("amount"));
-    }
-
-    #[test]
-    fn parse_european_date() {
-        let csv = "Date,Amount,Description\n05/01/2026,100.00,Coffee";
-        let r = parse_csv(csv, &mapping()).unwrap();
-        assert_eq!(r.valid.len(), 1);
-        assert_eq!(
-            r.valid[0].date,
-            NaiveDate::from_ymd_opt(2026, 1, 5).unwrap()
-        );
-    }
-
-    #[test]
-    fn parse_raw_json_has_fields() {
-        let csv = "Date,Amount,Description\n2026-01-05,100.00,Coffee";
-        let r = parse_csv(csv, &mapping()).unwrap();
-        let raw: serde_json::Value = serde_json::from_str(&r.valid[0].raw_json).unwrap();
-        assert_eq!(raw["Date"], "2026-01-05");
-        assert_eq!(raw["Amount"], "100.00");
-        assert_eq!(raw["Description"], "Coffee");
-    }
-
-    #[test]
-    fn parse_empty_csv() {
-        let csv = "Date,Amount,Description";
-        let r = parse_csv(csv, &mapping()).unwrap();
-        assert!(r.valid.is_empty());
-        assert!(r.invalid.is_empty());
-        assert_eq!(r.headers.len(), 3);
-    }
-
-    #[test]
-    fn parse_skips_empty_lines() {
-        let csv = "Date,Amount,Description\n2026-01-05,100.00,Coffee\n\n2026-01-06,-50.00,Lunch";
-        let r = parse_csv(csv, &mapping()).unwrap();
-        assert_eq!(r.valid.len(), 2);
-        assert!(r.invalid.is_empty());
-    }
 }

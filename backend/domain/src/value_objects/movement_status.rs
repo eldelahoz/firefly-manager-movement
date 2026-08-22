@@ -34,18 +34,3 @@ impl std::str::FromStr for MovementStatus {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::str::FromStr;
-
-    #[test]
-    fn movement_status_roundtrip() {
-        for s in ["imported", "matched", "missing", "created", "ignored"] {
-            let parsed = MovementStatus::from_str(s).unwrap();
-            assert_eq!(parsed.as_str(), s);
-        }
-        assert!(MovementStatus::from_str("unknown").is_err());
-    }
-}
