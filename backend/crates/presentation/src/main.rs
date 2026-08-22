@@ -1,6 +1,11 @@
+use std::env;
+use std::sync::Arc;
+
+use ffm_infrastructure::firefly::client::ReqwestFireflyClient;
 use ffm_infrastructure::persistence::migrations::run_migrations;
 use ffm_infrastructure::persistence::pool::create_pool;
-use ffm_presentation::app;
+use ffm_infrastructure::persistence::repositories::ff3_account::MysqlFf3AccountRepository;
+use ffm_presentation::{app, AppState};
 
 #[tokio::main]
 async fn main() {
@@ -13,17 +18,33 @@ async fn main() {
         )
         .init();
 
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL debe estar definida");
-    let pool = create_pool(&database_url).expect("no se pudo crear el pool MySQL");
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let pool = create_pool(&database_url).expect("could not create MySQL pool");
     run_migrations(&pool)
         .await
-        .expect("no se pudieron ejecutar las migraciones");
-    tracing::info!("migraciones aplicadas");
+        .expect("could not run migrations");
+    tracing::info!("migrations applied");
 
-    let app = app();
+    let ff3_url = env::var("FF3_URL").unwrap_or_else(|_| "http://localhost:8080".into());
+    let ff3_token = env::var("FF3_TOKEN").expect("FF3_TOKEN must be set");
+    let ff3_health_probe = env::var("FF3_HEALTH_PROBE")
+        .ok()
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false);
+
+    let firefly = Arc::new(ReqwestFireflyClient::new(&ff3_url, &ff3_token));
+    let ff3_accounts = Arc::new(MysqlFf3AccountRepository::new(pool.clone()));
+
+    let state = AppState {
+        firefly,
+        ff3_accounts,
+        ff3_health_probe,
+    };
+
+    let app = app(state);
 
     let addr = "0.0.0.0:3000";
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    tracing::info!("ffm-backend escuchando en http://{addr}");
+    tracing::info!("ffm-backend listening on http://{addr}");
     axum::serve(listener, app).await.unwrap();
 }

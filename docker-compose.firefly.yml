@@ -1,0 +1,26 @@
+services:
+  fireflyiii:
+    image: fireflyiii/core:version-6.6.6
+    container_name: ffm-fireflyiii
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      APP_KEY: ${FF3_APP_KEY:?Generate FF3_APP_KEY in .env — see README step 1}
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_DATABASE: fireflyiii
+      DB_USERNAME: ffm
+      DB_PASSWORD: devffmpass
+    volumes:
+      - ffm-firefly-uploads:/var/www/html/storage/upload
+    networks:
+      - ffm-net
+
+volumes:
+  ffm-firefly-uploads:
+
+networks:
+  ffm-net:
+    external: true
