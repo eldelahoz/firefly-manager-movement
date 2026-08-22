@@ -84,7 +84,7 @@ impl FromStr for AmountCents {
                 let idx = rest.rfind([',', '.']).unwrap();
                 let before = &rest[..idx];
                 let after = &rest[idx + 1..];
-                if after.len() != 2 {
+                if after.len() != 1 && after.len() != 2 {
                     return Err(AmountParseError::InvalidFormat);
                 }
                 let other_sep = if rest.as_bytes()[idx] == b',' {
@@ -95,9 +95,14 @@ impl FromStr for AmountCents {
                 if !is_valid_thousands(before, other_sep) {
                     return Err(AmountParseError::InvalidFormat);
                 }
+                let frac = if after.len() == 1 {
+                    format!("{}0", after)
+                } else {
+                    after.to_string()
+                };
                 (
                     before.chars().filter(|c| c.is_ascii_digit()).collect(),
-                    after.to_string(),
+                    frac,
                 )
             }
             (c, d) => {
@@ -107,6 +112,18 @@ impl FromStr for AmountCents {
                 let before = &rest[..idx];
                 let after = &rest[idx + 1..];
                 match after.len() {
+                    1 => {
+                        if before.is_empty() {
+                            return Err(AmountParseError::InvalidFormat);
+                        }
+                        if n > 1 && !is_valid_thousands(before, sep) {
+                            return Err(AmountParseError::InvalidFormat);
+                        }
+                        (
+                            before.chars().filter(|c| c.is_ascii_digit()).collect(),
+                            format!("{}0", after),
+                        )
+                    }
                     2 => {
                         if before.is_empty() {
                             return Err(AmountParseError::InvalidFormat);
@@ -286,6 +303,14 @@ mod tests {
             AmountCents::from_str("-12.34").map(|a| a.as_i64()),
             Ok(-1234)
         );
+    }
+
+    #[test]
+    fn parse_one_decimal_digit_is_padded() {
+        // Some exports use a single decimal digit: "23,4" == 23.40
+        assert_eq!(AmountCents::from_str("23,4").map(|a| a.as_i64()), Ok(2340));
+        assert_eq!(AmountCents::from_str("23.4").map(|a| a.as_i64()), Ok(2340));
+        assert_eq!(AmountCents::from_str("-23,4").map(|a| a.as_i64()), Ok(-2340));
     }
 
     #[test]

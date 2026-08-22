@@ -14,6 +14,10 @@ async fn health_returns_ok_json() {
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::ok()),
         ff3_accounts: Arc::new(common::FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(common::FakeCsvDecoder),
+        batches: Arc::new(common::FakeBatchRepository),
+        movements: Arc::new(common::FakeMovementRepository),
+        csv_mappings: Arc::new(common::FakeCsvMappingRepository),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -39,6 +43,10 @@ async fn health_with_probe_ok() {
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::ok()),
         ff3_accounts: Arc::new(common::FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(common::FakeCsvDecoder),
+        batches: Arc::new(common::FakeBatchRepository),
+        movements: Arc::new(common::FakeMovementRepository),
+        csv_mappings: Arc::new(common::FakeCsvMappingRepository),
         ff3_health_probe: true,
     };
     let router = app(state);
@@ -66,6 +74,10 @@ async fn health_with_probe_degraded() {
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::failing()),
         ff3_accounts: Arc::new(common::FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(common::FakeCsvDecoder),
+        batches: Arc::new(common::FakeBatchRepository),
+        movements: Arc::new(common::FakeMovementRepository),
+        csv_mappings: Arc::new(common::FakeCsvMappingRepository),
         ff3_health_probe: true,
     };
     let router = app(state);
@@ -92,6 +104,10 @@ async fn openapi_json_is_served() {
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::ok()),
         ff3_accounts: Arc::new(common::FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(common::FakeCsvDecoder),
+        batches: Arc::new(common::FakeBatchRepository),
+        movements: Arc::new(common::FakeMovementRepository),
+        csv_mappings: Arc::new(common::FakeCsvMappingRepository),
         ff3_health_probe: false,
     };
     let router = app(state);

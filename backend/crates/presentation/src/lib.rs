@@ -10,9 +10,14 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 use utoipa_scalar::Scalar;
 
+use tower_http::limit::RequestBodyLimitLayer;
+
 use crate::handlers::firefly::{
     __path_list_accounts, account_transactions, account_transactions_fallback, list_accounts,
 };
+use crate::handlers::imports::{__path_get_import, __path_list_imports, __path_save_mapping};
+use crate::handlers::imports::{__path_upload_import, upload_import};
+use crate::handlers::imports::{get_import, list_imports, save_mapping};
 
 mod error;
 mod handlers;
@@ -78,6 +83,10 @@ pub fn app(state: AppState) -> axum::Router {
     let (router, openapi) = OpenApiRouter::new()
         .routes(routes!(health))
         .routes(routes!(list_accounts))
+        .routes(routes!(upload_import))
+        .routes(routes!(list_imports))
+        .routes(routes!(get_import))
+        .routes(routes!(save_mapping))
         .route("/api/firefly/accounts/{id}/transactions", tx_method_router)
         .with_state(state)
         .split_for_parts();
@@ -95,4 +104,6 @@ pub fn app(state: AppState) -> axum::Router {
             "/api-docs/openapi.json",
             get(move || async move { Json(openapi_value) }),
         )
+        // RF-01: limit multipart upload size (10 MB)
+        .layer(RequestBodyLimitLayer::new(10 * 1024 * 1024))
 }
