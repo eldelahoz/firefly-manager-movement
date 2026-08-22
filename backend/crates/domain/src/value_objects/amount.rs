@@ -1,5 +1,3 @@
-//! Domain value objects.
-
 use std::str::FromStr;
 
 /// Monetary amount in signed cents.
@@ -174,101 +172,6 @@ fn is_valid_thousands(s: &str, sep: char) -> bool {
     groups.all(|g| g.len() == 3)
 }
 
-/// Status of an imported movement (PRD §4).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum MovementStatus {
-    Imported,
-    Matched,
-    Missing,
-    Created,
-    Ignored,
-}
-
-impl MovementStatus {
-    /// Text representation for persistence (VARCHAR in DB).
-    pub fn as_str(self) -> &'static str {
-        match self {
-            MovementStatus::Imported => "imported",
-            MovementStatus::Matched => "matched",
-            MovementStatus::Missing => "missing",
-            MovementStatus::Created => "created",
-            MovementStatus::Ignored => "ignored",
-        }
-    }
-}
-
-impl std::str::FromStr for MovementStatus {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "imported" => Ok(Self::Imported),
-            "matched" => Ok(Self::Matched),
-            "missing" => Ok(Self::Missing),
-            "created" => Ok(Self::Created),
-            "ignored" => Ok(Self::Ignored),
-            _ => Err(()),
-        }
-    }
-}
-
-/// Batch lifecycle status.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum BatchStatus {
-    Parsed,
-    Reconciled,
-    Applied,
-}
-
-impl BatchStatus {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            BatchStatus::Parsed => "parsed",
-            BatchStatus::Reconciled => "reconciled",
-            BatchStatus::Applied => "applied",
-        }
-    }
-}
-
-impl std::str::FromStr for BatchStatus {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "parsed" => Ok(Self::Parsed),
-            "reconciled" => Ok(Self::Reconciled),
-            "applied" => Ok(Self::Applied),
-            _ => Err(()),
-        }
-    }
-}
-
-/// Signature of a CSV's headers, used to memorize the mapping (RF-02).
-/// Computed by normalizing (trim + lowercase) each header and joining with `|`.
-/// Deterministic and stable across versions (no cryptographic hash).
-///
-/// **Header order is significant** (`["a","b"]` ≠ `["b","a"]`).
-/// Caveat: if a header contains `|` there can be a theoretical collision (rare in bank CSVs).
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct HeaderSignature(String);
-
-impl HeaderSignature {
-    /// Computes the signature from the CSV header list.
-    pub fn from_headers(headers: &[String]) -> Self {
-        let normalized: Vec<String> = headers.iter().map(|h| h.trim().to_lowercase()).collect();
-        Self(normalized.join("|"))
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::str::FromStr for HeaderSignature {
-    type Err = ();
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.to_string()))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -364,40 +267,5 @@ mod tests {
         assert!(neg.is_debit());
         let pos = AmountCents::from_str("50,00").unwrap();
         assert!(pos.is_credit());
-    }
-
-    #[test]
-    fn movement_status_roundtrip() {
-        for s in ["imported", "matched", "missing", "created", "ignored"] {
-            let parsed = MovementStatus::from_str(s).unwrap();
-            assert_eq!(parsed.as_str(), s);
-        }
-        assert!(MovementStatus::from_str("unknown").is_err());
-    }
-
-    #[test]
-    fn batch_status_roundtrip() {
-        for s in ["parsed", "reconciled", "applied"] {
-            let parsed = BatchStatus::from_str(s).unwrap();
-            assert_eq!(parsed.as_str(), s);
-        }
-        assert!(BatchStatus::from_str("unknown").is_err());
-    }
-
-    #[test]
-    fn header_signature_normalizes() {
-        let sig = HeaderSignature::from_headers(&[
-            "Date".to_string(),
-            "  Amount ".to_string(),
-            "DESCRIPTION".to_string(),
-        ]);
-        assert_eq!(sig.as_str(), "date|amount|description");
-    }
-
-    #[test]
-    fn header_signature_distinct_headers_distinct_sig() {
-        let a = HeaderSignature::from_headers(&["a".to_string(), "b".to_string()]);
-        let b = HeaderSignature::from_headers(&["b".to_string(), "a".to_string()]);
-        assert_ne!(a, b, "el orden de headers importa");
     }
 }

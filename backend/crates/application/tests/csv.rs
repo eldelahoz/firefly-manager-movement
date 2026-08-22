@@ -1,4 +1,4 @@
-use ffm_application::csv_parser::{
+use ffm_application::csv::{
     auto_detect_mapping, detect_delimiter, parse_csv, ColumnMapping,
 };
 

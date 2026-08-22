@@ -1,28 +1,15 @@
-//! CSV parsing and column mapping (pure application logic).
-//!
-//! Detects the delimiter, maps columns to domain fields, validates each row
-//! (date + amount parsing), and returns valid movements alongside invalid
-//! lines with their reason.
-
 use std::io::Cursor;
 use std::str::FromStr;
 
 use chrono::NaiveDate;
 use csv::ReaderBuilder;
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Map};
 
 use ffm_domain::value_objects::AmountCents;
 
+use super::mapping::ColumnMapping;
+use super::detect::detect_delimiter;
 use crate::error::ApplicationError;
-
-/// Maps CSV column names to domain fields.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ColumnMapping {
-    pub date_column: String,
-    pub amount_column: String,
-    pub description_column: String,
-}
 
 /// A successfully parsed movement (before DB insert, no IDs yet).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,70 +36,6 @@ pub struct CsvParseResult {
     pub detected_delimiter: char,
     pub valid: Vec<ParsedMovement>,
     pub invalid: Vec<InvalidLine>,
-}
-
-/// Detects the most likely delimiter from the first non-empty line.
-pub fn detect_delimiter(content: &str) -> char {
-    let first_line = content.lines().next().unwrap_or("");
-    let commas = first_line.matches(',').count();
-    let semicolons = first_line.matches(';').count();
-    let tabs = first_line.matches('\t').count();
-
-    let mut best = ',';
-    let mut best_count = commas;
-    if semicolons > best_count {
-        best = ';';
-        best_count = semicolons;
-    }
-    if tabs > best_count {
-        best = '\t';
-    }
-    best
-}
-
-/// Tries to auto-detect the column mapping from header names.
-/// Returns `None` if any of the three columns cannot be guessed.
-pub fn auto_detect_mapping(headers: &[String]) -> Option<ColumnMapping> {
-    let date_column = headers
-        .iter()
-        .find(|h| {
-            let l = h.trim().to_lowercase();
-            l.contains("date") || l.contains("fecha")
-        })
-        .cloned()?;
-
-    let amount_column = headers
-        .iter()
-        .find(|h| {
-            let l = h.trim().to_lowercase();
-            l.contains("amount")
-                || l.contains("montant")
-                || l.contains("importe")
-                || l.contains("valor")
-                || l.contains("montante")
-                || l.contains("value")
-        })
-        .cloned()?;
-
-    let description_column = headers
-        .iter()
-        .find(|h| {
-            let l = h.trim().to_lowercase();
-            l.contains("description")
-                || l.contains("descrip")
-                || l.contains("libell")
-                || l.contains("label")
-                || l.contains("memo")
-                || l.contains("detail")
-                || l.contains("narrative")
-        })
-        .cloned()?;
-
-    Some(ColumnMapping {
-        date_column,
-        amount_column,
-        description_column,
-    })
 }
 
 /// Parses a decoded CSV string using the given column mapping.
@@ -268,54 +191,18 @@ fn parse_date(s: &str) -> Option<NaiveDate> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn delimiter_comma() {
-        assert_eq!(detect_delimiter("a,b,c\n1,2,3"), ',');
-    }
-
-    #[test]
-    fn delimiter_semicolon() {
-        assert_eq!(detect_delimiter("a;b;c\n1;2;3"), ';');
-    }
-
-    #[test]
-    fn delimiter_tab() {
-        assert_eq!(detect_delimiter("a\tb\tc\n1\t2\t3"), '\t');
-    }
-
-    #[test]
-    fn auto_detect_english() {
-        let h = vec!["Date".into(), "Amount".into(), "Description".into()];
-        let m = auto_detect_mapping(&h).unwrap();
-        assert_eq!(m.date_column, "Date");
-        assert_eq!(m.amount_column, "Amount");
-        assert_eq!(m.description_column, "Description");
-    }
-
-    #[test]
-    fn auto_detect_french() {
-        let h = vec!["Date".into(), "Libellé".into(), "Montant".into()];
-        let m = auto_detect_mapping(&h).unwrap();
-        assert_eq!(m.date_column, "Date");
-        assert_eq!(m.amount_column, "Montant");
-        assert_eq!(m.description_column, "Libellé");
-    }
-
-    #[test]
-    fn auto_detect_none_for_unknown() {
-        let h = vec!["col1".into(), "col2".into(), "col3".into()];
-        assert!(auto_detect_mapping(&h).is_none());
+    fn mapping() -> ColumnMapping {
+        ColumnMapping {
+            date_column: "Date".into(),
+            amount_column: "Amount".into(),
+            description_column: "Description".into(),
+        }
     }
 
     #[test]
     fn parse_valid_comma() {
         let csv = "Date,Amount,Description\n2026-01-05,100.00,Coffee\n2026-01-06,-50.00,Lunch";
-        let m = ColumnMapping {
-            date_column: "Date".into(),
-            amount_column: "Amount".into(),
-            description_column: "Description".into(),
-        };
-        let r = parse_csv(csv, &m).unwrap();
+        let r = parse_csv(csv, &mapping()).unwrap();
         assert_eq!(r.valid.len(), 2);
         assert!(r.invalid.is_empty());
         assert_eq!(r.valid[0].amount_cents.as_i64(), 10000);
@@ -325,12 +212,7 @@ mod tests {
     #[test]
     fn parse_invalid_date() {
         let csv = "Date,Amount,Description\nbad,100.00,Coffee";
-        let m = ColumnMapping {
-            date_column: "Date".into(),
-            amount_column: "Amount".into(),
-            description_column: "Description".into(),
-        };
-        let r = parse_csv(csv, &m).unwrap();
+        let r = parse_csv(csv, &mapping()).unwrap();
         assert_eq!(r.valid.len(), 0);
         assert_eq!(r.invalid.len(), 1);
         assert!(r.invalid[0].reason.contains("date"));
@@ -339,12 +221,7 @@ mod tests {
     #[test]
     fn parse_invalid_amount() {
         let csv = "Date,Amount,Description\n2026-01-05,abc,Coffee";
-        let m = ColumnMapping {
-            date_column: "Date".into(),
-            amount_column: "Amount".into(),
-            description_column: "Description".into(),
-        };
-        let r = parse_csv(csv, &m).unwrap();
+        let r = parse_csv(csv, &mapping()).unwrap();
         assert_eq!(r.valid.len(), 0);
         assert_eq!(r.invalid.len(), 1);
         assert!(r.invalid[0].reason.contains("amount"));
@@ -353,12 +230,7 @@ mod tests {
     #[test]
     fn parse_european_date() {
         let csv = "Date,Amount,Description\n05/01/2026,100.00,Coffee";
-        let m = ColumnMapping {
-            date_column: "Date".into(),
-            amount_column: "Amount".into(),
-            description_column: "Description".into(),
-        };
-        let r = parse_csv(csv, &m).unwrap();
+        let r = parse_csv(csv, &mapping()).unwrap();
         assert_eq!(r.valid.len(), 1);
         assert_eq!(
             r.valid[0].date,
@@ -369,12 +241,7 @@ mod tests {
     #[test]
     fn parse_raw_json_has_fields() {
         let csv = "Date,Amount,Description\n2026-01-05,100.00,Coffee";
-        let m = ColumnMapping {
-            date_column: "Date".into(),
-            amount_column: "Amount".into(),
-            description_column: "Description".into(),
-        };
-        let r = parse_csv(csv, &m).unwrap();
+        let r = parse_csv(csv, &mapping()).unwrap();
         let raw: serde_json::Value = serde_json::from_str(&r.valid[0].raw_json).unwrap();
         assert_eq!(raw["Date"], "2026-01-05");
         assert_eq!(raw["Amount"], "100.00");
@@ -384,12 +251,7 @@ mod tests {
     #[test]
     fn parse_empty_csv() {
         let csv = "Date,Amount,Description";
-        let m = ColumnMapping {
-            date_column: "Date".into(),
-            amount_column: "Amount".into(),
-            description_column: "Description".into(),
-        };
-        let r = parse_csv(csv, &m).unwrap();
+        let r = parse_csv(csv, &mapping()).unwrap();
         assert!(r.valid.is_empty());
         assert!(r.invalid.is_empty());
         assert_eq!(r.headers.len(), 3);
@@ -398,12 +260,7 @@ mod tests {
     #[test]
     fn parse_skips_empty_lines() {
         let csv = "Date,Amount,Description\n2026-01-05,100.00,Coffee\n\n2026-01-06,-50.00,Lunch";
-        let m = ColumnMapping {
-            date_column: "Date".into(),
-            amount_column: "Amount".into(),
-            description_column: "Description".into(),
-        };
-        let r = parse_csv(csv, &m).unwrap();
+        let r = parse_csv(csv, &mapping()).unwrap();
         assert_eq!(r.valid.len(), 2);
         assert!(r.invalid.is_empty());
     }

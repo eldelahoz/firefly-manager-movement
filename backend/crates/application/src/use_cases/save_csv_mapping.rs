@@ -1,7 +1,7 @@
 //! SaveCsvMapping use case.
 //! Stores a column mapping keyed by the normalized header signature (RF-02).
 
-use crate::csv_parser::ColumnMapping;
+use crate::csv::ColumnMapping;
 use crate::dtos::NewCsvMapping;
 use crate::error::ApplicationError;
 use crate::ports::CsvMappingRepository;

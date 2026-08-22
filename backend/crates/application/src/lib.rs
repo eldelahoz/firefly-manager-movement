@@ -1,7 +1,7 @@
 //! ffm-application — use cases and ports (traits).
 //! Depends only on ffm-domain (+ thiserror, async-trait to define traits).
 
-pub mod csv_parser;
+pub mod csv;
 pub mod dtos;
 pub mod error;
 pub mod ports;

@@ -8,7 +8,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-use ffm_application::csv_parser::ColumnMapping;
+use ffm_application::csv::ColumnMapping;
 use ffm_application::use_cases::get_import::GetImport;
 use ffm_application::use_cases::list_imports::ListImports;
 use ffm_application::use_cases::save_csv_mapping::SaveCsvMapping;
