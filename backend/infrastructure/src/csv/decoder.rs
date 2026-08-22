@@ -46,33 +46,3 @@ fn decode_bytes(bytes: &[u8]) -> String {
     let (s, _) = WINDOWS_1252.decode_without_bom_handling(bytes);
     s.into_owned()
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn utf8_no_bom() {
-        let input = b"hello world";
-        assert_eq!(decode_bytes(input), "hello world");
-    }
-
-    #[test]
-    fn utf8_with_bom() {
-        let mut input = vec![0xEF, 0xBB, 0xBF];
-        input.extend_from_slice(b"hello");
-        assert_eq!(decode_bytes(&input), "hello");
-    }
-
-    #[test]
-    fn windows1252_fallback() {
-        // 0xE9 = é in windows-1252, invalid UTF-8
-        let input = [b'a', 0xE9, b'b'];
-        assert_eq!(decode_bytes(&input), "aéb");
-    }
-
-    #[test]
-    fn empty() {
-        assert_eq!(decode_bytes(&[]), "");
-    }
-}

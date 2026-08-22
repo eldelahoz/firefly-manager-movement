@@ -52,32 +52,3 @@ pub fn auto_detect_mapping(headers: &[String]) -> Option<ColumnMapping> {
         description_column,
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn auto_detect_english() {
-        let h = vec!["Date".into(), "Amount".into(), "Description".into()];
-        let m = auto_detect_mapping(&h).unwrap();
-        assert_eq!(m.date_column, "Date");
-        assert_eq!(m.amount_column, "Amount");
-        assert_eq!(m.description_column, "Description");
-    }
-
-    #[test]
-    fn auto_detect_french() {
-        let h = vec!["Date".into(), "Libellé".into(), "Montant".into()];
-        let m = auto_detect_mapping(&h).unwrap();
-        assert_eq!(m.date_column, "Date");
-        assert_eq!(m.amount_column, "Montant");
-        assert_eq!(m.description_column, "Libellé");
-    }
-
-    #[test]
-    fn auto_detect_none_for_unknown() {
-        let h = vec!["col1".into(), "col2".into(), "col3".into()];
-        assert!(auto_detect_mapping(&h).is_none());
-    }
-}

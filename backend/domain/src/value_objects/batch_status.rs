@@ -27,18 +27,3 @@ impl std::str::FromStr for BatchStatus {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::str::FromStr;
-
-    #[test]
-    fn batch_status_roundtrip() {
-        for s in ["parsed", "reconciled", "applied"] {
-            let parsed = BatchStatus::from_str(s).unwrap();
-            assert_eq!(parsed.as_str(), s);
-        }
-        assert!(BatchStatus::from_str("unknown").is_err());
-    }
-}

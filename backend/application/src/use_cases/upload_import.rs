@@ -6,9 +6,7 @@ use sha2::{Digest, Sha256};
 use ffm_domain::ids::BatchId;
 use ffm_domain::value_objects::{BatchStatus, HeaderSignature, MovementStatus};
 
-use crate::csv::{
-    auto_detect_mapping, parse_csv, ColumnMapping, InvalidLine, ParsedMovement,
-};
+use crate::csv::{auto_detect_mapping, parse_csv, ColumnMapping, InvalidLine, ParsedMovement};
 use crate::dtos::{NewBatch, NewMovement};
 use crate::error::ApplicationError;
 use crate::ports::{BatchRepository, CsvDecoder, CsvMappingRepository, MovementRepository};
@@ -140,7 +138,11 @@ where
                 invalid_count,
                 mapping_used: Some(mapping.clone()),
                 valid: parse_result.valid.into_iter().take(PREVIEW_LIMIT).collect(),
-                invalid: parse_result.invalid.into_iter().take(PREVIEW_LIMIT).collect(),
+                invalid: parse_result
+                    .invalid
+                    .into_iter()
+                    .take(PREVIEW_LIMIT)
+                    .collect(),
             });
         }
 
