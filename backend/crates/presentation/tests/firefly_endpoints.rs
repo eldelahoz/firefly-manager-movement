@@ -34,6 +34,10 @@ async fn get_firefly_accounts_returns_accounts_and_syncs() {
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::with_accounts(accounts)),
         ff3_accounts: repo.clone(),
+        csv_decoder: Arc::new(common::FakeCsvDecoder),
+        batches: Arc::new(common::FakeBatchRepository),
+        movements: Arc::new(common::FakeMovementRepository),
+        csv_mappings: Arc::new(common::FakeCsvMappingRepository),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -63,6 +67,10 @@ async fn get_firefly_accounts_ff3_error_returns_502() {
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::failing()),
         ff3_accounts: Arc::new(FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(common::FakeCsvDecoder),
+        batches: Arc::new(common::FakeBatchRepository),
+        movements: Arc::new(common::FakeMovementRepository),
+        csv_mappings: Arc::new(common::FakeCsvMappingRepository),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -91,6 +99,10 @@ async fn post_account_transactions_ok() {
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::with_transactions(txs)),
         ff3_accounts: Arc::new(FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(common::FakeCsvDecoder),
+        batches: Arc::new(common::FakeBatchRepository),
+        movements: Arc::new(common::FakeMovementRepository),
+        csv_mappings: Arc::new(common::FakeCsvMappingRepository),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -129,6 +141,10 @@ async fn query_account_transactions_ok() {
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::with_transactions(txs)),
         ff3_accounts: Arc::new(FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(common::FakeCsvDecoder),
+        batches: Arc::new(common::FakeBatchRepository),
+        movements: Arc::new(common::FakeMovementRepository),
+        csv_mappings: Arc::new(common::FakeCsvMappingRepository),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -159,6 +175,10 @@ async fn get_on_transactions_returns_405() {
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::ok()),
         ff3_accounts: Arc::new(FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(common::FakeCsvDecoder),
+        batches: Arc::new(common::FakeBatchRepository),
+        movements: Arc::new(common::FakeMovementRepository),
+        csv_mappings: Arc::new(common::FakeCsvMappingRepository),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -182,6 +202,10 @@ async fn transactions_start_after_end_returns_400() {
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::ok()),
         ff3_accounts: Arc::new(FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(common::FakeCsvDecoder),
+        batches: Arc::new(common::FakeBatchRepository),
+        movements: Arc::new(common::FakeMovementRepository),
+        csv_mappings: Arc::new(common::FakeCsvMappingRepository),
         ff3_health_probe: false,
     };
     let router = app(state);

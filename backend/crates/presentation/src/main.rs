@@ -1,10 +1,14 @@
 use std::env;
 use std::sync::Arc;
 
+use ffm_infrastructure::csv::EncodingCsvDecoder;
 use ffm_infrastructure::firefly::client::ReqwestFireflyClient;
 use ffm_infrastructure::persistence::migrations::run_migrations;
 use ffm_infrastructure::persistence::pool::create_pool;
+use ffm_infrastructure::persistence::repositories::batch::MysqlBatchRepository;
+use ffm_infrastructure::persistence::repositories::csv_mapping::MysqlCsvMappingRepository;
 use ffm_infrastructure::persistence::repositories::ff3_account::MysqlFf3AccountRepository;
+use ffm_infrastructure::persistence::repositories::movement::MysqlMovementRepository;
 use ffm_presentation::{app, AppState};
 
 #[tokio::main]
@@ -34,10 +38,18 @@ async fn main() {
 
     let firefly = Arc::new(ReqwestFireflyClient::new(&ff3_url, &ff3_token));
     let ff3_accounts = Arc::new(MysqlFf3AccountRepository::new(pool.clone()));
+    let csv_decoder = Arc::new(EncodingCsvDecoder);
+    let batches = Arc::new(MysqlBatchRepository::new(pool.clone()));
+    let movements = Arc::new(MysqlMovementRepository::new(pool.clone()));
+    let csv_mappings = Arc::new(MysqlCsvMappingRepository::new(pool.clone()));
 
     let state = AppState {
         firefly,
         ff3_accounts,
+        csv_decoder,
+        batches,
+        movements,
+        csv_mappings,
         ff3_health_probe,
     };
 

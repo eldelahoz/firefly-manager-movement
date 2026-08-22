@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Shared test fakes for presentation E2E tests.
 
 use async_trait::async_trait;
@@ -7,8 +8,16 @@ use ffm_application::dtos::{
     About, Ff3AccountDto, Ff3TransactionDto, NewFf3Account, NewFf3TransactionCreation,
 };
 use ffm_application::error::ApplicationError;
-use ffm_application::ports::{Ff3AccountRepository, FireflyClient};
+use ffm_application::ports::{
+    BatchRepository, CsvDecoder, CsvMappingRepository, Ff3AccountRepository, FireflyClient,
+    MovementRepository,
+};
 use ffm_domain::entities::Ff3Account;
+use ffm_domain::entities::{Batch, CsvMapping, Movement};
+use ffm_domain::ids::{BatchId, CsvMappingId, MovementId};
+use ffm_domain::value_objects::{BatchStatus, HeaderSignature, MovementStatus};
+
+use ffm_application::dtos::{NewBatch, NewCsvMapping, NewMovement};
 
 // ── FakeFireflyClient ──────────────────────────────────────────────────
 
@@ -146,5 +155,79 @@ impl Ff3AccountRepository for FakeFf3AccountRepository {
 
     async fn all_asset(&self) -> Result<Vec<Ff3Account>, ApplicationError> {
         Ok(vec![])
+    }
+}
+
+// ── No-op fakes for imports (used by tests that don't touch import endpoints) ─
+
+pub struct FakeCsvDecoder;
+
+#[async_trait]
+impl CsvDecoder for FakeCsvDecoder {
+    async fn decode(&self, bytes: Vec<u8>) -> Result<String, ApplicationError> {
+        Ok(String::from_utf8_lossy(&bytes).into_owned())
+    }
+}
+
+pub struct FakeBatchRepository;
+
+#[async_trait]
+impl BatchRepository for FakeBatchRepository {
+    async fn insert(&self, _batch: NewBatch) -> Result<BatchId, ApplicationError> {
+        Ok(BatchId::new(1))
+    }
+    async fn get(&self, _id: BatchId) -> Result<Batch, ApplicationError> {
+        Err(ApplicationError::NotFound("batch".into()))
+    }
+    async fn list(&self) -> Result<Vec<Batch>, ApplicationError> {
+        Ok(vec![])
+    }
+    async fn update_status(
+        &self,
+        _id: BatchId,
+        _status: BatchStatus,
+    ) -> Result<(), ApplicationError> {
+        Ok(())
+    }
+    async fn update_account(
+        &self,
+        _id: BatchId,
+        _account_id: ffm_domain::ids::Ff3AccountId,
+    ) -> Result<(), ApplicationError> {
+        Ok(())
+    }
+}
+
+pub struct FakeMovementRepository;
+
+#[async_trait]
+impl MovementRepository for FakeMovementRepository {
+    async fn insert_batch(&self, _movements: Vec<NewMovement>) -> Result<(), ApplicationError> {
+        Ok(())
+    }
+    async fn by_batch(&self, _batch_id: BatchId) -> Result<Vec<Movement>, ApplicationError> {
+        Ok(vec![])
+    }
+    async fn update_status(
+        &self,
+        _id: MovementId,
+        _status: MovementStatus,
+    ) -> Result<(), ApplicationError> {
+        Ok(())
+    }
+}
+
+pub struct FakeCsvMappingRepository;
+
+#[async_trait]
+impl CsvMappingRepository for FakeCsvMappingRepository {
+    async fn by_signature(
+        &self,
+        _signature: HeaderSignature,
+    ) -> Result<Option<CsvMapping>, ApplicationError> {
+        Ok(None)
+    }
+    async fn upsert(&self, _mapping: NewCsvMapping) -> Result<CsvMappingId, ApplicationError> {
+        Ok(CsvMappingId::new(1))
     }
 }

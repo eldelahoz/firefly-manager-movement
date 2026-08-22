@@ -185,3 +185,67 @@ impl Ff3AccountRepository for Arc<dyn Ff3AccountRepository> {
         self.as_ref().all_asset().await
     }
 }
+
+#[async_trait]
+impl<T: BatchRepository + ?Sized> BatchRepository for Arc<T> {
+    async fn insert(&self, batch: NewBatch) -> Result<BatchId, ApplicationError> {
+        self.as_ref().insert(batch).await
+    }
+    async fn get(&self, id: BatchId) -> Result<Batch, ApplicationError> {
+        self.as_ref().get(id).await
+    }
+    async fn list(&self) -> Result<Vec<Batch>, ApplicationError> {
+        self.as_ref().list().await
+    }
+    async fn update_status(
+        &self,
+        id: BatchId,
+        status: BatchStatus,
+    ) -> Result<(), ApplicationError> {
+        self.as_ref().update_status(id, status).await
+    }
+    async fn update_account(
+        &self,
+        id: BatchId,
+        account_id: Ff3AccountId,
+    ) -> Result<(), ApplicationError> {
+        self.as_ref().update_account(id, account_id).await
+    }
+}
+
+#[async_trait]
+impl<T: MovementRepository + ?Sized> MovementRepository for Arc<T> {
+    async fn insert_batch(&self, movements: Vec<NewMovement>) -> Result<(), ApplicationError> {
+        self.as_ref().insert_batch(movements).await
+    }
+    async fn by_batch(&self, batch_id: BatchId) -> Result<Vec<Movement>, ApplicationError> {
+        self.as_ref().by_batch(batch_id).await
+    }
+    async fn update_status(
+        &self,
+        id: MovementId,
+        status: MovementStatus,
+    ) -> Result<(), ApplicationError> {
+        self.as_ref().update_status(id, status).await
+    }
+}
+
+#[async_trait]
+impl<T: CsvMappingRepository + ?Sized> CsvMappingRepository for Arc<T> {
+    async fn by_signature(
+        &self,
+        signature: HeaderSignature,
+    ) -> Result<Option<CsvMapping>, ApplicationError> {
+        self.as_ref().by_signature(signature).await
+    }
+    async fn upsert(&self, mapping: NewCsvMapping) -> Result<CsvMappingId, ApplicationError> {
+        self.as_ref().upsert(mapping).await
+    }
+}
+
+#[async_trait]
+impl<T: CsvDecoder + ?Sized> CsvDecoder for Arc<T> {
+    async fn decode(&self, bytes: Vec<u8>) -> Result<String, ApplicationError> {
+        self.as_ref().decode(bytes).await
+    }
+}
