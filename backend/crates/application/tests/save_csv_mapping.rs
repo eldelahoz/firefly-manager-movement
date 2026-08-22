@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use chrono::{DateTime, NaiveDateTime, Utc};
 
-use ffm_application::csv_parser::ColumnMapping;
+use ffm_application::csv::ColumnMapping;
 use ffm_application::dtos::NewCsvMapping;
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::CsvMappingRepository;

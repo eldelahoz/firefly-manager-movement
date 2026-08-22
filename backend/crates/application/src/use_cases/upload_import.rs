@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 use ffm_domain::ids::BatchId;
 use ffm_domain::value_objects::{BatchStatus, HeaderSignature, MovementStatus};
 
-use crate::csv_parser::{
+use crate::csv::{
     auto_detect_mapping, parse_csv, ColumnMapping, InvalidLine, ParsedMovement,
 };
 use crate::dtos::{NewBatch, NewMovement};
@@ -76,7 +76,7 @@ where
 
         let content = self.decoder.decode(input.bytes).await?;
 
-        let delimiter = crate::csv_parser::detect_delimiter(&content);
+        let delimiter = crate::csv::detect_delimiter(&content);
 
         let headers = extract_headers(&content, delimiter);
 

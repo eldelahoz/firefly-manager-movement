@@ -1,4 +1,4 @@
-use ffm_application::csv_parser::{parse_csv, ColumnMapping};
+use ffm_application::csv::{parse_csv, ColumnMapping};
 
 #[test]
 fn exact_user_rows() {
