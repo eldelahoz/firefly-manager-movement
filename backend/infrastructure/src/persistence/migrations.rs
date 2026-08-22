@@ -8,7 +8,7 @@ use ffm_application::error::ApplicationError;
 use crate::persistence::pool::DbPool;
 
 /// Migrations embedded into the binary (path relative to this crate's CARGO_MANIFEST_DIR).
-pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("../../migrations");
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("../migrations");
 
 /// Runs pending migrations against the given pool.
 /// Called at backend boot (in `presentation::main`).

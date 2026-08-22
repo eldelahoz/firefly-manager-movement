@@ -238,4 +238,4 @@ All three must pass. Clippy warnings are treated as errors (`-D warnings`).
 - **Language**: code comments in English, PRD/spec docs may be in French (business domain language).
 - **No comments unless necessary** — code should be self-documenting.
 - **Diesel migrations**: one migration per logical change, always include `up.sql` and `down.sql`.
-- **New repository?** Add it to `backend/crates/infrastructure/src/persistence/repositories/mod.rs` and implement the corresponding port trait from `application/src/ports.rs`.
+- **New repository?** Add it to `backend/infrastructure/src/persistence/repositories/mod.rs` and implement the corresponding port trait from `backend/application/src/ports/`.
