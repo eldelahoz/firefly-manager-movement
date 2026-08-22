@@ -1,0 +1,372 @@
+//! Import (CSV upload) handlers.
+
+use axum::extract::{Multipart, Path, State};
+use axum::Json;
+use chrono::NaiveDate;
+use chrono::NaiveDateTime;
+use serde::Deserialize;
+use serde::Serialize;
+use utoipa::ToSchema;
+
+use ffm_application::csv::ColumnMapping;
+use ffm_application::use_cases::get_import::GetImport;
+use ffm_application::use_cases::list_imports::ListImports;
+use ffm_application::use_cases::save_csv_mapping::SaveCsvMapping;
+use ffm_application::use_cases::upload_import::{UploadImport, UploadImportInput};
+
+use crate::error::ApiError;
+use crate::state::AppState;
+
+#[derive(Serialize, ToSchema)]
+pub struct ColumnMappingResponse {
+    pub date_column: String,
+    pub amount_column: String,
+    pub description_column: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct ParsedMovementResponse {
+    pub line_no: i32,
+    pub date: NaiveDate,
+    pub amount_cents: i64,
+    pub description: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct InvalidLineResponse {
+    pub line_no: i32,
+    pub reason: String,
+    pub raw: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct UploadImportResponse {
+    pub batch_id: i64,
+    pub filename: String,
+    pub file_hash: String,
+    pub headers: Vec<String>,
+    pub detected_delimiter: String,
+    pub total_rows: usize,
+    pub valid_count: usize,
+    pub invalid_count: usize,
+    pub mapping_used: Option<ColumnMappingResponse>,
+    pub valid: Vec<ParsedMovementResponse>,
+    pub invalid: Vec<InvalidLineResponse>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct BatchResponse {
+    pub id: i64,
+    pub filename: String,
+    pub file_hash: String,
+    pub format: String,
+    pub currency: String,
+    pub status: String,
+    pub created_at: NaiveDateTime,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct MovementResponse {
+    pub id: i64,
+    pub line_no: i32,
+    pub date: NaiveDate,
+    pub amount_cents: i64,
+    pub description: String,
+    pub status: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct GetImportResponse {
+    pub batch: BatchResponse,
+    pub movements: Vec<MovementResponse>,
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct SaveMappingRequest {
+    pub headers: Vec<String>,
+    pub date_column: String,
+    pub amount_column: String,
+    pub description_column: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct SaveMappingResponse {
+    pub mapping_id: i64,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/imports",
+    responses(
+        (status = 200, description = "CSV uploaded and parsed", body = UploadImportResponse),
+        (status = 400, description = "Invalid multipart request"),
+        (status = 413, description = "File too large"),
+    ),
+    tag = "imports",
+)]
+pub async fn upload_import(
+    State(state): State<AppState>,
+    mut multipart: Multipart,
+) -> Result<Json<UploadImportResponse>, ApiError> {
+    let mut file_bytes: Option<Vec<u8>> = None;
+    let mut filename: Option<String> = None;
+    let mut currency: Option<String> = None;
+
+    let mut date_column: Option<String> = None;
+    let mut amount_column: Option<String> = None;
+    let mut description_column: Option<String> = None;
+
+    while let Some(field) = multipart.next_field().await.map_err(|e| {
+        ApiError(ffm_application::error::ApplicationError::Parse(
+            e.to_string(),
+        ))
+    })? {
+        let name = field.name().unwrap_or("").to_string();
+        match name.as_str() {
+            "file" => {
+                filename = field.file_name().map(|s| s.to_string());
+                let bytes = field.bytes().await.map_err(|e| {
+                    ApiError(ffm_application::error::ApplicationError::Parse(
+                        e.to_string(),
+                    ))
+                })?;
+                file_bytes = Some(bytes.to_vec());
+            }
+            "currency" => {
+                let text = field.text().await.map_err(|e| {
+                    ApiError(ffm_application::error::ApplicationError::Parse(
+                        e.to_string(),
+                    ))
+                })?;
+                currency = Some(text.trim().to_string());
+            }
+            "date_column" => {
+                date_column = Some(
+                    field
+                        .text()
+                        .await
+                        .map_err(|e| {
+                            ApiError(ffm_application::error::ApplicationError::Parse(
+                                e.to_string(),
+                            ))
+                        })?
+                        .trim()
+                        .to_string(),
+                );
+            }
+            "amount_column" => {
+                amount_column = Some(
+                    field
+                        .text()
+                        .await
+                        .map_err(|e| {
+                            ApiError(ffm_application::error::ApplicationError::Parse(
+                                e.to_string(),
+                            ))
+                        })?
+                        .trim()
+                        .to_string(),
+                );
+            }
+            "description_column" => {
+                description_column = Some(
+                    field
+                        .text()
+                        .await
+                        .map_err(|e| {
+                            ApiError(ffm_application::error::ApplicationError::Parse(
+                                e.to_string(),
+                            ))
+                        })?
+                        .trim()
+                        .to_string(),
+                );
+            }
+            _ => {
+                // ignore unknown fields
+            }
+        }
+    }
+
+    let bytes = file_bytes.ok_or_else(|| {
+        ApiError(ffm_application::error::ApplicationError::Parse(
+            "missing multipart field 'file'".into(),
+        ))
+    })?;
+    let filename = filename.unwrap_or_else(|| "upload.csv".into());
+    let currency = currency.unwrap_or_else(|| "EUR".into());
+
+    let mapping = match (date_column, amount_column, description_column) {
+        (Some(d), Some(a), Some(desc)) => Some(ColumnMapping {
+            date_column: d,
+            amount_column: a,
+            description_column: desc,
+        }),
+        _ => None,
+    };
+
+    let uc = UploadImport::new(
+        state.csv_decoder.clone(),
+        state.batches.clone(),
+        state.movements.clone(),
+        state.csv_mappings.clone(),
+    );
+
+    let result = uc
+        .execute(UploadImportInput {
+            filename: filename.clone(),
+            bytes,
+            currency,
+            mapping,
+        })
+        .await
+        .map_err(ApiError)?;
+
+    Ok(Json(UploadImportResponse {
+        batch_id: result.batch_id.as_i64(),
+        filename: result.filename,
+        file_hash: result.file_hash,
+        headers: result.headers,
+        detected_delimiter: result.detected_delimiter.to_string(),
+        total_rows: result.total_rows,
+        valid_count: result.valid_count,
+        invalid_count: result.invalid_count,
+        mapping_used: result.mapping_used.map(|m| ColumnMappingResponse {
+            date_column: m.date_column,
+            amount_column: m.amount_column,
+            description_column: m.description_column,
+        }),
+        valid: result
+            .valid
+            .into_iter()
+            .map(|m| ParsedMovementResponse {
+                line_no: m.line_no,
+                date: m.date,
+                amount_cents: m.amount_cents.as_i64(),
+                description: m.description,
+            })
+            .collect(),
+        invalid: result
+            .invalid
+            .into_iter()
+            .map(|l| InvalidLineResponse {
+                line_no: l.line_no,
+                reason: l.reason,
+                raw: l.raw,
+            })
+            .collect(),
+    }))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/imports",
+    responses(
+        (status = 200, description = "List of imports", body = [BatchResponse]),
+    ),
+    tag = "imports",
+)]
+pub async fn list_imports(
+    State(state): State<AppState>,
+) -> Result<Json<Vec<BatchResponse>>, ApiError> {
+    let uc = ListImports::new(state.batches.clone());
+    let batches = uc.execute().await.map_err(ApiError)?;
+    Ok(Json(
+        batches
+            .into_iter()
+            .map(|b| BatchResponse {
+                id: b.id.as_i64(),
+                filename: b.filename,
+                file_hash: b.file_hash,
+                format: b.format,
+                currency: b.currency,
+                status: b.status.as_str().to_string(),
+                created_at: b.created_at,
+            })
+            .collect(),
+    ))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/imports/{id}",
+    params(("id" = i64, Path, description = "Batch id")),
+    responses(
+        (status = 200, description = "Import detail", body = GetImportResponse),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "imports",
+)]
+pub async fn get_import(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> Result<Json<GetImportResponse>, ApiError> {
+    let uc = GetImport::new(state.batches.clone(), state.movements.clone());
+    let (batch, movements) = uc
+        .execute(ffm_domain::ids::BatchId::new(id))
+        .await
+        .map_err(ApiError)?;
+    Ok(Json(GetImportResponse {
+        batch: BatchResponse {
+            id: batch.id.as_i64(),
+            filename: batch.filename,
+            file_hash: batch.file_hash,
+            format: batch.format,
+            currency: batch.currency,
+            status: batch.status.as_str().to_string(),
+            created_at: batch.created_at,
+        },
+        movements: movements
+            .into_iter()
+            .map(|m| MovementResponse {
+                id: m.id.as_i64(),
+                line_no: m.line_no,
+                date: m.date,
+                amount_cents: m.amount_cents.as_i64(),
+                description: m.description,
+                status: m.status.as_str().to_string(),
+            })
+            .collect(),
+    }))
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/imports/{id}/mapping",
+    request_body = SaveMappingRequest,
+    params(("id" = i64, Path, description = "Batch id")),
+    responses(
+        (status = 200, description = "Mapping saved", body = SaveMappingResponse),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "imports",
+)]
+pub async fn save_mapping(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Json(body): Json<SaveMappingRequest>,
+) -> Result<Json<SaveMappingResponse>, ApiError> {
+    // Ensure the batch exists (route is batch-scoped).
+    state
+        .batches
+        .get(ffm_domain::ids::BatchId::new(id))
+        .await
+        .map_err(ApiError)?;
+
+    let uc = SaveCsvMapping::new(state.csv_mappings.clone());
+    let mapping_id = uc
+        .execute(
+            body.headers,
+            ColumnMapping {
+                date_column: body.date_column,
+                amount_column: body.amount_column,
+                description_column: body.description_column,
+            },
+        )
+        .await
+        .map_err(ApiError)?;
+
+    Ok(Json(SaveMappingResponse {
+        mapping_id: mapping_id.as_i64(),
+    }))
+}

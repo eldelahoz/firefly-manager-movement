@@ -1,7 +1,7 @@
 # Configuración de Diesel CLI (backend MySQL).
 # La spec de esquema se genera en el crate de infraestructura.
 [print_schema]
-file = "crates/infrastructure/src/schema.rs"
+file = "infrastructure/src/schema.rs"
 
 [migrations_directory]
-dir = "migrations"
+dir = "infrastructure/migrations"

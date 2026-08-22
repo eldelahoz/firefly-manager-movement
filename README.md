@@ -14,14 +14,12 @@ Built in Rust with **Clean Architecture** (domain → application → infrastruc
 
 ```
 backend/
-├── crates/
-│   ├── domain/           # Entities, value objects, matching rules
-│   ├── application/      # Use cases, ports (interfaces), DTOs, errors
-│   ├── infrastructure/   # MySQL (diesel), Firefly III HTTP client, repositories
-│   └── presentation/     # HTTP API (axum), OpenAPI (utoipa + Scalar)
-├── migrations/           # Diesel database migrations
-├── Cargo.toml            # Workspace root
-└── diesel.toml           # Diesel CLI config
+├── domain/           # Entities, value objects, matching rules
+├── application/      # Use cases, ports (interfaces), DTOs, errors
+├── infrastructure/   # MySQL (diesel), Firefly III HTTP client, repositories, migrations/
+├── presentation/     # HTTP API (axum), OpenAPI (utoipa + Scalar)
+├── Cargo.toml        # Workspace root
+└── diesel.toml       # Diesel CLI config
 ```
 
 ## Architecture
