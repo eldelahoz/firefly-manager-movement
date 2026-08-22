@@ -12,11 +12,14 @@ services:
       - "3306:3306"
     volumes:
       - ffm-mysql-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpass"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pdevrootpass"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - ffm-net
 
   adminer:
     image: adminer:5.5.1
@@ -26,9 +29,15 @@ services:
       mysql:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
       ADMINER_DEFAULT_SERVER: mysql
+    networks:
+      - ffm-net
 
 volumes:
   ffm-mysql-data:
+
+networks:
+  ffm-net:
+    name: ffm-net
