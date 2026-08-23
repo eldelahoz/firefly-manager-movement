@@ -206,6 +206,9 @@ async fn post_imports_parses_and_persists_movements() {
         batches: batches.clone(),
         movements: movements.clone(),
         csv_mappings: mappings.clone(),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -262,6 +265,9 @@ async fn get_imports_lists_batches() {
         batches: batches.clone(),
         movements: movements.clone(),
         csv_mappings: mappings,
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -321,6 +327,9 @@ async fn get_import_returns_batch_and_movements() {
         batches: batches.clone(),
         movements: movements.clone(),
         csv_mappings: mappings,
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -381,6 +390,9 @@ async fn put_import_mapping_saves_mapping() {
         batches: batches.clone(),
         movements: movements.clone(),
         csv_mappings: mappings.clone(),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
         ff3_health_probe: false,
     };
     let router = app(state);

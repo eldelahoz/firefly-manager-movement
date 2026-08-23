@@ -14,4 +14,7 @@ pub use firefly::{
     About, Ff3AccountDto, Ff3TransactionDto, NewFf3Account, NewFf3TransactionCreation,
 };
 pub use imports::{NewBatch, NewCsvMapping, NewMovement};
-pub use reconciliation::{NewCreation, NewFf3Transaction, NewMatch, NewReconciliation};
+pub use reconciliation::{
+    NewCreation, NewFf3Transaction, NewMatch, NewReconciliation, ReconciliationRun,
+    RunFf3Transaction, RunMatch,
+};

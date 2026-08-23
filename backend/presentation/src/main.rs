@@ -8,7 +8,10 @@ use ffm_infrastructure::persistence::pool::create_pool;
 use ffm_infrastructure::persistence::repositories::batch::MysqlBatchRepository;
 use ffm_infrastructure::persistence::repositories::csv_mapping::MysqlCsvMappingRepository;
 use ffm_infrastructure::persistence::repositories::ff3_account::MysqlFf3AccountRepository;
+use ffm_infrastructure::persistence::repositories::ff3_transaction::MysqlFf3TransactionRepository;
+use ffm_infrastructure::persistence::repositories::match_repo::MysqlMatchRepository;
 use ffm_infrastructure::persistence::repositories::movement::MysqlMovementRepository;
+use ffm_infrastructure::persistence::repositories::reconciliation::MysqlReconciliationRepository;
 use ffm_presentation::{app, AppState};
 
 #[tokio::main]
@@ -42,6 +45,9 @@ async fn main() {
     let batches = Arc::new(MysqlBatchRepository::new(pool.clone()));
     let movements = Arc::new(MysqlMovementRepository::new(pool.clone()));
     let csv_mappings = Arc::new(MysqlCsvMappingRepository::new(pool.clone()));
+    let reconciliations = Arc::new(MysqlReconciliationRepository::new(pool.clone()));
+    let matches = Arc::new(MysqlMatchRepository::new(pool.clone()));
+    let ff3_transactions = Arc::new(MysqlFf3TransactionRepository::new(pool.clone()));
 
     let state = AppState {
         firefly,
@@ -50,6 +56,9 @@ async fn main() {
         batches,
         movements,
         csv_mappings,
+        reconciliations,
+        matches,
+        ff3_transactions,
         ff3_health_probe,
     };
 
