@@ -41,6 +41,8 @@ async fn get_firefly_accounts_returns_accounts_and_syncs() {
         reconciliations: Arc::new(common::FakeReconciliationStore::new()),
         matches: Arc::new(common::FakeReconciliationStore::new()),
         ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -77,6 +79,8 @@ async fn get_firefly_accounts_ff3_error_returns_502() {
         reconciliations: Arc::new(common::FakeReconciliationStore::new()),
         matches: Arc::new(common::FakeReconciliationStore::new()),
         ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -112,6 +116,8 @@ async fn post_account_transactions_ok() {
         reconciliations: Arc::new(common::FakeReconciliationStore::new()),
         matches: Arc::new(common::FakeReconciliationStore::new()),
         ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -157,6 +163,8 @@ async fn query_account_transactions_ok() {
         reconciliations: Arc::new(common::FakeReconciliationStore::new()),
         matches: Arc::new(common::FakeReconciliationStore::new()),
         ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -194,6 +202,8 @@ async fn get_on_transactions_returns_405() {
         reconciliations: Arc::new(common::FakeReconciliationStore::new()),
         matches: Arc::new(common::FakeReconciliationStore::new()),
         ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -224,6 +234,8 @@ async fn transactions_start_after_end_returns_400() {
         reconciliations: Arc::new(common::FakeReconciliationStore::new()),
         matches: Arc::new(common::FakeReconciliationStore::new()),
         ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
     };
     let router = app(state);

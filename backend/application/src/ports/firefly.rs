@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 
 use ffm_domain::entities::Ff3Account;
+use ffm_domain::ids::Ff3AccountId;
 
 use crate::dtos::{
     About, Ff3AccountDto, Ff3TransactionDto, NewFf3Account, NewFf3TransactionCreation,
@@ -30,5 +31,6 @@ pub trait FireflyClient: Send + Sync {
 pub trait Ff3AccountRepository: Send + Sync {
     async fn upsert_batch(&self, accounts: Vec<NewFf3Account>) -> Result<(), ApplicationError>;
     async fn by_ff3_id(&self, ff3_id: i64) -> Result<Option<Ff3Account>, ApplicationError>;
+    async fn by_id(&self, id: Ff3AccountId) -> Result<Option<Ff3Account>, ApplicationError>;
     async fn all_asset(&self) -> Result<Vec<Ff3Account>, ApplicationError>;
 }

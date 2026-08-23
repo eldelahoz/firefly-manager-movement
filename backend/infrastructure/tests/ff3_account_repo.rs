@@ -46,5 +46,15 @@ async fn upsert_by_ff3_id_and_all_asset() {
     assert_eq!(renamed.name, "Cuenta Corriente Renovada");
     assert_eq!(repo.all_asset().await.expect("assets after").len(), 2);
 
+    // by_id: local id lookup (used by ApplyMissing to resolve the batch account).
+    let by_local = repo.by_id(renamed.id).await.expect("by id").expect("some");
+    assert_eq!(by_local.id, renamed.id);
+    assert_eq!(by_local.ff3_id, 1);
+    assert!(repo
+        .by_id(ffm_domain::ids::Ff3AccountId::new(9999))
+        .await
+        .expect("by id none")
+        .is_none());
+
     common::clean(&pool).await;
 }
