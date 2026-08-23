@@ -216,3 +216,47 @@ fn duplicate_of_already_matched_movement() {
     assert_eq!(r.duplicates, vec![Ff3TransactionId::new(12)]);
     assert!(r.extra.is_empty());
 }
+
+#[test]
+fn benchmark_1000_movements_under_5s_nfr04() {
+    // NFR-04: 1000 movements < 5s excluding latency.
+    let n = 1000;
+    let base = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
+
+    let movements: Vec<Movement> = (0..n)
+        .map(|i| Movement {
+            id: MovementId::new(i + 1),
+            batch_id: BatchId::new(1),
+            line_no: i as i32,
+            date: base + chrono::Days::new((i % 90) as u64),
+            amount_cents: AmountCents::new((i % 500) * 37 - 9000),
+            description: String::new(),
+            raw_json: String::new(),
+            status: MovementStatus::Imported,
+            created_at: dt(),
+        })
+        .collect();
+
+    let ff3_txs: Vec<Ff3Transaction> = (0..n)
+        .map(|i| Ff3Transaction {
+            id: Ff3TransactionId::new(i + 1),
+            reconciliation_id: ReconciliationId::new(1),
+            ff3_id: (i + 1) * 1000,
+            date: base + chrono::Days::new(((i + 3) % 90) as u64),
+            amount_cents: AmountCents::new((i % 500) * 37 - 9000),
+            description: String::new(),
+            is_duplicate: false,
+            created_at: dt(),
+        })
+        .collect();
+
+    let start = std::time::Instant::now();
+    let r = run_matching(&movements, &ff3_txs, 3);
+    let elapsed = start.elapsed();
+
+    assert_eq!(r.matches.len() + r.missing.len(), n as usize);
+    assert!(
+        elapsed.as_secs_f64() < 5.0,
+        "matching engine took {elapsed:?} for {n} movements (NFR-04 limit: 5s)"
+    );
+}

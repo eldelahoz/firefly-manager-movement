@@ -5,19 +5,25 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::NaiveDate;
 
-use ffm_domain::entities::{Batch, CsvMapping, Ff3Account, Movement};
-use ffm_domain::ids::{BatchId, CsvMappingId, Ff3AccountId, MovementId};
+use ffm_domain::entities::{
+    Batch, Creation, CsvMapping, Ff3Account, Ff3Transaction, Match, Movement, Reconciliation,
+};
+use ffm_domain::ids::{
+    BatchId, CreationId, CsvMappingId, Ff3AccountId, MovementId, ReconciliationId,
+};
 use ffm_domain::value_objects::{BatchStatus, HeaderSignature, MovementStatus};
 
 use crate::dtos::{
-    About, Ff3AccountDto, Ff3TransactionDto, NewBatch, NewCsvMapping, NewFf3Account,
-    NewFf3TransactionCreation, NewMovement,
+    About, Ff3AccountDto, Ff3TransactionDto, NewBatch, NewCreation, NewCsvMapping, NewFf3Account,
+    NewFf3Transaction, NewFf3TransactionCreation, NewMatch, NewMovement, NewReconciliation,
+    ReconciliationRun,
 };
 use crate::error::ApplicationError;
 
 use super::{
-    BatchRepository, CsvDecoder, CsvMappingRepository, Ff3AccountRepository, FireflyClient,
-    MovementRepository,
+    BatchRepository, CreationRepository, CsvDecoder, CsvMappingRepository, Ff3AccountRepository,
+    Ff3TransactionRepository, FireflyClient, MatchRepository, MovementRepository,
+    ReconciliationRepository,
 };
 
 #[async_trait]
@@ -123,5 +129,69 @@ impl<T: CsvMappingRepository + ?Sized> CsvMappingRepository for Arc<T> {
 impl<T: CsvDecoder + ?Sized> CsvDecoder for Arc<T> {
     async fn decode(&self, bytes: Vec<u8>) -> Result<String, ApplicationError> {
         self.as_ref().decode(bytes).await
+    }
+}
+
+#[async_trait]
+impl<T: ReconciliationRepository + ?Sized> ReconciliationRepository for Arc<T> {
+    async fn insert(
+        &self,
+        reconciliation: NewReconciliation,
+    ) -> Result<ReconciliationId, ApplicationError> {
+        self.as_ref().insert(reconciliation).await
+    }
+    async fn latest_by_batch(
+        &self,
+        batch_id: BatchId,
+    ) -> Result<Option<Reconciliation>, ApplicationError> {
+        self.as_ref().latest_by_batch(batch_id).await
+    }
+    async fn save_run(&self, run: ReconciliationRun) -> Result<ReconciliationId, ApplicationError> {
+        self.as_ref().save_run(run).await
+    }
+}
+
+#[async_trait]
+impl<T: Ff3TransactionRepository + ?Sized> Ff3TransactionRepository for Arc<T> {
+    async fn insert_batch(
+        &self,
+        transactions: Vec<NewFf3Transaction>,
+    ) -> Result<(), ApplicationError> {
+        self.as_ref().insert_batch(transactions).await
+    }
+    async fn by_reconciliation(
+        &self,
+        reconciliation_id: ReconciliationId,
+    ) -> Result<Vec<Ff3Transaction>, ApplicationError> {
+        self.as_ref().by_reconciliation(reconciliation_id).await
+    }
+}
+
+#[async_trait]
+impl<T: MatchRepository + ?Sized> MatchRepository for Arc<T> {
+    async fn insert_batch(&self, matches: Vec<NewMatch>) -> Result<(), ApplicationError> {
+        self.as_ref().insert_batch(matches).await
+    }
+    async fn by_reconciliation(
+        &self,
+        reconciliation_id: ReconciliationId,
+    ) -> Result<Vec<Match>, ApplicationError> {
+        self.as_ref().by_reconciliation(reconciliation_id).await
+    }
+}
+
+#[async_trait]
+impl<T: CreationRepository + ?Sized> CreationRepository for Arc<T> {
+    async fn insert(&self, creation: NewCreation) -> Result<CreationId, ApplicationError> {
+        self.as_ref().insert(creation).await
+    }
+    async fn by_movement(
+        &self,
+        movement_id: MovementId,
+    ) -> Result<Option<Creation>, ApplicationError> {
+        self.as_ref().by_movement(movement_id).await
+    }
+    async fn by_batch(&self, batch_id: BatchId) -> Result<Vec<Creation>, ApplicationError> {
+        self.as_ref().by_batch(batch_id).await
     }
 }
