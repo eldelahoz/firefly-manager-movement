@@ -67,6 +67,26 @@ impl Ff3AccountRepository for MysqlFf3AccountRepository {
         }
     }
 
+    async fn by_id(
+        &self,
+        id: ffm_domain::ids::Ff3AccountId,
+    ) -> Result<Option<Ff3Account>, ApplicationError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| ApplicationError::Database(e.to_string()))?;
+        match ff3_accounts::table
+            .find(id.as_i64())
+            .first::<Ff3AccountModel>(&mut conn)
+            .await
+        {
+            Ok(a) => Ok(Some(a.into())),
+            Err(diesel::result::Error::NotFound) => Ok(None),
+            Err(e) => Err(ApplicationError::Database(e.to_string())),
+        }
+    }
+
     async fn all_asset(&self) -> Result<Vec<Ff3Account>, ApplicationError> {
         let mut conn = self
             .pool

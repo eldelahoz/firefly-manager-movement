@@ -13,12 +13,14 @@ use utoipa_scalar::Scalar;
 use tower_http::limit::RequestBodyLimitLayer;
 
 use crate::handlers::firefly::{
-    __path_list_accounts, account_transactions, account_transactions_fallback, list_accounts,
+    __path_delete_transaction, __path_list_accounts, account_transactions,
+    account_transactions_fallback, delete_transaction, list_accounts,
 };
 use crate::handlers::imports::{__path_get_import, __path_list_imports, __path_save_mapping};
 use crate::handlers::imports::{__path_upload_import, upload_import};
 use crate::handlers::imports::{get_import, list_imports, save_mapping};
-use crate::handlers::reconcile::{__path_get_results, __path_ignore_movement, __path_reconcile};
+use crate::handlers::reconcile::{__path_apply, __path_get_results, __path_ignore_movement};
+use crate::handlers::reconcile::{__path_reconcile, apply};
 use crate::handlers::reconcile::{get_results, ignore_movement, reconcile};
 
 mod error;
@@ -92,6 +94,8 @@ pub fn app(state: AppState) -> axum::Router {
         .routes(routes!(reconcile))
         .routes(routes!(get_results))
         .routes(routes!(ignore_movement))
+        .routes(routes!(apply))
+        .routes(routes!(delete_transaction))
         .route("/api/firefly/accounts/{id}/transactions", tx_method_router)
         .with_state(state)
         .split_for_parts();

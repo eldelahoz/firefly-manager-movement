@@ -83,6 +83,18 @@ impl Ff3TransactionRepository for FakeFf3TxRepo {
             .cloned()
             .collect())
     }
+    async fn latest_by_ff3_id(
+        &self,
+        ff3_id: i64,
+    ) -> Result<Option<Ff3Transaction>, ApplicationError> {
+        Ok(self
+            .rows
+            .lock()
+            .unwrap()
+            .iter()
+            .rfind(|t| t.ff3_id == ff3_id)
+            .cloned())
+    }
 }
 
 struct FakeMatchRepo {

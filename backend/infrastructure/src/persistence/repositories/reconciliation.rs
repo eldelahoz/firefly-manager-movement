@@ -73,7 +73,9 @@ impl ReconciliationRepository for MysqlReconciliationRepository {
             .map_err(|e| ApplicationError::Database(e.to_string()))?;
         match reconciliations::table
             .filter(reconciliations::batch_id.eq(batch_id.as_i64()))
-            .order(reconciliations::ran_at.desc())
+            // `id` is monotonic: deterministic "latest" even when two runs
+            // share the same `ran_at` second.
+            .order(reconciliations::id.desc())
             .first::<ReconciliationModel>(&mut conn)
             .await
         {
