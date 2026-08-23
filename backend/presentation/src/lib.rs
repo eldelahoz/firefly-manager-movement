@@ -18,6 +18,8 @@ use crate::handlers::firefly::{
 use crate::handlers::imports::{__path_get_import, __path_list_imports, __path_save_mapping};
 use crate::handlers::imports::{__path_upload_import, upload_import};
 use crate::handlers::imports::{get_import, list_imports, save_mapping};
+use crate::handlers::reconcile::{__path_get_results, __path_ignore_movement, __path_reconcile};
+use crate::handlers::reconcile::{get_results, ignore_movement, reconcile};
 
 mod error;
 mod handlers;
@@ -87,6 +89,9 @@ pub fn app(state: AppState) -> axum::Router {
         .routes(routes!(list_imports))
         .routes(routes!(get_import))
         .routes(routes!(save_mapping))
+        .routes(routes!(reconcile))
+        .routes(routes!(get_results))
+        .routes(routes!(ignore_movement))
         .route("/api/firefly/accounts/{id}/transactions", tx_method_router)
         .with_state(state)
         .split_for_parts();

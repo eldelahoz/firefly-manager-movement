@@ -1,6 +1,9 @@
 pub mod get_account_transactions;
 pub mod get_import;
+pub mod get_results;
+pub mod ignore_movement;
 pub mod list_firefly_accounts;
 pub mod list_imports;
+pub mod reconcile_batch;
 pub mod save_csv_mapping;
 pub mod upload_import;

@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use ffm_domain::entities::{Creation, Ff3Transaction, Match, Reconciliation};
 use ffm_domain::ids::{BatchId, CreationId, MovementId, ReconciliationId};
 
-use crate::dtos::{NewCreation, NewFf3Transaction, NewMatch, NewReconciliation};
+use crate::dtos::{NewCreation, NewFf3Transaction, NewMatch, NewReconciliation, ReconciliationRun};
 use crate::error::ApplicationError;
 
 #[async_trait]
@@ -16,6 +16,10 @@ pub trait ReconciliationRepository: Send + Sync {
         &self,
         batch_id: BatchId,
     ) -> Result<Option<Reconciliation>, ApplicationError>;
+    /// Persists a whole rapprochement run atomically (R8): the
+    /// reconciliation snapshot, the per-run FF3 transaction cache, the
+    /// 1-to-1 matches and the movement status updates.
+    async fn save_run(&self, run: ReconciliationRun) -> Result<ReconciliationId, ApplicationError>;
 }
 
 #[async_trait]

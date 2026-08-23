@@ -38,6 +38,9 @@ async fn get_firefly_accounts_returns_accounts_and_syncs() {
         batches: Arc::new(common::FakeBatchRepository),
         movements: Arc::new(common::FakeMovementRepository),
         csv_mappings: Arc::new(common::FakeCsvMappingRepository),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -71,6 +74,9 @@ async fn get_firefly_accounts_ff3_error_returns_502() {
         batches: Arc::new(common::FakeBatchRepository),
         movements: Arc::new(common::FakeMovementRepository),
         csv_mappings: Arc::new(common::FakeCsvMappingRepository),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -103,6 +109,9 @@ async fn post_account_transactions_ok() {
         batches: Arc::new(common::FakeBatchRepository),
         movements: Arc::new(common::FakeMovementRepository),
         csv_mappings: Arc::new(common::FakeCsvMappingRepository),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -145,6 +154,9 @@ async fn query_account_transactions_ok() {
         batches: Arc::new(common::FakeBatchRepository),
         movements: Arc::new(common::FakeMovementRepository),
         csv_mappings: Arc::new(common::FakeCsvMappingRepository),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -179,6 +191,9 @@ async fn get_on_transactions_returns_405() {
         batches: Arc::new(common::FakeBatchRepository),
         movements: Arc::new(common::FakeMovementRepository),
         csv_mappings: Arc::new(common::FakeCsvMappingRepository),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -206,6 +221,9 @@ async fn transactions_start_after_end_returns_400() {
         batches: Arc::new(common::FakeBatchRepository),
         movements: Arc::new(common::FakeMovementRepository),
         csv_mappings: Arc::new(common::FakeCsvMappingRepository),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
         ff3_health_probe: false,
     };
     let router = app(state);
