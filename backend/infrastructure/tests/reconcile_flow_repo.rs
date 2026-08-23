@@ -3,6 +3,7 @@ mod common;
 use chrono::NaiveDate;
 use ffm_application::dtos::{
     NewBatch, NewCreation, NewFf3Transaction, NewMatch, NewMovement, NewReconciliation,
+    ReconciliationRun, RunFf3Transaction, RunMatch,
 };
 use ffm_application::ports::{
     BatchRepository, CreationRepository, Ff3TransactionRepository, MatchRepository,
@@ -161,6 +162,133 @@ async fn reconcile_flow_ff3_transactions_matches_creations() {
         .await
         .expect("by_movement none")
         .is_none());
+
+    common::clean(&pool).await;
+}
+
+#[tokio::test]
+async fn save_run_persists_whole_run_atomically() {
+    let pool = common::setup_pool().await;
+    common::clean(&pool).await;
+    let batches = MysqlBatchRepository::new(pool.clone());
+    let movements = MysqlMovementRepository::new(pool.clone());
+    let reconciliations = MysqlReconciliationRepository::new(pool.clone());
+    let transactions = MysqlFf3TransactionRepository::new(pool.clone());
+    let matches = MysqlMatchRepository::new(pool.clone());
+
+    let batch_id = batches
+        .insert(NewBatch {
+            filename: "run.csv".into(),
+            file_hash: "h".into(),
+            format: "csv".into(),
+            currency: "EUR".into(),
+            account_id: None,
+            status: BatchStatus::Parsed,
+        })
+        .await
+        .expect("insert batch");
+
+    movements
+        .insert_batch(vec![
+            NewMovement {
+                batch_id,
+                line_no: 1,
+                date: NaiveDate::from_ymd_opt(2026, 1, 5).unwrap(),
+                amount_cents: AmountCents::new(12340),
+                description: "lunch".into(),
+                raw_json: "{}".into(),
+                status: MovementStatus::Imported,
+            },
+            NewMovement {
+                batch_id,
+                line_no: 2,
+                date: NaiveDate::from_ymd_opt(2026, 1, 6).unwrap(),
+                amount_cents: AmountCents::new(-5000),
+                description: "cash".into(),
+                raw_json: "{}".into(),
+                status: MovementStatus::Imported,
+            },
+        ])
+        .await
+        .expect("insert movements");
+
+    let movs = movements.by_batch(batch_id).await.expect("movements");
+    let (lunch, cash) = (
+        movs.iter().find(|m| m.line_no == 1).unwrap(),
+        movs.iter().find(|m| m.line_no == 2).unwrap(),
+    );
+
+    let run = ReconciliationRun {
+        reconciliation: NewReconciliation {
+            batch_id,
+            tolerance_days: 2,
+            window_start: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            window_end: NaiveDate::from_ymd_opt(2026, 1, 31).unwrap(),
+            matched_count: 1,
+            missing_count: 1,
+            extra_count: 1,
+        },
+        ff3_transactions: vec![
+            RunFf3Transaction {
+                ff3_id: 101,
+                date: NaiveDate::from_ymd_opt(2026, 1, 5).unwrap(),
+                amount_cents: AmountCents::new(12340),
+                description: "lunch ff3".into(),
+                is_duplicate: false,
+            },
+            RunFf3Transaction {
+                ff3_id: 102,
+                date: NaiveDate::from_ymd_opt(2026, 1, 9).unwrap(),
+                amount_cents: AmountCents::new(999),
+                description: "unrelated".into(),
+                is_duplicate: false,
+            },
+        ],
+        matches: vec![RunMatch {
+            movement_id: lunch.id,
+            ff3_id: 101,
+        }],
+        movement_status_updates: vec![
+            (lunch.id, MovementStatus::Matched),
+            (cash.id, MovementStatus::Missing),
+        ],
+    };
+
+    let rec_id = reconciliations.save_run(run).await.expect("save_run");
+    assert!(rec_id.as_i64() > 0);
+
+    // Reconciliation snapshot persisted.
+    let latest = reconciliations
+        .latest_by_batch(batch_id)
+        .await
+        .expect("latest")
+        .expect("some");
+    assert_eq!(latest.id, rec_id);
+    assert_eq!(latest.matched_count, 1);
+    assert_eq!(latest.missing_count, 1);
+    assert_eq!(latest.extra_count, 1);
+
+    // FF3 txs of the run cached.
+    let txs = transactions.by_reconciliation(rec_id).await.expect("txs");
+    assert_eq!(txs.len(), 2);
+
+    // Match row resolved to the local row id of ff3_id 101.
+    let mts = matches.by_reconciliation(rec_id).await.expect("matches");
+    assert_eq!(mts.len(), 1);
+    assert_eq!(mts[0].movement_id, lunch.id);
+    let lunch_tx = txs.iter().find(|t| t.ff3_id == 101).unwrap();
+    assert_eq!(mts[0].ff3_transaction_id, lunch_tx.id);
+
+    // Status updates applied inside the same tx.
+    let movs = movements.by_batch(batch_id).await.expect("movements");
+    assert_eq!(
+        movs.iter().find(|m| m.id == lunch.id).unwrap().status,
+        MovementStatus::Matched
+    );
+    assert_eq!(
+        movs.iter().find(|m| m.id == cash.id).unwrap().status,
+        MovementStatus::Missing
+    );
 
     common::clean(&pool).await;
 }

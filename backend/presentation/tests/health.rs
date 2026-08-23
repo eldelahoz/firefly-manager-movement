@@ -18,6 +18,9 @@ async fn health_returns_ok_json() {
         batches: Arc::new(common::FakeBatchRepository),
         movements: Arc::new(common::FakeMovementRepository),
         csv_mappings: Arc::new(common::FakeCsvMappingRepository),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -47,6 +50,9 @@ async fn health_with_probe_ok() {
         batches: Arc::new(common::FakeBatchRepository),
         movements: Arc::new(common::FakeMovementRepository),
         csv_mappings: Arc::new(common::FakeCsvMappingRepository),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
         ff3_health_probe: true,
     };
     let router = app(state);
@@ -78,6 +84,9 @@ async fn health_with_probe_degraded() {
         batches: Arc::new(common::FakeBatchRepository),
         movements: Arc::new(common::FakeMovementRepository),
         csv_mappings: Arc::new(common::FakeCsvMappingRepository),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
         ff3_health_probe: true,
     };
     let router = app(state);
@@ -108,6 +117,9 @@ async fn openapi_json_is_served() {
         batches: Arc::new(common::FakeBatchRepository),
         movements: Arc::new(common::FakeMovementRepository),
         csv_mappings: Arc::new(common::FakeCsvMappingRepository),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
         ff3_health_probe: false,
     };
     let router = app(state);

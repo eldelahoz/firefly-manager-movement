@@ -1,20 +1,24 @@
 #![allow(dead_code)]
 //! Shared test fakes for presentation E2E tests.
 
+use std::collections::HashMap;
+
 use async_trait::async_trait;
-use chrono::NaiveDate;
+use chrono::{NaiveDate, NaiveDateTime};
 
 use ffm_application::dtos::{
     About, Ff3AccountDto, Ff3TransactionDto, NewFf3Account, NewFf3TransactionCreation,
 };
+use ffm_application::dtos::{NewFf3Transaction, NewMatch, NewReconciliation, ReconciliationRun};
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::{
-    BatchRepository, CsvDecoder, CsvMappingRepository, Ff3AccountRepository, FireflyClient,
-    MovementRepository,
+    BatchRepository, CsvDecoder, CsvMappingRepository, Ff3AccountRepository,
+    Ff3TransactionRepository, FireflyClient, MatchRepository, MovementRepository,
+    ReconciliationRepository,
 };
 use ffm_domain::entities::Ff3Account;
-use ffm_domain::entities::{Batch, CsvMapping, Movement};
-use ffm_domain::ids::{BatchId, CsvMappingId, MovementId};
+use ffm_domain::entities::{Batch, CsvMapping, Ff3Transaction, Match, Movement, Reconciliation};
+use ffm_domain::ids::{BatchId, CsvMappingId, MovementId, ReconciliationId};
 use ffm_domain::value_objects::{BatchStatus, HeaderSignature, MovementStatus};
 
 use ffm_application::dtos::{NewBatch, NewCsvMapping, NewMovement};
@@ -229,5 +233,172 @@ impl CsvMappingRepository for FakeCsvMappingRepository {
     }
     async fn upsert(&self, _mapping: NewCsvMapping) -> Result<CsvMappingId, ApplicationError> {
         Ok(CsvMappingId::new(1))
+    }
+}
+
+// ── FakeReconciliationStore (F4: reconcile + results) ──────────────────
+
+fn test_epoch() -> NaiveDateTime {
+    chrono::DateTime::<chrono::Utc>::from_timestamp(0, 0)
+        .expect("epoch")
+        .naive_utc()
+}
+
+/// In-memory store implementing the three run-related ports. Mirrors the
+/// MySQL adapter: `save_run` splits the run into `ff3_transactions` rows
+/// (assigning local ids) + `matches` rows, so `GetResults` can read them.
+#[derive(Default)]
+pub struct FakeReconciliationStore {
+    reconciliations: std::sync::Mutex<Vec<Reconciliation>>,
+    tx_rows: std::sync::Mutex<Vec<Ff3Transaction>>,
+    match_rows: std::sync::Mutex<Vec<Match>>,
+    next_recon_id: std::sync::Mutex<i64>,
+    next_tx_id: std::sync::Mutex<i64>,
+    next_match_id: std::sync::Mutex<i64>,
+    /// When set, movement status updates are applied (atomic run).
+    pub movements: Option<std::sync::Arc<dyn MovementRepository>>,
+}
+
+impl FakeReconciliationStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_movements(movements: std::sync::Arc<dyn MovementRepository>) -> Self {
+        Self {
+            movements: Some(movements),
+            ..Self::default()
+        }
+    }
+
+    pub fn run_count(&self) -> usize {
+        self.reconciliations.lock().unwrap().len()
+    }
+}
+
+#[async_trait]
+impl ReconciliationRepository for FakeReconciliationStore {
+    async fn insert(
+        &self,
+        _reconciliation: NewReconciliation,
+    ) -> Result<ReconciliationId, ApplicationError> {
+        unimplemented!("F4 uses save_run")
+    }
+    async fn latest_by_batch(
+        &self,
+        batch_id: BatchId,
+    ) -> Result<Option<Reconciliation>, ApplicationError> {
+        Ok(self
+            .reconciliations
+            .lock()
+            .unwrap()
+            .iter()
+            .rfind(|r| r.batch_id == batch_id)
+            .cloned())
+    }
+    async fn save_run(&self, run: ReconciliationRun) -> Result<ReconciliationId, ApplicationError> {
+        let recon_id = {
+            let mut id = self.next_recon_id.lock().unwrap();
+            *id += 1;
+            ReconciliationId::new(*id)
+        };
+
+        self.reconciliations.lock().unwrap().push(Reconciliation {
+            id: recon_id,
+            batch_id: run.reconciliation.batch_id,
+            tolerance_days: run.reconciliation.tolerance_days,
+            window_start: run.reconciliation.window_start,
+            window_end: run.reconciliation.window_end,
+            matched_count: run.reconciliation.matched_count,
+            missing_count: run.reconciliation.missing_count,
+            extra_count: run.reconciliation.extra_count,
+            ran_at: test_epoch(),
+        });
+
+        let mut ff3_local: HashMap<i64, i64> = HashMap::new();
+        {
+            let mut next_tx = self.next_tx_id.lock().unwrap();
+            for t in &run.ff3_transactions {
+                *next_tx += 1;
+                ff3_local.insert(t.ff3_id, *next_tx);
+                self.tx_rows.lock().unwrap().push(Ff3Transaction {
+                    id: ffm_domain::ids::Ff3TransactionId::new(*next_tx),
+                    reconciliation_id: recon_id,
+                    ff3_id: t.ff3_id,
+                    date: t.date,
+                    amount_cents: t.amount_cents,
+                    description: t.description.clone(),
+                    is_duplicate: t.is_duplicate,
+                    created_at: test_epoch(),
+                });
+            }
+        }
+
+        {
+            let mut next_match = self.next_match_id.lock().unwrap();
+            for m in &run.matches {
+                *next_match += 1;
+                self.match_rows.lock().unwrap().push(Match {
+                    id: ffm_domain::ids::MatchId::new(*next_match),
+                    reconciliation_id: recon_id,
+                    movement_id: m.movement_id,
+                    ff3_transaction_id: ffm_domain::ids::Ff3TransactionId::new(
+                        ff3_local[&m.ff3_id],
+                    ),
+                    matched_at: test_epoch(),
+                });
+            }
+        }
+
+        if let Some(movements) = &self.movements {
+            for (movement_id, status) in &run.movement_status_updates {
+                movements.update_status(*movement_id, *status).await?;
+            }
+        }
+
+        Ok(recon_id)
+    }
+}
+
+#[async_trait]
+impl Ff3TransactionRepository for FakeReconciliationStore {
+    async fn insert_batch(
+        &self,
+        _transactions: Vec<NewFf3Transaction>,
+    ) -> Result<(), ApplicationError> {
+        unimplemented!("F4 uses save_run")
+    }
+    async fn by_reconciliation(
+        &self,
+        reconciliation_id: ReconciliationId,
+    ) -> Result<Vec<Ff3Transaction>, ApplicationError> {
+        Ok(self
+            .tx_rows
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|t| t.reconciliation_id == reconciliation_id)
+            .cloned()
+            .collect())
+    }
+}
+
+#[async_trait]
+impl MatchRepository for FakeReconciliationStore {
+    async fn insert_batch(&self, _matches: Vec<NewMatch>) -> Result<(), ApplicationError> {
+        unimplemented!("F4 uses save_run")
+    }
+    async fn by_reconciliation(
+        &self,
+        reconciliation_id: ReconciliationId,
+    ) -> Result<Vec<Match>, ApplicationError> {
+        Ok(self
+            .match_rows
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|m| m.reconciliation_id == reconciliation_id)
+            .cloned()
+            .collect())
     }
 }
