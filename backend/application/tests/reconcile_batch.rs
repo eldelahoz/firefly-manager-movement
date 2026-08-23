@@ -106,6 +106,18 @@ impl Ff3AccountRepository for FakeFf3AccountRepo {
             .find(|a| a.ff3_id == ff3_id)
             .cloned())
     }
+    async fn by_id(
+        &self,
+        id: ffm_domain::ids::Ff3AccountId,
+    ) -> Result<Option<Ff3Account>, ApplicationError> {
+        Ok(self
+            .accounts
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|a| a.id == id)
+            .cloned())
+    }
     async fn all_asset(&self) -> Result<Vec<Ff3Account>, ApplicationError> {
         Ok(self.accounts.lock().unwrap().clone())
     }

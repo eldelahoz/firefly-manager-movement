@@ -65,4 +65,25 @@ impl Ff3TransactionRepository for MysqlFf3TransactionRepository {
             .map(|v| v.into_iter().map(Into::into).collect())
             .map_err(|e| ApplicationError::Database(e.to_string()))
     }
+
+    async fn latest_by_ff3_id(
+        &self,
+        ff3_id: i64,
+    ) -> Result<Option<Ff3Transaction>, ApplicationError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| ApplicationError::Database(e.to_string()))?;
+        match ff3_transactions::table
+            .filter(ff3_transactions::ff3_id.eq(ff3_id))
+            .order(ff3_transactions::id.desc())
+            .first::<Ff3TransactionModel>(&mut conn)
+            .await
+        {
+            Ok(t) => Ok(Some(t.into())),
+            Err(diesel::result::Error::NotFound) => Ok(None),
+            Err(e) => Err(ApplicationError::Database(e.to_string())),
+        }
+    }
 }

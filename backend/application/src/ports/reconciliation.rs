@@ -32,6 +32,12 @@ pub trait Ff3TransactionRepository: Send + Sync {
         &self,
         reconciliation_id: ReconciliationId,
     ) -> Result<Vec<Ff3Transaction>, ApplicationError>;
+    /// Most recent cached row for an external FF3 transaction id
+    /// (point-in-time snapshot source for the delete audit, RF-15).
+    async fn latest_by_ff3_id(
+        &self,
+        ff3_id: i64,
+    ) -> Result<Option<Ff3Transaction>, ApplicationError>;
 }
 
 #[async_trait]

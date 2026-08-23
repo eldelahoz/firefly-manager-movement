@@ -12,6 +12,7 @@ use crate::error::ApiError;
 use crate::state::AppState;
 
 use ffm_application::error::ApplicationError;
+use ffm_application::use_cases::delete_firefly_transaction::DeleteFireflyTransaction;
 use ffm_application::use_cases::get_account_transactions::GetAccountTransactions;
 use ffm_application::use_cases::list_firefly_accounts::ListFireflyAccounts;
 
@@ -149,4 +150,38 @@ async fn handle_transactions(
             })
             .collect(),
     ))
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct DeleteTransactionResponse {
+    pub ff3_id: i64,
+    pub status: String,
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/firefly/transactions/{id}",
+    params(("id" = i64, Path, description = "FF3 transaction id (external)")),
+    responses(
+        (status = 200, description = "Deleted in FF3, audit snapshot stored", body = DeleteTransactionResponse),
+        (status = 404, description = "Transaction not found in any run cache"),
+        (status = 502, description = "Firefly III unreachable"),
+    ),
+    tag = "firefly",
+)]
+pub async fn delete_transaction(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> Result<Json<DeleteTransactionResponse>, ApiError> {
+    let uc = DeleteFireflyTransaction::new(
+        state.firefly.clone(),
+        state.ff3_transactions.clone(),
+        state.deleted_audits.clone(),
+    );
+    uc.execute(id).await.map_err(ApiError)?;
+
+    Ok(Json(DeleteTransactionResponse {
+        ff3_id: id,
+        status: "deleted".to_string(),
+    }))
 }
