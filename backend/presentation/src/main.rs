@@ -6,7 +6,9 @@ use ffm_infrastructure::firefly::client::ReqwestFireflyClient;
 use ffm_infrastructure::persistence::migrations::run_migrations;
 use ffm_infrastructure::persistence::pool::create_pool;
 use ffm_infrastructure::persistence::repositories::batch::MysqlBatchRepository;
+use ffm_infrastructure::persistence::repositories::creation::MysqlCreationRepository;
 use ffm_infrastructure::persistence::repositories::csv_mapping::MysqlCsvMappingRepository;
+use ffm_infrastructure::persistence::repositories::deleted_audit::MysqlDeletedAuditRepository;
 use ffm_infrastructure::persistence::repositories::ff3_account::MysqlFf3AccountRepository;
 use ffm_infrastructure::persistence::repositories::ff3_transaction::MysqlFf3TransactionRepository;
 use ffm_infrastructure::persistence::repositories::match_repo::MysqlMatchRepository;
@@ -48,6 +50,8 @@ async fn main() {
     let reconciliations = Arc::new(MysqlReconciliationRepository::new(pool.clone()));
     let matches = Arc::new(MysqlMatchRepository::new(pool.clone()));
     let ff3_transactions = Arc::new(MysqlFf3TransactionRepository::new(pool.clone()));
+    let creations = Arc::new(MysqlCreationRepository::new(pool.clone()));
+    let deleted_audits = Arc::new(MysqlDeletedAuditRepository::new(pool.clone()));
 
     let state = AppState {
         firefly,
@@ -59,6 +63,8 @@ async fn main() {
         reconciliations,
         matches,
         ff3_transactions,
+        creations,
+        deleted_audits,
         ff3_health_probe,
     };
 

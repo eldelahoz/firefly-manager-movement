@@ -156,6 +156,12 @@ impl Ff3AccountRepository for FakeFf3AccountRepository {
     async fn by_ff3_id(&self, _ff3_id: i64) -> Result<Option<Ff3Account>, ApplicationError> {
         Ok(None)
     }
+    async fn by_id(
+        &self,
+        _id: ffm_domain::ids::Ff3AccountId,
+    ) -> Result<Option<Ff3Account>, ApplicationError> {
+        Ok(None)
+    }
 
     async fn all_asset(&self) -> Result<Vec<Ff3Account>, ApplicationError> {
         Ok(vec![])
@@ -233,6 +239,48 @@ impl CsvMappingRepository for FakeCsvMappingRepository {
     }
     async fn upsert(&self, _mapping: NewCsvMapping) -> Result<CsvMappingId, ApplicationError> {
         Ok(CsvMappingId::new(1))
+    }
+}
+
+// ── No-op fakes for apply/delete (tests that don't exercise them) ──────
+
+pub struct FakeCreationRepository;
+
+#[async_trait]
+impl ffm_application::ports::CreationRepository for FakeCreationRepository {
+    async fn insert(
+        &self,
+        _creation: ffm_application::dtos::NewCreation,
+    ) -> Result<ffm_domain::ids::CreationId, ApplicationError> {
+        Ok(ffm_domain::ids::CreationId::new(1))
+    }
+    async fn by_movement(
+        &self,
+        _movement_id: MovementId,
+    ) -> Result<Option<ffm_domain::entities::Creation>, ApplicationError> {
+        Ok(None)
+    }
+    async fn by_batch(
+        &self,
+        _batch_id: BatchId,
+    ) -> Result<Vec<ffm_domain::entities::Creation>, ApplicationError> {
+        Ok(vec![])
+    }
+}
+
+#[derive(Default)]
+pub struct FakeDeletedAuditRepository {
+    pub rows: std::sync::Mutex<Vec<ffm_application::dtos::NewDeletedAudit>>,
+}
+
+#[async_trait]
+impl ffm_application::ports::DeletedAuditRepository for FakeDeletedAuditRepository {
+    async fn insert(
+        &self,
+        audit: ffm_application::dtos::NewDeletedAudit,
+    ) -> Result<ffm_domain::ids::DeletedAuditId, ApplicationError> {
+        self.rows.lock().unwrap().push(audit);
+        Ok(ffm_domain::ids::DeletedAuditId::new(1))
     }
 }
 
@@ -380,6 +428,18 @@ impl Ff3TransactionRepository for FakeReconciliationStore {
             .filter(|t| t.reconciliation_id == reconciliation_id)
             .cloned()
             .collect())
+    }
+    async fn latest_by_ff3_id(
+        &self,
+        ff3_id: i64,
+    ) -> Result<Option<Ff3Transaction>, ApplicationError> {
+        Ok(self
+            .tx_rows
+            .lock()
+            .unwrap()
+            .iter()
+            .rfind(|t| t.ff3_id == ff3_id)
+            .cloned())
     }
 }
 

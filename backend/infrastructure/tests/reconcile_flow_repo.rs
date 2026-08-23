@@ -292,3 +292,69 @@ async fn save_run_persists_whole_run_atomically() {
 
     common::clean(&pool).await;
 }
+
+#[tokio::test]
+async fn latest_by_ff3_id_returns_most_recent_cached_row() {
+    let pool = common::setup_pool().await;
+    common::clean(&pool).await;
+    let batches = MysqlBatchRepository::new(pool.clone());
+    let reconciliations = MysqlReconciliationRepository::new(pool.clone());
+    let transactions = MysqlFf3TransactionRepository::new(pool.clone());
+
+    let batch_id = batches
+        .insert(NewBatch {
+            filename: "dup.csv".into(),
+            file_hash: "h".into(),
+            format: "csv".into(),
+            currency: "EUR".into(),
+            account_id: None,
+            status: BatchStatus::Parsed,
+        })
+        .await
+        .expect("insert batch");
+
+    let mk_run = |matched: i32| ReconciliationRun {
+        reconciliation: NewReconciliation {
+            batch_id,
+            tolerance_days: 0,
+            window_start: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            window_end: NaiveDate::from_ymd_opt(2026, 1, 31).unwrap(),
+            matched_count: matched,
+            missing_count: 0,
+            extra_count: 0,
+        },
+        ff3_transactions: vec![RunFf3Transaction {
+            ff3_id: 777,
+            date: NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(),
+            amount_cents: AmountCents::new(-1000),
+            description: "same ff3 id across runs".into(),
+            is_duplicate: false,
+        }],
+        matches: vec![],
+        movement_status_updates: vec![],
+    };
+
+    assert!(transactions
+        .latest_by_ff3_id(777)
+        .await
+        .expect("none")
+        .is_none());
+
+    reconciliations.save_run(mk_run(1)).await.expect("run 1");
+    reconciliations.save_run(mk_run(2)).await.expect("run 2");
+
+    // Two cached rows for ff3_id 777 — the latest (second run) wins.
+    let latest = transactions
+        .latest_by_ff3_id(777)
+        .await
+        .expect("latest")
+        .expect("some");
+    let run2 = reconciliations
+        .latest_by_batch(batch_id)
+        .await
+        .expect("latest run")
+        .expect("some");
+    assert_eq!(latest.reconciliation_id, run2.id);
+
+    common::clean(&pool).await;
+}

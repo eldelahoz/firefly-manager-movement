@@ -209,6 +209,8 @@ async fn post_imports_parses_and_persists_movements() {
         reconciliations: Arc::new(common::FakeReconciliationStore::new()),
         matches: Arc::new(common::FakeReconciliationStore::new()),
         ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -268,6 +270,8 @@ async fn get_imports_lists_batches() {
         reconciliations: Arc::new(common::FakeReconciliationStore::new()),
         matches: Arc::new(common::FakeReconciliationStore::new()),
         ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -330,6 +334,8 @@ async fn get_import_returns_batch_and_movements() {
         reconciliations: Arc::new(common::FakeReconciliationStore::new()),
         matches: Arc::new(common::FakeReconciliationStore::new()),
         ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -393,6 +399,8 @@ async fn put_import_mapping_saves_mapping() {
         reconciliations: Arc::new(common::FakeReconciliationStore::new()),
         matches: Arc::new(common::FakeReconciliationStore::new()),
         ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
     };
     let router = app(state);

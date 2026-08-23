@@ -1,4 +1,4 @@
-//! Rapprochement handlers (F4).
+//! Rapprochement handlers (F4) + apply (F5).
 
 use axum::extract::{Path, State};
 use axum::Json;
@@ -6,6 +6,9 @@ use chrono::{NaiveDate, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use ffm_application::use_cases::apply_missing::{
+    ApplyMissing, ApplyMissingInput, ApplyOutcome, RunPorts,
+};
 use ffm_application::use_cases::get_results::GetResults;
 use ffm_application::use_cases::ignore_movement::IgnoreMovement;
 use ffm_application::use_cases::reconcile_batch::{ReconcileBatch, ReconcileBatchInput};
@@ -220,5 +223,110 @@ pub async fn ignore_movement(
     Ok(Json(IgnoreMovementResponse {
         movement_id: mid,
         status: "ignored".to_string(),
+    }))
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct ApplyRequest {
+    /// Missing movements to create (ids).
+    pub movement_ids: Vec<i64>,
+    /// Counterparty account (external FF3 id): expense/revenue side.
+    pub counterparty_ff3_id: i64,
+    pub category: Option<String>,
+    pub budget: Option<String>,
+    pub notes: Option<String>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct ApplyReportResponse {
+    pub movement_id: i64,
+    /// "created" | "already_created" | "failed"
+    pub outcome: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ff3_id: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct ApplyResponse {
+    pub reports: Vec<ApplyReportResponse>,
+    pub created_count: usize,
+    pub already_created_count: usize,
+    pub failed_count: usize,
+    /// Reconciliation of the incremental confirmation run (null when
+    /// nothing was created).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reconciliation_id: Option<i64>,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/imports/{id}/apply",
+    request_body = ApplyRequest,
+    params(("id" = i64, Path, description = "Batch id")),
+    responses(
+        (status = 200, description = "Apply report per movement", body = ApplyResponse),
+        (status = 400, description = "Selection not in missing state, or batch not reconciled"),
+        (status = 404, description = "Batch or movement not found"),
+        (status = 502, description = "Firefly III unreachable (per-movement failures do not fail the batch)"),
+    ),
+    tag = "reconcile",
+)]
+pub async fn apply(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Json(body): Json<ApplyRequest>,
+) -> Result<Json<ApplyResponse>, ApiError> {
+    let uc = ApplyMissing::new(
+        state.firefly.clone(),
+        state.ff3_accounts.clone(),
+        state.batches.clone(),
+        state.movements.clone(),
+        state.creations.clone(),
+        RunPorts {
+            reconciliations: state.reconciliations.clone(),
+            matches: state.matches.clone(),
+            ff3_transactions: state.ff3_transactions.clone(),
+        },
+    );
+    let result = uc
+        .execute(ApplyMissingInput {
+            batch_id: BatchId::new(id),
+            movement_ids: body
+                .movement_ids
+                .iter()
+                .map(|i| MovementId::new(*i))
+                .collect(),
+            counterparty_ff3_id: body.counterparty_ff3_id,
+            category: body.category,
+            budget: body.budget,
+            notes: body.notes,
+        })
+        .await
+        .map_err(ApiError)?;
+
+    Ok(Json(ApplyResponse {
+        reports: result
+            .reports
+            .into_iter()
+            .map(|r| {
+                let outcome = match r.outcome {
+                    ApplyOutcome::Created => "created",
+                    ApplyOutcome::AlreadyCreated => "already_created",
+                    ApplyOutcome::Failed => "failed",
+                };
+                ApplyReportResponse {
+                    movement_id: r.movement_id.as_i64(),
+                    outcome: outcome.to_string(),
+                    ff3_id: r.ff3_id,
+                    reason: r.reason,
+                }
+            })
+            .collect(),
+        created_count: result.created_count,
+        already_created_count: result.already_created_count,
+        failed_count: result.failed_count,
+        reconciliation_id: result.reconciliation_id.map(|rid| rid.as_i64()),
     }))
 }

@@ -14,16 +14,18 @@ use ffm_domain::ids::{
 use ffm_domain::value_objects::{BatchStatus, HeaderSignature, MovementStatus};
 
 use crate::dtos::{
-    About, Ff3AccountDto, Ff3TransactionDto, NewBatch, NewCreation, NewCsvMapping, NewFf3Account,
-    NewFf3Transaction, NewFf3TransactionCreation, NewMatch, NewMovement, NewReconciliation,
-    ReconciliationRun,
+    About, Ff3AccountDto, Ff3TransactionDto, NewBatch, NewCreation, NewCsvMapping, NewDeletedAudit,
+    NewFf3Account, NewFf3Transaction, NewFf3TransactionCreation, NewMatch, NewMovement,
+    NewReconciliation, ReconciliationRun,
 };
 use crate::error::ApplicationError;
 
+use ffm_domain::ids::DeletedAuditId;
+
 use super::{
-    BatchRepository, CreationRepository, CsvDecoder, CsvMappingRepository, Ff3AccountRepository,
-    Ff3TransactionRepository, FireflyClient, MatchRepository, MovementRepository,
-    ReconciliationRepository,
+    BatchRepository, CreationRepository, CsvDecoder, CsvMappingRepository, DeletedAuditRepository,
+    Ff3AccountRepository, Ff3TransactionRepository, FireflyClient, MatchRepository,
+    MovementRepository, ReconciliationRepository,
 };
 
 #[async_trait]
@@ -62,6 +64,9 @@ impl Ff3AccountRepository for Arc<dyn Ff3AccountRepository> {
     }
     async fn by_ff3_id(&self, ff3_id: i64) -> Result<Option<Ff3Account>, ApplicationError> {
         self.as_ref().by_ff3_id(ff3_id).await
+    }
+    async fn by_id(&self, id: Ff3AccountId) -> Result<Option<Ff3Account>, ApplicationError> {
+        self.as_ref().by_id(id).await
     }
     async fn all_asset(&self) -> Result<Vec<Ff3Account>, ApplicationError> {
         self.as_ref().all_asset().await
@@ -165,6 +170,12 @@ impl<T: Ff3TransactionRepository + ?Sized> Ff3TransactionRepository for Arc<T> {
     ) -> Result<Vec<Ff3Transaction>, ApplicationError> {
         self.as_ref().by_reconciliation(reconciliation_id).await
     }
+    async fn latest_by_ff3_id(
+        &self,
+        ff3_id: i64,
+    ) -> Result<Option<Ff3Transaction>, ApplicationError> {
+        self.as_ref().latest_by_ff3_id(ff3_id).await
+    }
 }
 
 #[async_trait]
@@ -193,5 +204,12 @@ impl<T: CreationRepository + ?Sized> CreationRepository for Arc<T> {
     }
     async fn by_batch(&self, batch_id: BatchId) -> Result<Vec<Creation>, ApplicationError> {
         self.as_ref().by_batch(batch_id).await
+    }
+}
+
+#[async_trait]
+impl<T: DeletedAuditRepository + ?Sized> DeletedAuditRepository for Arc<T> {
+    async fn insert(&self, audit: NewDeletedAudit) -> Result<DeletedAuditId, ApplicationError> {
+        self.as_ref().insert(audit).await
     }
 }

@@ -21,6 +21,8 @@ async fn health_returns_ok_json() {
         reconciliations: Arc::new(common::FakeReconciliationStore::new()),
         matches: Arc::new(common::FakeReconciliationStore::new()),
         ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
     };
     let router = app(state);
@@ -53,6 +55,8 @@ async fn health_with_probe_ok() {
         reconciliations: Arc::new(common::FakeReconciliationStore::new()),
         matches: Arc::new(common::FakeReconciliationStore::new()),
         ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: true,
     };
     let router = app(state);
@@ -87,6 +91,8 @@ async fn health_with_probe_degraded() {
         reconciliations: Arc::new(common::FakeReconciliationStore::new()),
         matches: Arc::new(common::FakeReconciliationStore::new()),
         ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: true,
     };
     let router = app(state);
@@ -120,6 +126,8 @@ async fn openapi_json_is_served() {
         reconciliations: Arc::new(common::FakeReconciliationStore::new()),
         matches: Arc::new(common::FakeReconciliationStore::new()),
         ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
     };
     let router = app(state);
