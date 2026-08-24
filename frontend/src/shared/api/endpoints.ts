@@ -18,7 +18,12 @@ export const getImports = () => api.get<BatchSummary[]>('/api/imports');
 export const getImport = (id: number) => api.get<ImportDetail>(`/api/imports/${id}`);
 export const putMapping = (
   id: number,
-  body: { headers: string[]; date_column: string; amount_column: string; description_column: string },
+  body: {
+    headers: string[];
+    date_column: string;
+    amount_column: string;
+    description_column: string;
+  },
 ) => api.put<{ mapping_id: number }>(`/api/imports/${id}/mapping`, body);
 export const postReconcile = (id: number, body: ReconcileRequest) =>
   api.post<ReconcileResponse>(`/api/imports/${id}/reconcile`, body);
