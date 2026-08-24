@@ -16,7 +16,7 @@ test('api.get returns parsed json', async () => {
 });
 
 test('api.get throws ApiError with status and message', async () => {
-  const err = await api.get('/api/fail').catch((e) => e);
+  const err = (await api.get('/api/fail').catch((e) => e)) as ApiError;
   expect(err).toBeInstanceOf(ApiError);
   expect(err.status).toBe(502);
   expect(err.message).toBe('boom');
