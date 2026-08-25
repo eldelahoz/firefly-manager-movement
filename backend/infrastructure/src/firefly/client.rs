@@ -1,7 +1,5 @@
 //! `ReqwestFireflyClient` — Firefly III API v1 adapter.
 
-use std::str::FromStr;
-
 use async_trait::async_trait;
 use chrono::NaiveDate;
 use serde::Deserialize;
@@ -207,7 +205,7 @@ impl FireflyClient for ReqwestFireflyClient {
                                 split.date
                             ))
                         })?;
-                    let amount = AmountCents::from_str(&split.amount).map_err(|e| {
+                    let amount = AmountCents::from_api_str(&split.amount).map_err(|e| {
                         ApplicationError::Parse(format!(
                             "invalid transaction amount '{}': {:?}",
                             split.amount, e
