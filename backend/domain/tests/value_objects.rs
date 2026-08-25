@@ -103,6 +103,78 @@ fn parse_preserves_sign_and_sens() {
     assert!(pos.is_credit());
 }
 
+// ── AmountCents::from_api_str (FF3 API machine format) ──────────────────
+
+#[test]
+fn parse_api_str_ff3_precision() {
+    // FF3 devuelve precisión arbitraria (12 decimales) — regresión del bug real.
+    assert_eq!(
+        AmountCents::from_api_str("1000.000000000000").map(|a| a.as_i64()),
+        Ok(100_000) // = 1000.00
+    );
+    assert_eq!(
+        AmountCents::from_api_str("-42.000000").map(|a| a.as_i64()),
+        Ok(-4_200) // = -42.00
+    );
+}
+
+#[test]
+fn parse_api_str_basic_formats() {
+    assert_eq!(
+        AmountCents::from_api_str("1234.56").map(|a| a.as_i64()),
+        Ok(123_456)
+    );
+    assert_eq!(
+        AmountCents::from_api_str("1000").map(|a| a.as_i64()),
+        Ok(100_000)
+    );
+    assert_eq!(AmountCents::from_api_str("0.5").map(|a| a.as_i64()), Ok(50));
+    assert_eq!(AmountCents::from_api_str("0").map(|a| a.as_i64()), Ok(0));
+}
+
+#[test]
+fn parse_api_str_rounds_half_away_from_zero() {
+    // 3er decimal ≥ 5 → 1 céntimo.
+    assert_eq!(
+        AmountCents::from_api_str("0.005").map(|a| a.as_i64()),
+        Ok(1)
+    );
+    assert_eq!(
+        AmountCents::from_api_str("-0.005").map(|a| a.as_i64()),
+        Ok(-1)
+    );
+    assert_eq!(
+        AmountCents::from_api_str("0.004").map(|a| a.as_i64()),
+        Ok(0)
+    );
+    assert_eq!(
+        AmountCents::from_api_str("1.999999").map(|a| a.as_i64()),
+        Ok(200)
+    );
+}
+
+#[test]
+fn parse_api_str_rejects_csv_and_garbage() {
+    // Formato CSV (separadores de miles) NO es válido en la API.
+    assert_eq!(
+        AmountCents::from_api_str("1,000.00"),
+        Err(AmountParseError::InvalidFormat)
+    );
+    assert_eq!(
+        AmountCents::from_api_str("1.234,56"),
+        Err(AmountParseError::InvalidFormat)
+    );
+    assert_eq!(AmountCents::from_api_str(""), Err(AmountParseError::Empty));
+    assert_eq!(
+        AmountCents::from_api_str("abc"),
+        Err(AmountParseError::InvalidFormat)
+    );
+    assert_eq!(
+        AmountCents::from_api_str(".5"),
+        Err(AmountParseError::InvalidFormat)
+    );
+}
+
 // ── MovementStatus ──────────────────────────────────────────────────────
 
 #[test]
