@@ -7,6 +7,7 @@
   --color-surface: var(--surface);
   --color-border-subtle: var(--border-subtle);
   --color-border-strong: var(--border-strong);
+  --color-table-header: var(--table-header-bg);
   --color-text-1: var(--text-1);
   --color-text-2: var(--text-2);
   --color-text-3: var(--text-3);

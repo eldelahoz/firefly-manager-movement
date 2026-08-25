@@ -6,6 +6,7 @@
   --canvas: #f8fafc;
   --border-subtle: #e2e8f0;
   --border-strong: #cbd5e1;
+  --table-header-bg: rgb(226 232 240 / 0.5);
   --text-1: #0f172a;
   --text-2: #475569;
   --text-3: #94a3b8;
@@ -32,6 +33,7 @@
   --canvas: #0b1120;
   --border-subtle: #1e293b;
   --border-strong: #334155;
+  --table-header-bg: rgb(30 41 59 / 0.5);
   --text-1: #f1f5f9;
   --text-2: #94a3b8;
   --text-3: #64748b;
