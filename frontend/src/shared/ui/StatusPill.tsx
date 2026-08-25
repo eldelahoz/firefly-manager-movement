@@ -9,7 +9,10 @@ export type PillStatus =
   | 'duplicate'
   | 'extra'
   | 'already_created'
-  | 'failed';
+  | 'failed'
+  | 'parsed'
+  | 'reconciled'
+  | 'applied';
 
 const STYLES: Record<PillStatus, string> = {
   imported: 'bg-border-subtle text-text-2',
@@ -21,6 +24,9 @@ const STYLES: Record<PillStatus, string> = {
   duplicate: 'bg-status-extra-bg text-status-extra-txt',
   already_created: 'bg-border-subtle text-text-2',
   failed: 'bg-status-extra-bg text-status-extra-txt',
+  parsed: 'bg-border-subtle text-text-2',
+  reconciled: 'bg-status-matched-bg text-status-matched-txt',
+  applied: 'bg-accent-soft text-accent',
 };
 
 export function StatusPill({ status }: { status: PillStatus }) {
