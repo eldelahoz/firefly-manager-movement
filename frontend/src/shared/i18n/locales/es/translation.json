@@ -94,7 +94,10 @@
     "duplicate": "Duplicado",
     "extra": "Sobrante",
     "already_created": "Ya creado",
-    "failed": "Fallido"
+    "failed": "Fallido",
+    "parsed": "Analizado",
+    "reconciled": "Conciliado",
+    "applied": "Aplicado"
   },
   "deleteDialog": {
     "title": "Eliminar duplicado",
