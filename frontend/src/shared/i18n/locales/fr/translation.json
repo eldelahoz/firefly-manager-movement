@@ -94,7 +94,10 @@
     "duplicate": "Doublon",
     "extra": "En trop",
     "already_created": "Déjà créé",
-    "failed": "Échoué"
+    "failed": "Échoué",
+    "parsed": "Analysé",
+    "reconciled": "Rapproché",
+    "applied": "Appliqué"
   },
   "deleteDialog": {
     "title": "Supprimer le doublon",
