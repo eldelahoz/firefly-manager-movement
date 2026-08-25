@@ -96,7 +96,7 @@ export function DesignPage() {
         <h2 className="mb-3 text-lg font-semibold">Dialog</h2>
         <Dialog>
           <DialogTrigger asChild>
-            <Button variant="cancel">{t('deleteDialog.title')}</Button>
+            <Button variant="destructive">{t('deleteDialog.title')}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
