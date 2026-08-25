@@ -40,8 +40,22 @@ export const fixtures = {
       },
     ],
     missing: [
-      { id: 12, line_no: 3, date: '2026-08-02', amount_cents: -9900, description: 'Book', status: 'missing' },
-      { id: 13, line_no: 4, date: '2026-08-05', amount_cents: 250000, description: 'Salary', status: 'missing' },
+      {
+        id: 12,
+        line_no: 3,
+        date: '2026-08-02',
+        amount_cents: -9900,
+        description: 'Book',
+        status: 'missing',
+      },
+      {
+        id: 13,
+        line_no: 4,
+        date: '2026-08-05',
+        amount_cents: 250000,
+        description: 'Salary',
+        status: 'missing',
+      },
     ],
     extra: [
       {
