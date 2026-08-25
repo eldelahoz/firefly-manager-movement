@@ -31,6 +31,60 @@ impl AmountCents {
     pub fn is_credit(self) -> bool {
         self.0 > 0
     }
+
+    /// Parses an FF3 API amount string (machine format) into signed cents.
+    ///
+    /// FF3 returns amounts with arbitrary decimal precision (e.g.
+    /// `"1000.000000000000"`), unlike CSV files — do not use [`FromStr`] here,
+    /// its separator heuristics reject >3 decimal digits.
+    ///
+    /// Accepts: optional `-` sign, digits, optional `.` followed by any number
+    /// of digits. Rounded to cents, half away from zero (3rd decimal ≥ 5 → 1 cent).
+    pub fn from_api_str(s: &str) -> Result<Self, AmountParseError> {
+        let s = s.trim();
+        if s.is_empty() {
+            return Err(AmountParseError::Empty);
+        }
+        let (neg, rest) = if let Some(r) = s.strip_prefix('-') {
+            (true, r)
+        } else {
+            (false, s)
+        };
+        let (int_part, frac_part) = match rest.split_once('.') {
+            Some((i, f)) => (i, f),
+            None => (rest, ""),
+        };
+        if int_part.is_empty()
+            || !int_part.chars().all(|c| c.is_ascii_digit())
+            || !frac_part.chars().all(|c| c.is_ascii_digit())
+        {
+            return Err(AmountParseError::InvalidFormat);
+        }
+
+        let int_val: i64 = int_part
+            .parse()
+            .map_err(|_| AmountParseError::InvalidFormat)?;
+        let mut cents = int_val
+            .checked_mul(100)
+            .ok_or(AmountParseError::InvalidFormat)?;
+        if !frac_part.is_empty() {
+            let mut frac = frac_part.to_string();
+            frac.truncate(2);
+            while frac.len() < 2 {
+                frac.push('0');
+            }
+            let frac_val: i64 = frac.parse().map_err(|_| AmountParseError::InvalidFormat)?;
+            cents = cents
+                .checked_add(frac_val)
+                .ok_or(AmountParseError::InvalidFormat)?;
+        }
+        if matches!(frac_part.as_bytes().get(2), Some(d) if *d >= b'5') {
+            cents = cents
+                .checked_add(1)
+                .ok_or(AmountParseError::InvalidFormat)?;
+        }
+        Ok(AmountCents(if neg { -cents } else { cents }))
+    }
 }
 
 impl FromStr for AmountCents {
