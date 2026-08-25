@@ -9,6 +9,8 @@ How to set up a local development environment and contribute to this repo.
 | Rust | 1.75+ | [rustup.rs](https://rustup.rs) |
 | Diesel CLI | latest | `cargo install diesel_cli --no-default-features --features mysql` |
 | Docker | 24+ | [docker.com](https://www.docker.com/products/docker-desktop/) |
+| Node.js | 22 LTS | [nodejs.org](https://nodejs.org) |
+| pnpm | 10+ | `corepack enable` or [pnpm.io](https://pnpm.io/installation) |
 
 ## Services Overview
 
@@ -18,6 +20,7 @@ How to set up a local development environment and contribute to this repo.
 | Adminer | `ffm-adminer` | `8081` | Web database inspector |
 | Firefly III | `ffm-fireflyiii` | `8080` | Financial app the backend syncs to |
 | Backend (native) | — | `3000` | Rust API server (`cargo run`) |
+| Frontend (native) | — | `5173` | React SPA dev server (`pnpm dev`, proxies `/api` + `/health` → `:3000`) |
 
 ## Local Dev Environment Setup
 
@@ -136,6 +139,43 @@ curl http://localhost:3000/api/firefly/accounts
 - **Scalar UI**: http://localhost:3000/scalar
 - **OpenAPI JSON**: http://localhost:3000/api-docs/openapi.json
 
+## Frontend Development
+
+The SPA lives in `frontend/` (React 19 + Vite + TypeScript, Tailwind v4).
+It reaches the backend through the Vite dev proxy, so start the backend first (step 7), then:
+
+```bash
+cd frontend
+pnpm install   # first time only
+pnpm dev       # http://localhost:5173 — /api and /health are proxied to localhost:3000
+```
+
+No extra env setup is needed for local dev; the SPA uses same-origin requests via the proxy.
+Unit and component tests run against MSW mocks — they do not require the backend or Docker.
+
+### Frontend Commands
+
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Dev server on `http://localhost:5173` with API proxy |
+| `pnpm test` | Vitest unit/component tests (MSW-mocked API) |
+| `pnpm lint` | ESLint + Prettier check |
+| `pnpm build` | Type-check (`tsc -b`) + production bundle in `dist/` |
+| `pnpm preview` | Serve the production build locally |
+| `pnpm api:types` | Regenerate TS types from the committed `openapi.json` snapshot |
+
+### OpenAPI Types
+
+API types are generated from the `frontend/openapi.json` snapshot of the backend spec.
+Never edit `src/shared/api/types.ts` by hand. If the backend contract changes,
+refresh the snapshot and regenerate:
+
+```bash
+# from the repo root, with the backend running
+curl http://localhost:3000/api-docs/openapi.json > frontend/openapi.json
+cd frontend && pnpm api:types
+```
+
 ## Stopping Services
 
 ```bash
@@ -215,7 +255,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 | `test` | Adding or fixing tests |
 | `chore` | Tooling, config, dependencies |
 
-Scopes mirror the crate structure: `domain`, `application`, `infra`, `presentation`, `backend`.
+Scopes mirror the crate structure: `domain`, `application`, `infra`, `presentation`, `backend`, `frontend`.
 
 Examples from this repo:
 - `feat(domain): MatchingEngine — apareamiento 1-a-1 por monto+sens`
@@ -231,6 +271,13 @@ cargo test --workspace
 ```
 
 All three must pass. Clippy warnings are treated as errors (`-D warnings`).
+
+For changes under `frontend/`, the equivalent gate must also pass:
+
+```bash
+cd frontend
+pnpm lint && pnpm test && pnpm build
+```
 
 ## Coding Conventions
 

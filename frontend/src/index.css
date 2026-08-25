@@ -1,0 +1,39 @@
+@import 'tailwindcss';
+@import './app/styles/tokens.css';
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-text-1: var(--text-1);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-destructive: var(--destructive);
+  --color-status-matched: var(--status-matched);
+  --color-status-matched-bg: var(--status-matched-bg);
+  --color-status-matched-txt: var(--status-matched-txt);
+  --color-status-missing: var(--status-missing);
+  --color-status-missing-bg: var(--status-missing-bg);
+  --color-status-missing-txt: var(--status-missing-txt);
+  --color-status-extra: var(--status-extra);
+  --color-status-extra-bg: var(--status-extra-bg);
+  --color-status-extra-txt: var(--status-extra-txt);
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-canvas text-text-1 font-sans;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .tabular-money {
+    font-variant-numeric: tabular-nums;
+  }
+}
