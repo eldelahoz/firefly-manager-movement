@@ -9,6 +9,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -95,14 +96,18 @@ export function DesignPage() {
         <h2 className="mb-3 text-lg font-semibold">Dialog</h2>
         <Dialog>
           <DialogTrigger asChild>
-            <Button variant="outline">{t('deleteDialog.title')}</Button>
+            <Button variant="cancel">{t('deleteDialog.title')}</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{t('deleteDialog.title')}</DialogTitle>
+              <DialogTitle className="text-destructive">{t('deleteDialog.title')}</DialogTitle>
               <DialogDescription>{t('deleteDialog.recap')}</DialogDescription>
             </DialogHeader>
-            <p className="text-sm text-muted-foreground">{t('deleteDialog.auditNote')}</p>
+            <p className="text-xs text-text-3">{t('deleteDialog.auditNote')}</p>
+            <DialogFooter>
+              <Button variant="cancel">{t('common.cancel')}</Button>
+              <Button variant="destructive">{t('common.confirm')}</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </section>
