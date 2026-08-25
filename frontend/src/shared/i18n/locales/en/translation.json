@@ -94,7 +94,10 @@
     "duplicate": "Duplicate",
     "extra": "Extra",
     "already_created": "Already created",
-    "failed": "Failed"
+    "failed": "Failed",
+    "parsed": "Parsed",
+    "reconciled": "Reconciled",
+    "applied": "Applied"
   },
   "deleteDialog": {
     "title": "Delete duplicate",
