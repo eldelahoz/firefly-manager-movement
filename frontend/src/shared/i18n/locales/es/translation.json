@@ -40,6 +40,7 @@
     "reconciled": "Conciliado",
     "applied": "Aplicado",
     "filename": "Archivo",
+    "description": "Descripción",
     "createdAt": "Importado el",
     "format": "Formato",
     "currency": "Moneda",
