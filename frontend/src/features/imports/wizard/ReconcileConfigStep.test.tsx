@@ -28,10 +28,7 @@ function props(over: Partial<Parameters<typeof ReconcileConfigStep>[0]> = {}) {
 
 test('currency mismatch shows blocking banner and disables finish', async () => {
   renderWithProviders(<ReconcileConfigStep {...props()} />);
-  await userEvent.selectOptions(
-    await screen.findByLabelText('Firefly III account'),
-    '2',
-  );
+  await userEvent.selectOptions(await screen.findByLabelText('Firefly III account'), '2');
   expect(
     await screen.findByText('Currency mismatch between the batch and the selected account'),
   ).toBeInTheDocument();
@@ -83,7 +80,5 @@ test('400 from reconcile surfaces error banner', async () => {
   const finish = await screen.findByRole('button', { name: 'Finish' });
   await waitFor(() => expect(finish).toBeEnabled());
   await userEvent.click(finish);
-  expect(
-    await screen.findByText('currency mismatch batch/account'),
-  ).toBeInTheDocument();
+  expect(await screen.findByText('currency mismatch batch/account')).toBeInTheDocument();
 });
