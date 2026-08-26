@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { getAccounts, getImport, postReconcile } from '@/shared/api/endpoints';
@@ -29,19 +29,23 @@ export function ReconcileConfigStep({
   const qc = useQueryClient();
   const [accountId, setAccountId] = useState('');
   const [tolerance, setTolerance] = useState(0);
-  const [range, setRange] = useState<{ start: string; end: string } | null>(null);
-  const accounts = useQuery({ queryKey: queryKeys.accounts, queryFn: getAccounts, staleTime: 300_000 });
+  const [rangeOverride, setRangeOverride] = useState<{ start: string; end: string } | null>(null);
+  const accounts = useQuery({
+    queryKey: queryKeys.accounts,
+    queryFn: getAccounts,
+    staleTime: 300_000,
+  });
   const detail = useQuery({
     queryKey: queryKeys.import(batchId ?? -1),
     queryFn: () => getImport(batchId!),
     enabled: batchId !== null,
   });
-  useEffect(() => {
-    if (!range && detail.data && detail.data.movements.length > 0) {
-      const dates = detail.data.movements.map((m) => m.date).sort();
-      setRange({ start: addDays(dates[0], -7), end: addDays(dates[dates.length - 1], 7) });
-    }
-  }, [detail.data, range]);
+  const computedRange = useMemo(() => {
+    if (!detail.data || detail.data.movements.length === 0) return null;
+    const dates = detail.data.movements.map((m) => m.date).sort();
+    return { start: addDays(dates[0], -7), end: addDays(dates[dates.length - 1], 7) };
+  }, [detail.data]);
+  const range = rangeOverride ?? computedRange;
   const currencyMismatch = useMemo(
     () => !!accounts.data?.find((a) => a.id === accountId && a.currency !== currency),
     [accounts.data, accountId, currency],
@@ -101,7 +105,7 @@ export function ReconcileConfigStep({
             <input
               type="date"
               value={range.start}
-              onChange={(e) => setRange({ ...range, start: e.target.value })}
+              onChange={(e) => setRangeOverride({ ...range, start: e.target.value })}
               className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2"
             />
           </label>
@@ -110,19 +114,25 @@ export function ReconcileConfigStep({
             <input
               type="date"
               value={range.end}
-              onChange={(e) => setRange({ ...range, end: e.target.value })}
+              onChange={(e) => setRangeOverride({ ...range, end: e.target.value })}
               className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2"
             />
           </label>
         </div>
       )}
       {currencyMismatch && (
-        <p role="alert" className="rounded-lg bg-status-missing-bg px-3 py-2 text-sm text-status-missing-txt">
+        <p
+          role="alert"
+          className="rounded-lg bg-status-missing-bg px-3 py-2 text-sm text-status-missing-txt"
+        >
           {t('wizard.currencyMismatch')}
         </p>
       )}
       {error && !currencyMismatch && (
-        <p role="alert" className="rounded-lg bg-status-missing-bg px-3 py-2 text-sm text-status-missing-txt">
+        <p
+          role="alert"
+          className="rounded-lg bg-status-missing-bg px-3 py-2 text-sm text-status-missing-txt"
+        >
           {error}
         </p>
       )}

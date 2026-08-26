@@ -3,7 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { ReconcileConfigStep } from './ReconcileConfigStep';
 
-export function ReconcileDialog({ batchId, onClose }: { batchId: number | null; onClose: () => void }) {
+export function ReconcileDialog({
+  batchId,
+  onClose,
+}: {
+  batchId: number | null;
+  onClose: () => void;
+}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
@@ -19,7 +25,11 @@ export function ReconcileDialog({ batchId, onClose }: { batchId: number | null; 
       <div className="w-full max-w-md rounded-xl bg-surface p-6 shadow-lg">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold">{t('imports.rerun')}</h2>
-          <button onClick={onClose} aria-label={t('common.close')} className="h-11 px-2 text-text-2">
+          <button
+            onClick={onClose}
+            aria-label={t('common.close')}
+            className="h-11 px-2 text-text-2"
+          >
             ✕
           </button>
         </div>
