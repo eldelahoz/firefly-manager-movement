@@ -8,14 +8,17 @@ import './index.css';
 import './shared/i18n';
 import { router } from './app/routes';
 import { ThemeProvider } from './app/ThemeProvider';
+import { ReconcileProvider } from './app/reconcileContext';
 import { queryClient } from './shared/lib/queryClient';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <RouterProvider router={router} />
-        <Toaster richColors />
+        <ReconcileProvider>
+          <RouterProvider router={router} />
+          <Toaster richColors />
+        </ReconcileProvider>
       </ThemeProvider>
     </QueryClientProvider>
   </StrictMode>,
