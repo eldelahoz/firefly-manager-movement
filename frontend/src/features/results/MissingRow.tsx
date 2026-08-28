@@ -14,12 +14,14 @@ export function MissingRow({
   batchId,
   selected,
   onToggle,
+  report,
 }: {
   movement: MovementDTO;
   currency: string;
   batchId: number;
   selected?: boolean;
   onToggle?: (id: number) => void;
+  report?: { outcome: 'created' | 'already_created' | 'failed'; reason?: string };
 }) {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
@@ -57,6 +59,11 @@ export function MissingRow({
         >
           {t('results.ignore')}
         </button>
+      )}
+      {report && (
+        <span title={report.reason ?? ''}>
+          <StatusPill status={report.outcome} />
+        </span>
       )}
     </div>
   );
