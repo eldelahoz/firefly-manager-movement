@@ -5,6 +5,7 @@ import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
 import { handlers } from '@/test/handlers';
 import { renderWithProviders } from '@/test/utils';
+import { Route, Routes } from 'react-router-dom';
 import { ResultsPage } from './ResultsPage';
 
 const server = setupServer(...handlers);
@@ -39,7 +40,12 @@ afterAll(() => {
 });
 
 function renderResults() {
-  return renderWithProviders(<ResultsPage />, { route: '/results/1' });
+  return renderWithProviders(
+    <Routes>
+      <Route path="/results/:batchId" element={<ResultsPage />} />
+    </Routes>,
+    { route: '/results/1' },
+  );
 }
 
 test('renders tabs with counts and matched pairs', async () => {
