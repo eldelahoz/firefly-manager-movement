@@ -16,7 +16,6 @@ afterAll(() => server.close());
 function props(over: Partial<Parameters<typeof ReconcileConfigStep>[0]> = {}) {
   return {
     batchId: 1,
-    currency: 'EUR',
     submitting: false,
     error: null as string | null,
     onStart: () => {},
@@ -30,7 +29,9 @@ test('currency mismatch shows blocking banner and disables finish', async () => 
   renderWithProviders(<ReconcileConfigStep {...props()} />);
   await userEvent.selectOptions(await screen.findByLabelText('Firefly III account'), '2');
   expect(
-    await screen.findByText('Currency mismatch between the batch and the selected account'),
+    await screen.findByText(
+      'Currency mismatch between the batch (EUR) and the selected account (USD)',
+    ),
   ).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Finish' })).toBeDisabled();
 });

@@ -35,7 +35,6 @@ export function ReconcileDialog({
         </div>
         <ReconcileConfigStep
           batchId={batchId}
-          currency="EUR"
           submitting={submitting}
           error={error}
           onStart={() => setSubmitting(true)}

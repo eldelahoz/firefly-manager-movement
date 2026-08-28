@@ -96,7 +96,6 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
         {(state.step === 'reconcile-config' || state.step === 'submitting') && (
           <ReconcileConfigStep
             batchId={state.finalBatchId ?? state.probe?.batch_id ?? null}
-            currency={state.currency}
             submitting={state.step === 'submitting'}
             error={state.error}
             onStart={() => dispatch({ type: 'RECONCILE_START' })}
