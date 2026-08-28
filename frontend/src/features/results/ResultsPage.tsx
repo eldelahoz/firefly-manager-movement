@@ -58,6 +58,7 @@ export function ResultsPage() {
     missing: results.data.missing.length,
     extra: results.data.extra.length,
   };
+  const activeSelected = selected.filter((sid) => results.data.missing.some((m) => m.id === sid));
   const currency = detail.data?.batch.currency ?? 'EUR';
   const tabs: Tab[] = ['matched', 'missing', 'extra'];
   return (
@@ -122,7 +123,7 @@ export function ResultsPage() {
                 <label className="flex items-center gap-2 text-sm text-text-2">
                   <input
                     type="checkbox"
-                    checked={selected.length === counts.missing && counts.missing > 0}
+                    checked={activeSelected.length === counts.missing && counts.missing > 0}
                     onChange={() =>
                       setSelected(
                         selected.length === counts.missing
@@ -136,10 +137,10 @@ export function ResultsPage() {
                 </label>
                 <button
                   onClick={() => setPanelOpen(true)}
-                  disabled={selected.length === 0}
+                  disabled={activeSelected.length === 0}
                   className="h-11 rounded-lg bg-accent px-4 font-medium text-white disabled:opacity-50"
                 >
-                  {t('results.apply')} ({selected.length})
+                  {t('results.apply')} ({activeSelected.length})
                 </button>
               </div>
               <VirtualList
@@ -149,7 +150,7 @@ export function ResultsPage() {
                     movement={results.data.missing[i]}
                     currency={currency}
                     batchId={id}
-                    selected={selected.includes(results.data.missing[i].id)}
+                    selected={activeSelected.includes(results.data.missing[i].id)}
                     onToggle={(mid) =>
                       setSelected((s) =>
                         s.includes(mid) ? s.filter((x) => x !== mid) : [...s, mid],
@@ -173,7 +174,7 @@ export function ResultsPage() {
       {panelOpen && tab === 'missing' && (
         <ApplyPanel
           batchId={id}
-          selected={selected}
+          selected={activeSelected}
           onDone={() => {
             setSelected([]);
             setPanelOpen(false);
