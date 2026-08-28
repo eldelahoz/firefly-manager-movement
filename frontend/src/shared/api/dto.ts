@@ -42,14 +42,14 @@ export interface ImportDetail {
 }
 
 export interface Ff3Account {
-  id: string;
+  id: number;
   name: string;
   type: string;
   currency: string;
 }
 
 export interface Ff3TxDTO {
-  id: string;
+  id: number;
   date: string;
   amount_cents: number;
   description: string;
@@ -57,7 +57,7 @@ export interface Ff3TxDTO {
 
 export interface Ff3CachedTxDTO {
   id: number;
-  ff3_id: string;
+  ff3_id: number;
   date: string;
   amount_cents: number;
   description: string;
@@ -66,7 +66,7 @@ export interface Ff3CachedTxDTO {
 }
 
 export interface ReconcileRequest {
-  ff3_account_id: string;
+  ff3_account_id: number;
   window_start: string;
   window_end: string;
   tolerance_days?: number;
@@ -93,7 +93,7 @@ export interface ResultsResponse {
 
 export interface ApplyRequest {
   movement_ids: number[];
-  counterparty_ff3_id: string;
+  counterparty_ff3_id: number;
   category?: string;
   budget?: string;
   notes?: string;
@@ -102,7 +102,7 @@ export interface ApplyRequest {
 export interface ApplyReport {
   movement_id: number;
   outcome: 'created' | 'already_created' | 'failed';
-  ff3_id?: string;
+  ff3_id?: number;
   reason?: string;
 }
 

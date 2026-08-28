@@ -22,7 +22,7 @@ export function DeleteDuplicateDialog({
   const [confirmed, setConfirmed] = useState(false);
   const qc = useQueryClient();
   const del = useMutation({
-    mutationFn: (id: string) => deleteTransaction(id),
+    mutationFn: (id: number) => deleteTransaction(id),
     onSuccess: () => {
       toast.success(t('deleteDialog.deleted'));
       void qc.invalidateQueries({ queryKey: ['account-txs'] });

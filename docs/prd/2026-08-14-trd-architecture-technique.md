@@ -5,7 +5,7 @@
 | Projet | firefly-manager-movement |
 | Version | 0.3 |
 | Créé le | 2026-08-14 |
-| Dernière modification | 2026-08-20 |
+| Dernière modification | 2026-08-28 |
 | PRD associé | [`2026-08-14-prd-rapprochement-bancaire.md`](./2026-08-14-prd-rapprochement-bancaire.md) |
 | Statut | En cours de rédaction |
 
@@ -150,6 +150,7 @@ Contraintes clés :
 
 Notes :
 
+- Devise du batch (`POST /api/imports`, champ `currency`) : depuis la v1.5 du frontend, elle est **dérivée du compte FF3 sélectionné** dans l'assistant d'import et transmise telle quelle ; le backend conserve son défaut `EUR` si le champ est absent (contrat inchangé).
 - `POST /apply` est idempotent par mouvement : avant chaque création, vérifier l'existence d'une ligne dans `creations` (`UNIQUE(movement_id)`, NFR-05) ; ignorer les mouvements déjà créés.
 - Erreurs de l'API Firefly III lors d'un `apply` en lot : traitement par mouvement, le lot continue, rapport final par mouvement (succès/échec/raison).
 - **Méthode QUERY (RFC 9295)** : utilisée uniquement pour les routes à filtres complexes en body (lectures avec critères de recherche). Les récupérations simples par ID ou listes complètes restent en GET. Le backend traduit `QUERY` → `GET` lors de l'appel à l'API Firefly III (qui reste en GET). Nécessite d'enregistrer la méthode explicitement dans axum (`Route::on("QUERY", handler)` ou macro équivalente).

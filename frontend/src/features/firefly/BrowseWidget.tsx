@@ -29,7 +29,7 @@ export function BrowseWidget() {
     enabled: !!accountId,
   });
   const currency = useMemo(
-    () => accounts.data?.find((a) => a.id === accountId)?.currency ?? 'EUR',
+    () => accounts.data?.find((a) => a.id === Number(accountId))?.currency ?? 'EUR',
     [accounts.data, accountId],
   );
   return (
