@@ -75,3 +75,15 @@ test('switching to extra shows duplicate with delete action', async () => {
   expect(screen.getByText('Duplicate')).toBeInTheDocument();
   expect(screen.getByText('Delete duplicate')).toBeInTheDocument();
 });
+
+test('missing tab supports select-all and opens apply panel', async () => {
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  const checkboxes = await screen.findAllByRole('checkbox');
+  const selectAll = checkboxes[0];
+  await userEvent.click(selectAll);
+  expect(screen.getByRole('button', { name: 'Create in Firefly III (2)' })).toBeEnabled();
+  await userEvent.click(screen.getByRole('button', { name: 'Create in Firefly III (2)' }));
+  expect(await screen.findByRole('dialog')).toBeInTheDocument();
+});
