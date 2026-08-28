@@ -19,7 +19,10 @@ const probe: UploadResponse = {
 test('upload success with mapping lands on preview with probe stored', () => {
   const s = wizardReducer(initialWizardState, {
     type: 'UPLOAD_SUCCESS',
-    probe: { ...probe, mapping_used: { date_column: 'a', amount_column: 'b', description_column: 'c' } },
+    probe: {
+      ...probe,
+      mapping_used: { date_column: 'a', amount_column: 'b', description_column: 'c' },
+    },
   });
   expect(s.step).toBe('preview');
 });
@@ -27,7 +30,10 @@ test('upload success with mapping lands on preview with probe stored', () => {
 test('next from preview skips mapping when mapping known', () => {
   const s1 = wizardReducer(initialWizardState, {
     type: 'UPLOAD_SUCCESS',
-    probe: { ...probe, mapping_used: { date_column: 'a', amount_column: 'b', description_column: 'c' } },
+    probe: {
+      ...probe,
+      mapping_used: { date_column: 'a', amount_column: 'b', description_column: 'c' },
+    },
   });
   const s2 = wizardReducer(s1, { type: 'NEXT_FROM_PREVIEW' });
   expect(s2.step).toBe('reconcile-config');
@@ -48,7 +54,11 @@ test('mapping success stores final batch and moves to reconcile-config', () => {
       ...probe,
       batch_id: 2,
       valid_count: 5,
-      mapping_used: { date_column: 'Date', amount_column: 'Montant', description_column: 'Libelle' },
+      mapping_used: {
+        date_column: 'Date',
+        amount_column: 'Montant',
+        description_column: 'Libelle',
+      },
     },
   });
   expect(s3.step).toBe('reconcile-config');
@@ -68,6 +78,16 @@ test('reconcile error returns to config with error set', () => {
   const s2 = wizardReducer(s, { type: 'RECONCILE_ERROR', message: 'currency mismatch' });
   expect(s2.step).toBe('reconcile-config');
   expect(s2.error).toBe('currency mismatch');
+});
+
+test('set account stores account and derived currency', () => {
+  const s = wizardReducer(initialWizardState, {
+    type: 'SET_ACCOUNT',
+    accountId: '2',
+    currency: 'USD',
+  });
+  expect(s.accountId).toBe('2');
+  expect(s.currency).toBe('USD');
 });
 
 test('reset returns to initial', () => {

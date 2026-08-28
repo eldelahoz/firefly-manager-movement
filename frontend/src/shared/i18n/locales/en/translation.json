@@ -56,7 +56,7 @@
     "title": "Import a CSV",
     "dropHere": "Drop your CSV here or click to browse",
     "fileTooLarge": "File too large (max 10 MB)",
-    "currency": "Currency",
+    "accountCurrency": "Currency: {{currency}}",
     "showingFirst": "Showing first 50 of {{total}}",
     "invalidRows": "Invalid rows ({{count}})",
     "delimiter": "Delimiter",
