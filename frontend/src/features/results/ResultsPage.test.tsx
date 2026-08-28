@@ -54,6 +54,7 @@ test('renders tabs with counts and matched pairs', async () => {
   expect(screen.getByText('Missing (2)')).toBeInTheDocument();
   expect(screen.getByText('Extra (1)')).toBeInTheDocument();
   expect(screen.getAllByText('Coffee').length).toBe(2);
+  expect(screen.getByRole('button', { name: 'Re-run reconciliation' })).toBeInTheDocument();
 });
 
 test('404 without reconciliation shows empty state with CTA', async () => {

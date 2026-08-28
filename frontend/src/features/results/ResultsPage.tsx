@@ -9,6 +9,7 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import type { ApplyReport } from '@/shared/api/dto';
+import { useRerun } from '@/app/reconcileContext';
 import { VirtualList } from './VirtualList';
 import { MissingRow } from './MissingRow';
 import { ExtraRow } from './ExtraRow';
@@ -24,6 +25,7 @@ export function ResultsPage() {
   const [selected, setSelected] = useState<number[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
   const [reports, setReports] = useState<ApplyReport[]>([]);
+  const openRerun = useRerun();
   const detail = useQuery({ queryKey: queryKeys.import(id), queryFn: () => getImport(id) });
   const results = useQuery({
     queryKey: queryKeys.results(id),
@@ -69,6 +71,12 @@ export function ResultsPage() {
         <h1 className="truncate text-2xl font-bold">
           {t('results.title')} — {detail.data?.batch.filename ?? `#${id}`}
         </h1>
+        <button
+          onClick={() => openRerun(id)}
+          className="h-11 rounded-lg border border-border-subtle bg-surface px-4 text-sm font-medium text-text-2"
+        >
+          {t('imports.rerun')}
+        </button>
       </div>
       <div
         role="tablist"
