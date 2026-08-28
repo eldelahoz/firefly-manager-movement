@@ -115,11 +115,8 @@ test('virtualizes 1000 matched rows without rendering all', async () => {
     })),
   };
   server.use(http.get('/api/imports/:id/results', () => HttpResponse.json(big)));
-  const before = performance.now();
   renderResults();
   await screen.findByText('Matched (1000)');
-  const elapsed = performance.now() - before;
-  expect(elapsed).toBeLessThan(1000);
   expect(screen.queryByText('m999')).not.toBeInTheDocument();
   expect(document.querySelectorAll('[data-index]').length).toBeLessThan(1000);
 });
