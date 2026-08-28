@@ -13,7 +13,7 @@ beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-test('404 on delete shows explanatory toast and keeps dialog closed state', async () => {
+test('404 on delete shows explanatory toast', async () => {
   server.use(
     http.delete('/api/firefly/transactions/:id', () =>
       HttpResponse.json({ error: 'not in run cache' }, { status: 404 }),
