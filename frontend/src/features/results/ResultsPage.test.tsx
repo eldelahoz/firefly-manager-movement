@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
-import { handlers } from '@/test/handlers';
+import { fixtures, handlers } from '@/test/handlers';
 import { renderWithProviders } from '@/test/utils';
 import { Route, Routes } from 'react-router-dom';
 import { ResultsPage } from './ResultsPage';
@@ -89,4 +89,37 @@ test('missing tab supports select-all and opens apply panel', async () => {
   expect(await screen.findByRole('dialog')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+test('virtualizes 1000 matched rows without rendering all', async () => {
+  const big = {
+    ...fixtures.results,
+    matched: Array.from({ length: 1000 }, (_, i) => ({
+      movement: {
+        id: i,
+        line_no: i,
+        date: '2026-08-01',
+        amount_cents: -100,
+        description: `m${i}`,
+        status: 'matched' as const,
+      },
+      ff3: {
+        id: i,
+        ff3_id: i,
+        date: '2026-08-01',
+        amount_cents: -100,
+        description: `f${i}`,
+        is_duplicate: false,
+        created_at: '2026-08-01T00:00:00Z',
+      },
+    })),
+  };
+  server.use(http.get('/api/imports/:id/results', () => HttpResponse.json(big)));
+  const before = performance.now();
+  renderResults();
+  await screen.findByText('Matched (1000)');
+  const elapsed = performance.now() - before;
+  expect(elapsed).toBeLessThan(1000);
+  expect(screen.queryByText('m999')).not.toBeInTheDocument();
+  expect(document.querySelectorAll('[data-index]').length).toBeLessThan(1000);
 });
