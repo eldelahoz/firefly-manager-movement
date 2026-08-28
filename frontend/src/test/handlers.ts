@@ -2,8 +2,8 @@ import { http, HttpResponse } from 'msw';
 
 export const fixtures = {
   accounts: [
-    { id: '1', name: 'Checking', type: 'asset', currency: 'EUR' },
-    { id: '2', name: 'Savings USD', type: 'asset', currency: 'USD' },
+    { id: 1, name: 'Checking', type: 'asset', currency: 'EUR' },
+    { id: 2, name: 'Savings USD', type: 'asset', currency: 'USD' },
   ],
   imports: [
     {
@@ -30,7 +30,7 @@ export const fixtures = {
         },
         ff3: {
           id: 7,
-          ff3_id: '42',
+          ff3_id: 42,
           date: '2026-08-01',
           amount_cents: -4200,
           description: 'Coffee',
@@ -60,7 +60,7 @@ export const fixtures = {
     extra: [
       {
         id: 8,
-        ff3_id: '43',
+        ff3_id: 43,
         date: '2026-08-03',
         amount_cents: -1500,
         description: 'Duplicate A',
@@ -70,8 +70,8 @@ export const fixtures = {
     ],
   },
   txs: [
-    { id: '42', date: '2026-08-01', amount_cents: -4200, description: 'Coffee' },
-    { id: '43', date: '2026-08-03', amount_cents: -1500, description: 'Duplicate A' },
+    { id: 42, date: '2026-08-01', amount_cents: -4200, description: 'Coffee' },
+    { id: 43, date: '2026-08-03', amount_cents: -1500, description: 'Duplicate A' },
   ],
 };
 
@@ -85,7 +85,7 @@ export const handlers = [
   http.get('/api/firefly/accounts', () => HttpResponse.json(fixtures.accounts)),
   http.post('/api/firefly/accounts/:id/transactions', () => HttpResponse.json(fixtures.txs)),
   http.delete('/api/firefly/transactions/:id', () =>
-    HttpResponse.json({ ff3_id: '42', status: 'deleted' }),
+    HttpResponse.json({ ff3_id: 42, status: 'deleted' }),
   ),
   http.post('/api/imports/:id/movements/:mid/ignore', ({ params }) =>
     HttpResponse.json({ movement_id: Number(params.mid), status: 'ignored' }),

@@ -3,9 +3,9 @@
 | Champ | Valeur |
 |---|---|
 | Projet | firefly-manager-movement |
-| Version | 0.3 |
+| Version | 0.4 |
 | Créé le | 2026-08-14 |
-| Dernière modification | 2026-08-17 |
+| Dernière modification | 2026-08-28 |
 | Auteur | A. Delahoz |
 | Statut | En cours de rédaction |
 
@@ -172,6 +172,8 @@ Cas particuliers :
 | RF-13 | L'utilisateur peut re-lancer un rapprochement sur un batch existant. | P1 |
 | RF-14 | Le système affiche les mouvements d'un compte Firefly III sélectionné sur une période donnée (date min / date max). | P0 |
 | RF-15 | Le système signale les doublons (plusieurs transactions Firefly III correspondant au même mouvement bancaire) et permet leur suppression unitaire avec double confirmation ; un snapshot JSON de la transaction supprimée est conservé en audit. | P0 |
+
+> **Amendement (v0.4, 2026-08-28) — RF-12** : la devise du relevé n'est plus sélectionnée manuellement à l'import. Elle est **dérivée du compte Firefly III sélectionné** dans l'assistant d'import (le frontend transmet cette devise au backend ; contrat API inchangé). L'avertissement bloquant demeure en cas de changement de compte vers une devise différente lors du rapprochement ou d'un re-run.
 
 ## 6. Exigences non fonctionnelles
 

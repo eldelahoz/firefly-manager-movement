@@ -11,6 +11,7 @@ import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import { Table, Td, Tr } from '@/shared/ui/Table';
 import { BatchDrawer } from './BatchDrawer';
+import { ImportWizard } from './wizard/ImportWizard';
 
 const STATUSES = ['parsed', 'reconciled', 'applied'] as const;
 
@@ -21,6 +22,7 @@ export function ImportsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<(typeof STATUSES)[number] | 'all'>('all');
   const [drawerId, setDrawerId] = useState<number | null>(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const { data, isPending } = useQuery({ queryKey: queryKeys.imports, queryFn: getImports });
   const rows = useMemo(
     () =>
@@ -32,6 +34,12 @@ export function ImportsPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">{t('imports.title')}</h1>
+      <button
+        onClick={() => setWizardOpen(true)}
+        className="h-11 rounded-lg bg-accent px-4 font-medium text-white"
+      >
+        {t('common.newImport')}
+      </button>
       <div className="flex flex-wrap items-center gap-2">
         <input
           placeholder={t('imports.search')}
@@ -106,6 +114,7 @@ export function ImportsPage() {
         </Table>
       )}
       <BatchDrawer batchId={drawerId} onClose={() => setDrawerId(null)} />
+      <ImportWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
     </div>
   );
 }
