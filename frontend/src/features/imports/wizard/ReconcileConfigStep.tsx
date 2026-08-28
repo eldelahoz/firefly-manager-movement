@@ -10,7 +10,6 @@ const TOLERANCES = [0, 1, 2, 3];
 
 export function ReconcileConfigStep({
   batchId,
-  currency,
   submitting,
   error,
   onStart,
@@ -18,7 +17,6 @@ export function ReconcileConfigStep({
   onDone,
 }: {
   batchId: number | null;
-  currency: string;
   submitting: boolean;
   error: string | null;
   onStart: () => void;
@@ -45,10 +43,12 @@ export function ReconcileConfigStep({
     const dates = detail.data.movements.map((m) => m.date).sort();
     return { start: addDays(dates[0], -7), end: addDays(dates[dates.length - 1], 7) };
   }, [detail.data]);
+  const currency = detail.data?.batch.currency ?? '';
   const range = rangeOverride ?? computedRange;
+  const selectedAccount = accounts.data?.find((a) => a.id === Number(accountId));
   const currencyMismatch = useMemo(
-    () => !!accounts.data?.find((a) => a.id === Number(accountId) && a.currency !== currency),
-    [accounts.data, accountId, currency],
+    () => !!currency && !!selectedAccount && selectedAccount.currency !== currency,
+    [accounts.data, accountId, currency, selectedAccount],
   );
   const reconcile = useMutation({
     mutationFn: () =>
@@ -125,7 +125,10 @@ export function ReconcileConfigStep({
           role="alert"
           className="rounded-lg bg-status-missing-bg px-3 py-2 text-sm text-status-missing-txt"
         >
-          {t('wizard.currencyMismatch')}
+          {t('wizard.currencyMismatch', {
+            batchCurrency: currency,
+            accountCurrency: selectedAccount!.currency,
+          })}
         </p>
       )}
       {error && !currencyMismatch && (
