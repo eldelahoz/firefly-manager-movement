@@ -61,7 +61,7 @@ test('happy path posts reconcile with computed window and calls onDone', async (
   await waitFor(() => expect(finish).toBeEnabled());
   await userEvent.click(finish);
   await waitFor(() => expect(done).toBe(1));
-  expect(body).toMatchObject({ ff3_account_id: '1', tolerance_days: 0 });
+  expect(body).toMatchObject({ ff3_account_id: 1, tolerance_days: 0 });
 });
 
 function ErrorHarness() {
