@@ -11,6 +11,7 @@ import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { VirtualList } from './VirtualList';
 import { MissingRow } from './MissingRow';
 import { ExtraRow } from './ExtraRow';
+import { ApplyPanel } from './ApplyPanel';
 
 type Tab = 'matched' | 'missing' | 'extra';
 
@@ -19,6 +20,8 @@ export function ResultsPage() {
   const id = Number(batchId);
   const { t, i18n } = useTranslation();
   const [tab, setTab] = useState<Tab>('matched');
+  const [selected, setSelected] = useState<number[]>([]);
+  const [panelOpen, setPanelOpen] = useState(false);
   const detail = useQuery({ queryKey: queryKeys.import(id), queryFn: () => getImport(id) });
   const results = useQuery({
     queryKey: queryKeys.results(id),
@@ -114,12 +117,48 @@ export function ResultsPage() {
           (counts.missing === 0 ? (
             <EmptyState title={t('results.missing')} />
           ) : (
-            <VirtualList
-              count={counts.missing}
-              renderItem={(i) => (
-                <MissingRow movement={results.data.missing[i]} currency={currency} batchId={id} />
-              )}
-            />
+            <>
+              <div className="flex items-center justify-between py-2">
+                <label className="flex items-center gap-2 text-sm text-text-2">
+                  <input
+                    type="checkbox"
+                    checked={selected.length === counts.missing && counts.missing > 0}
+                    onChange={() =>
+                      setSelected(
+                        selected.length === counts.missing
+                          ? []
+                          : results.data.missing.map((m) => m.id),
+                      )
+                    }
+                    className="size-5"
+                  />
+                  {t('results.selectAll')}
+                </label>
+                <button
+                  onClick={() => setPanelOpen(true)}
+                  disabled={selected.length === 0}
+                  className="h-11 rounded-lg bg-accent px-4 font-medium text-white disabled:opacity-50"
+                >
+                  {t('results.apply')} ({selected.length})
+                </button>
+              </div>
+              <VirtualList
+                count={counts.missing}
+                renderItem={(i) => (
+                  <MissingRow
+                    movement={results.data.missing[i]}
+                    currency={currency}
+                    batchId={id}
+                    selected={selected.includes(results.data.missing[i].id)}
+                    onToggle={(mid) =>
+                      setSelected((s) =>
+                        s.includes(mid) ? s.filter((x) => x !== mid) : [...s, mid],
+                      )
+                    }
+                  />
+                )}
+              />
+            </>
           ))}
         {tab === 'extra' &&
           (counts.extra === 0 ? (
@@ -131,6 +170,16 @@ export function ResultsPage() {
             />
           ))}
       </div>
+      {panelOpen && tab === 'missing' && (
+        <ApplyPanel
+          batchId={id}
+          selected={selected}
+          onDone={() => {
+            setSelected([]);
+            setPanelOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }
