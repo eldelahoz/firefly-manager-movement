@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { getAccounts, postApply } from '@/shared/api/endpoints';
+import type { ApplyReport } from '@/shared/api/dto';
 import { queryKeys } from '@/shared/lib/keys';
 
 export function ApplyPanel({
@@ -12,7 +13,7 @@ export function ApplyPanel({
 }: {
   batchId: number;
   selected: number[];
-  onDone: () => void;
+  onDone: (reports: ApplyReport[]) => void;
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -45,7 +46,7 @@ export function ApplyPanel({
       void qc.invalidateQueries({ queryKey: queryKeys.results(batchId) });
       void qc.invalidateQueries({ queryKey: queryKeys.import(batchId) });
       void qc.invalidateQueries({ queryKey: queryKeys.imports });
-      onDone();
+      onDone(res.reports);
     },
     onError: (e) => toast.error(e.message),
   });
@@ -100,7 +101,7 @@ export function ApplyPanel({
       </label>
       <div className="mt-4 flex gap-2">
         <button
-          onClick={onDone}
+          onClick={() => onDone([])}
           className="h-11 rounded-lg border border-border-subtle bg-surface px-4 font-medium text-text-2"
         >
           {t('common.cancel')}

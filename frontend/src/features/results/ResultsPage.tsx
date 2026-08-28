@@ -8,6 +8,7 @@ import { queryKeys } from '@/shared/lib/keys';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
+import type { ApplyReport } from '@/shared/api/dto';
 import { VirtualList } from './VirtualList';
 import { MissingRow } from './MissingRow';
 import { ExtraRow } from './ExtraRow';
@@ -22,6 +23,7 @@ export function ResultsPage() {
   const [tab, setTab] = useState<Tab>('matched');
   const [selected, setSelected] = useState<number[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [reports, setReports] = useState<ApplyReport[]>([]);
   const detail = useQuery({ queryKey: queryKeys.import(id), queryFn: () => getImport(id) });
   const results = useQuery({
     queryKey: queryKeys.results(id),
@@ -151,6 +153,7 @@ export function ResultsPage() {
                     currency={currency}
                     batchId={id}
                     selected={activeSelected.includes(results.data.missing[i].id)}
+                    report={reports.find((r) => r.movement_id === results.data.missing[i].id)}
                     onToggle={(mid) =>
                       setSelected((s) =>
                         s.includes(mid) ? s.filter((x) => x !== mid) : [...s, mid],
@@ -175,7 +178,8 @@ export function ResultsPage() {
         <ApplyPanel
           batchId={id}
           selected={activeSelected}
-          onDone={() => {
+          onDone={(rs) => {
+            setReports(rs);
             setSelected([]);
             setPanelOpen(false);
           }}
