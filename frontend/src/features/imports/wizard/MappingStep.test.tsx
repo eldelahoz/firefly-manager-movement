@@ -35,9 +35,7 @@ test('next disabled until all columns chosen; PUT mapping then onMapped', async 
     }),
   );
   let mapped: unknown = null;
-  renderWithProviders(
-    <MappingStep probe={probe} onMapped={(c) => (mapped = c)} />,
-  );
+  renderWithProviders(<MappingStep probe={probe} onMapped={(c) => (mapped = c)} />);
   expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
   await userEvent.selectOptions(screen.getByLabelText('Date column'), 'Date');
   await userEvent.selectOptions(screen.getByLabelText('Amount column'), 'Montant');
