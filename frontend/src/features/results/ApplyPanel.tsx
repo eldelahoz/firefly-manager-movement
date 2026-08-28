@@ -47,6 +47,7 @@ export function ApplyPanel({
       void qc.invalidateQueries({ queryKey: queryKeys.imports });
       onDone();
     },
+    onError: (e) => toast.error(e.message),
   });
   const ready = selected.length > 0 && !!counterparty && !apply.isPending;
   return (
@@ -97,13 +98,21 @@ export function ApplyPanel({
           className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2"
         />
       </label>
-      <button
-        disabled={!ready}
-        onClick={() => apply.mutate()}
-        className="mt-4 h-11 w-full rounded-lg bg-accent font-medium text-white disabled:opacity-50"
-      >
-        {t('results.apply')}
-      </button>
+      <div className="mt-4 flex gap-2">
+        <button
+          onClick={onDone}
+          className="h-11 rounded-lg border border-border-subtle bg-surface px-4 font-medium text-text-2"
+        >
+          {t('common.cancel')}
+        </button>
+        <button
+          disabled={!ready}
+          onClick={() => apply.mutate()}
+          className="h-11 flex-1 rounded-lg bg-accent font-medium text-white disabled:opacity-50"
+        >
+          {t('results.apply')}
+        </button>
+      </div>
     </div>
   );
 }
