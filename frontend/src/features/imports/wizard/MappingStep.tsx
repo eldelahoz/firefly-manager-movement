@@ -4,7 +4,11 @@ import { useTranslation } from 'react-i18next';
 import type { UploadResponse } from '@/shared/api/dto';
 import { putMapping } from '@/shared/api/endpoints';
 
-export type MappingColumns = { date_column: string; amount_column: string; description_column: string };
+export type MappingColumns = {
+  date_column: string;
+  amount_column: string;
+  description_column: string;
+};
 
 export function MappingStep({
   probe,
