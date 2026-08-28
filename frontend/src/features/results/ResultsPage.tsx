@@ -25,8 +25,20 @@ export function ResultsPage() {
     queryFn: () => getResults(id),
     retry: false,
   });
+  if (!Number.isFinite(id)) {
+    return (
+      <EmptyState
+        title={t('results.noReconciliation')}
+        action={
+          <Link to="/imports" className="rounded-lg bg-accent px-4 py-2 text-white">
+            {t('results.startImport')}
+          </Link>
+        }
+      />
+    );
+  }
   if (results.isPending || detail.isPending) return <TableSkeleton rows={6} cols={4} />;
-  if (results.isError) {
+  if (results.isError || detail.isError) {
     return (
       <EmptyState
         title={t('results.noReconciliation')}
