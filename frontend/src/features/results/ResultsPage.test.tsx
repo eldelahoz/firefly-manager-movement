@@ -89,6 +89,7 @@ test('missing tab supports select-all and opens apply panel', async () => {
   expect(await screen.findByRole('dialog')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Create in Firefly III (2)' })).toBeEnabled();
 });
 
 test('virtualizes 1000 matched rows without rendering all', async () => {

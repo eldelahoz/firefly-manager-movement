@@ -31,7 +31,9 @@ test('apply mixed outcomes: toast recap and onDone', async () => {
     }),
   );
   let done = false;
-  renderWithProviders(<ApplyPanel batchId={1} selected={[12, 13]} onDone={() => (done = true)} />);
+  renderWithProviders(
+    <ApplyPanel batchId={1} selected={[12, 13]} onClose={() => {}} onDone={() => (done = true)} />,
+  );
   expect(screen.getByRole('button', { name: 'Create in Firefly III' })).toBeDisabled();
   await screen.findByRole('option', { name: 'Checking (EUR)' });
   await userEvent.selectOptions(await screen.findByLabelText('Counterparty account'), '1');
@@ -51,7 +53,7 @@ test('apply failure shows error toast and keeps panel open', async () => {
   let done = false;
   renderWithProviders(
     <>
-      <ApplyPanel batchId={1} selected={[12]} onDone={() => (done = true)} />
+      <ApplyPanel batchId={1} selected={[12]} onClose={() => {}} onDone={() => (done = true)} />
       <Toaster />
     </>,
   );

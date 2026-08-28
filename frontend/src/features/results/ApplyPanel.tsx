@@ -10,10 +10,12 @@ export function ApplyPanel({
   batchId,
   selected,
   onDone,
+  onClose,
 }: {
   batchId: number;
   selected: number[];
   onDone: (reports: ApplyReport[]) => void;
+  onClose: () => void;
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -101,7 +103,7 @@ export function ApplyPanel({
       </label>
       <div className="mt-4 flex gap-2">
         <button
-          onClick={() => onDone([])}
+          onClick={onClose}
           className="h-11 rounded-lg border border-border-subtle bg-surface px-4 font-medium text-text-2"
         >
           {t('common.cancel')}

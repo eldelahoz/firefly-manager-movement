@@ -24,7 +24,10 @@ export function ResultsPage() {
   const [tab, setTab] = useState<Tab>('matched');
   const [selected, setSelected] = useState<number[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [reports, setReports] = useState<ApplyReport[]>([]);
+  const [reports, setReports] = useState<{ batchId: number; items: ApplyReport[] }>({
+    batchId: NaN,
+    items: [],
+  });
   const openRerun = useRerun();
   const detail = useQuery({ queryKey: queryKeys.import(id), queryFn: () => getImport(id) });
   const results = useQuery({
@@ -136,7 +139,7 @@ export function ResultsPage() {
                     checked={activeSelected.length === counts.missing && counts.missing > 0}
                     onChange={() =>
                       setSelected(
-                        selected.length === counts.missing
+                        activeSelected.length === counts.missing
                           ? []
                           : results.data.missing.map((m) => m.id),
                       )
@@ -161,7 +164,11 @@ export function ResultsPage() {
                     currency={currency}
                     batchId={id}
                     selected={activeSelected.includes(results.data.missing[i].id)}
-                    report={reports.find((r) => r.movement_id === results.data.missing[i].id)}
+                    report={
+                      reports.batchId === id
+                        ? reports.items.find((r) => r.movement_id === results.data.missing[i].id)
+                        : undefined
+                    }
                     onToggle={(mid) =>
                       setSelected((s) =>
                         s.includes(mid) ? s.filter((x) => x !== mid) : [...s, mid],
@@ -186,8 +193,9 @@ export function ResultsPage() {
         <ApplyPanel
           batchId={id}
           selected={activeSelected}
+          onClose={() => setPanelOpen(false)}
           onDone={(rs) => {
-            setReports(rs);
+            setReports({ batchId: id, items: rs });
             setSelected([]);
             setPanelOpen(false);
           }}
