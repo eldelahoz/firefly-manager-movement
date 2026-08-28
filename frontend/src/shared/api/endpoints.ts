@@ -37,7 +37,7 @@ export const postApply = (batchId: number, body: ApplyRequest) =>
 export const getAccounts = () => api.get<Ff3Account[]>('/api/firefly/accounts');
 export const postAccountTransactions = (id: string, start: string, end: string) =>
   api.post<Ff3TxDTO[]>(`/api/firefly/accounts/${id}/transactions`, { start, end });
-export const deleteTransaction = (id: string) =>
-  api.del<{ ff3_id: string; status: 'deleted' }>(`/api/firefly/transactions/${id}`);
+export const deleteTransaction = (id: number) =>
+  api.del<{ ff3_id: number; status: 'deleted' }>(`/api/firefly/transactions/${id}`);
 export { uploadCsv };
 export type { UploadResponse };

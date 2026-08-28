@@ -47,13 +47,13 @@ export function ReconcileConfigStep({
   }, [detail.data]);
   const range = rangeOverride ?? computedRange;
   const currencyMismatch = useMemo(
-    () => !!accounts.data?.find((a) => a.id === accountId && a.currency !== currency),
+    () => !!accounts.data?.find((a) => a.id === Number(accountId) && a.currency !== currency),
     [accounts.data, accountId, currency],
   );
   const reconcile = useMutation({
     mutationFn: () =>
       postReconcile(batchId!, {
-        ff3_account_id: accountId,
+        ff3_account_id: Number(accountId),
         window_start: range!.start,
         window_end: range!.end,
         tolerance_days: tolerance,
