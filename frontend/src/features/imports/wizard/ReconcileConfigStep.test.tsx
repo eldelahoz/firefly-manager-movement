@@ -65,6 +65,12 @@ test('happy path posts reconcile with computed window and calls onDone', async (
   expect(body).toMatchObject({ ff3_account_id: 1, tolerance_days: 0 });
 });
 
+test('initialAccountId preselects the account', async () => {
+  renderWithProviders(<ReconcileConfigStep {...props({ initialAccountId: '1' })} />);
+  const select = (await screen.findByLabelText('Firefly III account')) as HTMLSelectElement;
+  expect(select.value).toBe('1');
+});
+
 function ErrorHarness() {
   const [error, setError] = useState<string | null>(null);
   return <ReconcileConfigStep {...props({ error, onError: setError })} />;

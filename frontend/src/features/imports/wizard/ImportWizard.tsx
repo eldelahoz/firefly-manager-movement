@@ -1,8 +1,8 @@
 import { useReducer } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { uploadCsv } from '@/shared/api/endpoints';
+import { getAccounts, uploadCsv } from '@/shared/api/endpoints';
 import type { UploadResponse } from '@/shared/api/dto';
 import { queryKeys } from '@/shared/lib/keys';
 import { initialWizardState, wizardReducer } from './state';
@@ -18,6 +18,11 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
   const [state, dispatch] = useReducer(wizardReducer, initialWizardState);
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const accounts = useQuery({
+    queryKey: queryKeys.accounts,
+    queryFn: getAccounts,
+    staleTime: 300_000,
+  });
   const upload = useMutation({
     mutationFn: (args: { file: File; currency: string; columns?: Record<string, string> }) =>
       uploadCsv(args.file, { currency: args.currency, ...args.columns }),
@@ -57,8 +62,9 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
         </div>
         {state.step === 'upload' && (
           <UploadStep
-            currency={state.currency}
-            onCurrency={(c) => dispatch({ type: 'SET_CURRENCY', currency: c })}
+            accounts={accounts.data}
+            accountId={state.accountId}
+            onAccount={(id, currency) => dispatch({ type: 'SET_ACCOUNT', accountId: id, currency })}
             onFile={(file) => {
               dispatch({ type: 'UPLOAD_START', file });
               upload.mutate({ file, currency: state.currency });
@@ -96,6 +102,7 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
         {(state.step === 'reconcile-config' || state.step === 'submitting') && (
           <ReconcileConfigStep
             batchId={state.finalBatchId ?? state.probe?.batch_id ?? null}
+            initialAccountId={state.accountId}
             submitting={state.step === 'submitting'}
             error={state.error}
             onStart={() => dispatch({ type: 'RECONCILE_START' })}

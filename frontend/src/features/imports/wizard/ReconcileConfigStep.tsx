@@ -10,6 +10,7 @@ const TOLERANCES = [0, 1, 2, 3];
 
 export function ReconcileConfigStep({
   batchId,
+  initialAccountId,
   submitting,
   error,
   onStart,
@@ -17,6 +18,7 @@ export function ReconcileConfigStep({
   onDone,
 }: {
   batchId: number | null;
+  initialAccountId?: string;
   submitting: boolean;
   error: string | null;
   onStart: () => void;
@@ -25,7 +27,7 @@ export function ReconcileConfigStep({
 }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const [accountId, setAccountId] = useState('');
+  const [accountId, setAccountId] = useState(initialAccountId ?? '');
   const [tolerance, setTolerance] = useState(0);
   const [rangeOverride, setRangeOverride] = useState<{ start: string; end: string } | null>(null);
   const accounts = useQuery({

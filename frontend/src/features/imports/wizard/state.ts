@@ -1,17 +1,12 @@
 import type { UploadResponse } from '@/shared/api/dto';
 
 export type WizardStep =
-  | 'upload'
-  | 'preview'
-  | 'mapping'
-  | 'reconcile-config'
-  | 'submitting'
-  | 'done'
-  | 'error';
+  'upload' | 'preview' | 'mapping' | 'reconcile-config' | 'submitting' | 'done' | 'error';
 
 export interface WizardState {
   step: WizardStep;
   file: File | null;
+  accountId: string;
   currency: string;
   probe: UploadResponse | null;
   finalBatchId: number | null;
@@ -21,14 +16,15 @@ export interface WizardState {
 export const initialWizardState: WizardState = {
   step: 'upload',
   file: null,
-  currency: 'EUR',
+  accountId: '',
+  currency: '',
   probe: null,
   finalBatchId: null,
   error: null,
 };
 
 export type WizardAction =
-  | { type: 'SET_CURRENCY'; currency: string }
+  | { type: 'SET_ACCOUNT'; accountId: string; currency: string }
   | { type: 'UPLOAD_START'; file: File }
   | { type: 'UPLOAD_SUCCESS'; probe: UploadResponse }
   | { type: 'UPLOAD_ERROR'; message: string }
@@ -41,8 +37,8 @@ export type WizardAction =
 
 export function wizardReducer(s: WizardState, a: WizardAction): WizardState {
   switch (a.type) {
-    case 'SET_CURRENCY':
-      return { ...s, currency: a.currency };
+    case 'SET_ACCOUNT':
+      return { ...s, accountId: a.accountId, currency: a.currency };
     case 'UPLOAD_START':
       return { ...s, file: a.file, step: 'preview', probe: null, error: null };
     case 'UPLOAD_SUCCESS':
