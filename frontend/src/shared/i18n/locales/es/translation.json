@@ -54,6 +54,8 @@
     "currency": "Moneda",
     "status": "Estado",
     "actions": "Acciones",
+    "movements": "Movimientos",
+    "matchedAccount": "Cuenta",
     "viewResults": "Ver resultados",
     "rerun": "Reejecutar conciliación",
     "detail": "Detalle",
