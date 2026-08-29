@@ -44,7 +44,7 @@ export function BrowseWidget() {
           value={accountId === '' ? 'none' : accountId}
           onValueChange={(v) => setAccountId(v === 'none' ? '' : v)}
         >
-          <SelectTrigger className="min-w-40" aria-label={t('wizard.account')}>
+          <SelectTrigger className="min-w-50" aria-label={t('wizard.account')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent position="popper">
