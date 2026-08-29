@@ -39,12 +39,12 @@ export function BrowseWidget() {
   return (
     <section className="rounded-xl border border-border-subtle bg-surface p-4 shadow-sm">
       <h2 className="mb-3 font-semibold">{t('dashboard.browseTitle')}</h2>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2">
         <Select
           value={accountId === '' ? 'none' : accountId}
           onValueChange={(v) => setAccountId(v === 'none' ? '' : v)}
         >
-          <SelectTrigger className="min-w-50" aria-label={t('wizard.account')}>
+          <SelectTrigger className="w-full min-w-50" aria-label={t('wizard.account')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent position="popper">
@@ -56,26 +56,28 @@ export function BrowseWidget() {
             ))}
           </SelectContent>
         </Select>
-        <label className="flex items-center gap-1 text-sm text-text-2">
-          {t('dashboard.browseFrom')}
-          <Input
-            type="date"
-            value={start}
-            max={addDays(end, -1)}
-            onChange={(e) => setStart(e.target.value)}
-            className="w-auto"
-          />
-        </label>
-        <label className="flex items-center gap-1 text-sm text-text-2">
-          {t('dashboard.browseTo')}
-          <Input
-            type="date"
-            value={end}
-            min={addDays(start, 1)}
-            onChange={(e) => setEnd(e.target.value)}
-            className="w-auto"
-          />
-        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex items-center gap-1 text-sm text-text-2">
+            {t('dashboard.browseFrom')}
+            <Input
+              type="date"
+              value={start}
+              max={addDays(end, -1)}
+              onChange={(e) => setStart(e.target.value)}
+              className="w-full"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-sm text-text-2">
+            {t('dashboard.browseTo')}
+            <Input
+              type="date"
+              value={end}
+              min={addDays(start, 1)}
+              onChange={(e) => setEnd(e.target.value)}
+              className="w-full"
+            />
+          </label>
+        </div>
       </div>
       <div className="mt-4">
         {!accountId ? (
@@ -97,17 +99,21 @@ export function BrowseWidget() {
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm">{tx.description}</span>
                 <MoneyText cents={tx.amount_cents} currency={currency} signed colored />
-                {tx.status && <StatusPill status={tx.status} />}
-                {tx.status === 'duplicate' && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-status-extra-txt hover:bg-status-extra-bg hover:text-status-extra-txt"
-                    onClick={() => setPendingDelete(tx)}
-                  >
-                    {t('dashboard.deleteDuplicate')}
-                  </Button>
-                )}
+                <span className="w-24 shrink-0">
+                  {tx.status && <StatusPill status={tx.status} />}
+                </span>
+                <span className="flex w-24 shrink-0 justify-end">
+                  {tx.status === 'duplicate' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-status-extra-txt hover:bg-status-extra-bg hover:text-status-extra-txt"
+                      onClick={() => setPendingDelete(tx)}
+                    >
+                      {t('dashboard.deleteDuplicate')}
+                    </Button>
+                  )}
+                </span>
               </li>
             ))}
           </ul>
