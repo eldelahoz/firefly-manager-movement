@@ -43,7 +43,7 @@ test('next disabled until all columns chosen; PUT mapping then onMapped', async 
     ['Description column', 'Libelle'],
   ] as const) {
     await userEvent.click(screen.getByLabelText(label));
-    await userEvent.click(await screen.findByRole('option', { name: header, exact: true }));
+    await userEvent.click(await screen.findByRole('option', { name: new RegExp(`^${header}$`) }));
   }
   await userEvent.click(screen.getByRole('button', { name: 'Next' }));
   expect(putBody).toEqual({
