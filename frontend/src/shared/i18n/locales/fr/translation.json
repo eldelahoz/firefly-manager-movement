@@ -54,6 +54,8 @@
     "currency": "Devise",
     "status": "Statut",
     "actions": "Actions",
+    "movements": "Mouvements",
+    "matchedAccount": "Compte",
     "viewResults": "Voir les résultats",
     "rerun": "Relancer le rapprochement",
     "detail": "Détail",

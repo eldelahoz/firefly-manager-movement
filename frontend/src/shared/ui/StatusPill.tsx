@@ -1,20 +1,14 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export type PillStatus =
-  | 'imported'
-  | 'matched'
-  | 'missing'
-  | 'created'
-  | 'ignored'
-  | 'duplicate'
-  | 'extra'
-  | 'already_created'
-  | 'failed'
-  | 'parsed'
-  | 'reconciled'
-  | 'applied';
+export type PillStatus = string;
 
-const STYLES: Record<PillStatus, string> = {
+const PILL_BASE =
+  'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide';
+
+const NEUTRAL = 'bg-border-subtle text-text-2';
+
+const STYLES: Record<string, string> = {
   imported: 'bg-border-subtle text-text-2',
   matched: 'bg-status-matched-bg text-status-matched-txt',
   missing: 'bg-status-missing-bg text-status-missing-txt',
@@ -29,13 +23,18 @@ const STYLES: Record<PillStatus, string> = {
   applied: 'bg-accent-soft text-accent',
 };
 
-export function StatusPill({ status }: { status: PillStatus }) {
+/** Generic text pill. Defaults to a neutral gray; pass `className` to override the color. */
+export function Pill({
+  children,
+  className = NEUTRAL,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <span className={`${PILL_BASE} ${className}`}>{children}</span>;
+}
+
+export function StatusPill({ status }: { status: string }) {
   const { t } = useTranslation();
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${STYLES[status]}`}
-    >
-      {t(`status.${status}`)}
-    </span>
-  );
+  return <Pill className={STYLES[status] ?? NEUTRAL}>{t(`status.${status}`)}</Pill>;
 }

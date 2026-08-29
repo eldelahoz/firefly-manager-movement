@@ -54,6 +54,8 @@
     "currency": "Currency",
     "status": "Status",
     "actions": "Actions",
+    "movements": "Movements",
+    "matchedAccount": "Account",
     "viewResults": "View results",
     "rerun": "Re-run reconciliation",
     "detail": "Detail",

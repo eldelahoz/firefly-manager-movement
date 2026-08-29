@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useRerun } from '@/app/reconcileContext';
-import { getImports } from '@/shared/api/endpoints';
+import { getAccounts, getImports } from '@/shared/api/endpoints';
 import { formatDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -12,7 +12,7 @@ import { Input } from '@/shared/ui/input';
 import { Eye, Info, Repeat, RefreshCw } from 'lucide-react';
 import { usePageHeader } from '@/shared/ui/PageHeader';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
-import { StatusPill } from '@/shared/ui/StatusPill';
+import { Pill, StatusPill } from '@/shared/ui/StatusPill';
 import { Table, Td, Tr } from '@/shared/ui/Table';
 import { BatchDrawer } from './BatchDrawer';
 import { ImportWizard } from './wizard/ImportWizard';
@@ -31,6 +31,12 @@ export function ImportsPage() {
     queryKey: queryKeys.imports,
     queryFn: getImports,
   });
+  const { data: accounts } = useQuery({ queryKey: queryKeys.accounts, queryFn: getAccounts });
+  const accountNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    (accounts ?? []).forEach((a) => map.set(a.id, a.name));
+    return map;
+  }, [accounts]);
   const headerActions = useMemo(
     () => (
       <>
@@ -90,7 +96,9 @@ export function ImportsPage() {
             t('imports.format'),
             t('imports.currency'),
             t('imports.status'),
-            <span key="actions" className="block text-right">
+            t('imports.matchedAccount'),
+            t('imports.movements'),
+            <span key="actions" className="block text-center">
               {t('imports.actions')}
             </span>,
           ]}
@@ -101,13 +109,21 @@ export function ImportsPage() {
               <Td className="text-text-2">
                 {formatDate(b.created_at.slice(0, 10), i18n.language)}
               </Td>
-              <Td>{b.format}</Td>
+              <Td>
+                <Pill>{b.format}</Pill>
+              </Td>
               <Td>{b.currency}</Td>
               <Td>
                 <StatusPill status={b.status} />
               </Td>
-              <Td className="text-right">
-                <div className="flex items-center justify-end gap-1">
+              <Td className="text-text-2">
+                {b.account_id != null
+                  ? `${b.account_name ?? accountNameById.get(b.account_id) ?? String(b.account_id)} (${b.account_id})`
+                  : '—'}
+              </Td>
+              <Td className="text-text-2">{b.movements_count}</Td>
+              <Td className="text-center">
+                <div className="flex items-center justify-center gap-1">
                   {b.status !== 'parsed' && (
                     <Button
                       variant="ghost"
