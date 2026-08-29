@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { getAccounts, postApply } from '@/shared/api/endpoints';
 import type { ApplyReport } from '@/shared/api/dto';
 import { queryKeys } from '@/shared/lib/keys';
+import { Input } from '@/shared/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 
 export function ApplyPanel({
   batchId,
@@ -62,44 +64,36 @@ export function ApplyPanel({
       <h2 className="font-semibold">
         {t('results.apply')} — {selected.length}
       </h2>
-      <label className="mt-3 block text-sm text-text-2">
-        {t('results.counterparty')}
-        <select
-          value={counterparty}
-          onChange={(e) => setCounterparty(e.target.value)}
-          className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2 text-text-1"
+      <div className="mt-3">
+        <p className="mb-1 text-sm text-text-2">{t('results.counterparty')}</p>
+        <Select
+          value={counterparty === '' ? 'none' : counterparty}
+          onValueChange={(v) => setCounterparty(v === 'none' ? '' : v)}
         >
-          <option value="">—</option>
-          {accounts.data?.map((a) => (
-            <option key={a.id} value={String(a.id)}>
-              {a.name} ({a.currency})
-            </option>
-          ))}
-        </select>
-      </label>
+          <SelectTrigger className="w-full" aria-label={t('results.counterparty')}>
+            <SelectValue placeholder="—" />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            <SelectItem value="none">—</SelectItem>
+            {accounts.data?.map((a) => (
+              <SelectItem key={a.id} value={String(a.id)}>
+                {a.name} ({a.currency})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <label className="mt-3 block text-sm text-text-2">
         {t('results.category')}
-        <input
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2"
-        />
+        <Input value={category} onChange={(e) => setCategory(e.target.value)} className="mt-1" />
       </label>
       <label className="mt-3 block text-sm text-text-2">
         {t('results.budget')}
-        <input
-          value={budget}
-          onChange={(e) => setBudget(e.target.value)}
-          className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2"
-        />
+        <Input value={budget} onChange={(e) => setBudget(e.target.value)} className="mt-1" />
       </label>
       <label className="mt-3 block text-sm text-text-2">
         {t('results.notes')}
-        <input
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2"
-        />
+        <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1" />
       </label>
       <div className="mt-4 flex gap-2">
         <button

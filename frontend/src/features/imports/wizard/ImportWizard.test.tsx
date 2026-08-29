@@ -40,8 +40,8 @@ function makeCsv() {
 }
 
 async function upload(file: File) {
-  await screen.findByText('Checking (EUR)');
-  await userEvent.selectOptions(screen.getByLabelText('Firefly III account'), '1');
+  await userEvent.click(await screen.findByLabelText('Firefly III account'));
+  await userEvent.click(await screen.findByRole('option', { name: 'Checking (EUR)' }));
   const drop = screen.getByText('Drop your CSV here or click to browse');
   const input = drop.parentElement!.parentElement!.querySelector(
     'input[type="file"]',

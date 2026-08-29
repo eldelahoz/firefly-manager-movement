@@ -4,6 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { getAccounts, getImport, postReconcile } from '@/shared/api/endpoints';
 import { addDays } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
+import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 
 const TOLERANCES = [0, 1, 2, 3];
@@ -71,32 +74,37 @@ export function ReconcileConfigStep({
   const ready = !!accountId && !!range && !currencyMismatch && !submitting;
   return (
     <div className="space-y-4">
-      <label className="block text-sm text-text-2">
-        {t('wizard.account')}
-        <select
-          value={accountId}
-          onChange={(e) => setAccountId(e.target.value)}
-          className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2 text-text-1"
+      <div>
+        <p className="mb-1 text-sm text-text-2">{t('wizard.account')}</p>
+        <Select
+          value={accountId === '' ? 'none' : accountId}
+          onValueChange={(v) => setAccountId(v === 'none' ? '' : v)}
         >
-          <option value="">—</option>
-          {accounts.data?.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name} ({a.currency})
-            </option>
-          ))}
-        </select>
-      </label>
+          <SelectTrigger className="w-full" aria-label={t('wizard.account')}>
+            <SelectValue placeholder="—" />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            <SelectItem value="none">—</SelectItem>
+            {accounts.data?.map((a) => (
+              <SelectItem key={a.id} value={String(a.id)}>
+                {a.name} ({a.currency})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <div>
         <p className="mb-1 text-sm text-text-2">{t('wizard.tolerance')}</p>
         <div className="flex gap-1">
           {TOLERANCES.map((d) => (
-            <button
+            <Button
               key={d}
+              variant={tolerance === d ? 'default' : 'outline'}
+              className="flex-1"
               onClick={() => setTolerance(d)}
-              className={`h-11 flex-1 rounded-lg ${tolerance === d ? 'bg-accent text-white' : 'border border-border-subtle bg-surface text-text-2'}`}
             >
               {d === 0 ? '0' : `±${d}`}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -104,20 +112,20 @@ export function ReconcileConfigStep({
         <div className="flex gap-2">
           <label className="flex-1 text-sm text-text-2">
             {t('dashboard.browseFrom')}
-            <input
+            <Input
               type="date"
               value={range.start}
               onChange={(e) => setRangeOverride({ ...range, start: e.target.value })}
-              className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2"
+              className="mt-1"
             />
           </label>
           <label className="flex-1 text-sm text-text-2">
             {t('dashboard.browseTo')}
-            <input
+            <Input
               type="date"
               value={range.end}
               onChange={(e) => setRangeOverride({ ...range, end: e.target.value })}
-              className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2"
+              className="mt-1"
             />
           </label>
         </div>
@@ -141,16 +149,16 @@ export function ReconcileConfigStep({
           {error}
         </p>
       )}
-      <button
+      <Button
         disabled={!ready}
         onClick={() => {
           onStart();
           reconcile.mutate();
         }}
-        className="h-11 w-full rounded-lg bg-accent font-medium text-white disabled:opacity-50"
+        className="w-full"
       >
         {submitting ? t('wizard.reconciling') : t('common.finish')}
-      </button>
+      </Button>
     </div>
   );
 }
