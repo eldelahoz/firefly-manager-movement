@@ -83,7 +83,7 @@ export function ResultsPage() {
       </div>
       <div
         role="tablist"
-        className="sticky top-16 z-[5] flex gap-1 border-b border-border-subtle bg-canvas py-1"
+        className="sticky top-0 z-[5] flex gap-1 border-b border-border-subtle bg-canvas py-1"
       >
         {tabs.map((tb) => (
           <button
