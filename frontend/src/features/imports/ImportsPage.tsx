@@ -49,13 +49,15 @@ export function ImportsPage() {
         />
         <div className="flex gap-1">
           {(['all', ...STATUSES] as const).map((s) => (
-            <button
+            <Button
               key={s}
+              size="sm"
+              variant={statusFilter === s ? 'default' : 'outline'}
+              className="rounded-full"
               onClick={() => setStatusFilter(s)}
-              className={`rounded-full px-3 py-1.5 text-sm ${statusFilter === s ? 'bg-accent text-white' : 'border border-border-subtle bg-surface text-text-2'}`}
             >
               {s === 'all' ? t('imports.all') : t(`imports.${s}`)}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -88,25 +90,21 @@ export function ImportsPage() {
               <Td>
                 <div className="flex gap-2">
                   {b.status !== 'parsed' && (
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-accent"
                       onClick={() => navigate(`/results/${b.id}`)}
-                      className="rounded-lg px-2 py-1 text-sm text-accent hover:bg-accent-soft"
                     >
                       {t('imports.viewResults')}
-                    </button>
+                    </Button>
                   )}
-                  <button
-                    onClick={() => openRerun(b.id)}
-                    className="rounded-lg px-2 py-1 text-sm text-text-2 hover:bg-canvas"
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => openRerun(b.id)}>
                     {t('imports.rerun')}
-                  </button>
-                  <button
-                    onClick={() => setDrawerId(b.id)}
-                    className="rounded-lg px-2 py-1 text-sm text-text-2 hover:bg-canvas"
-                  >
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setDrawerId(b.id)}>
                     {t('imports.detail')}
-                  </button>
+                  </Button>
                 </div>
               </Td>
             </Tr>

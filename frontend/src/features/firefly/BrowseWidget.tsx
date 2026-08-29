@@ -6,6 +6,7 @@ import { getAccounts, postAccountTransactions } from '@/shared/api/endpoints';
 import { addDays, formatDate, toIsoDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { MoneyText } from '@/shared/ui/MoneyText';
+import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
@@ -96,12 +97,14 @@ export function BrowseWidget() {
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
                   <MoneyText cents={tx.amount_cents} currency={currency} />
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-status-extra-txt hover:bg-status-extra-bg"
                     onClick={() => setPendingDelete(tx)}
-                    className="rounded-lg px-2 py-1 text-xs text-status-extra-txt hover:bg-status-extra-bg"
                   >
                     {t('dashboard.deleteDuplicate')}
-                  </button>
+                  </Button>
                 </span>
               </li>
             ))}
