@@ -7,9 +7,11 @@ import { formatDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Button } from '@/shared/ui/button';
+import { Checkbox } from '@/shared/ui/checkbox';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import type { ApplyReport } from '@/shared/api/dto';
 import { useRerun } from '@/app/reconcileContext';
 import { VirtualList } from './VirtualList';
@@ -42,9 +44,9 @@ export function ResultsPage() {
       <EmptyState
         title={t('results.noReconciliation')}
         action={
-          <Link to="/imports" className="rounded-lg bg-accent px-4 py-2 text-white">
-            {t('results.startImport')}
-          </Link>
+          <Button asChild>
+            <Link to="/imports">{t('results.startImport')}</Link>
+          </Button>
         }
       />
     );
@@ -55,9 +57,9 @@ export function ResultsPage() {
       <EmptyState
         title={t('results.noReconciliation')}
         action={
-          <Link to="/imports" className="rounded-lg bg-accent px-4 py-2 text-white">
-            {t('results.startImport')}
-          </Link>
+          <Button asChild>
+            <Link to="/imports">{t('results.startImport')}</Link>
+          </Button>
         }
       />
     );
@@ -84,25 +86,19 @@ export function ResultsPage() {
           </Button>
         }
       />
-      <div
-        role="tablist"
-        className="sticky top-0 z-[5] flex gap-1 border-b border-border-subtle bg-canvas py-1"
-      >
-        {tabs.map((tb) => (
-          <button
-            key={tb}
-            role="tab"
-            aria-selected={tab === tb}
-            onClick={() => setTab(tb)}
-            className={`rounded-t-lg px-4 py-2 text-sm font-medium ${tab === tb ? 'border-b-2 border-accent text-accent' : 'text-text-2'}`}
-          >
-            {t(`results.${tb}`)} ({counts[tb]})
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel">
-        {tab === 'matched' &&
-          (counts.matched === 0 ? (
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">
+        <TabsList
+          variant="line"
+          className="sticky top-0 z-[5] w-full justify-start rounded-none border-b border-border-subtle bg-canvas py-1"
+        >
+          {tabs.map((tb) => (
+            <TabsTrigger key={tb} value={tb}>
+              {t(`results.${tb}`)} ({counts[tb]})
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <TabsContent value="matched">
+          {counts.matched === 0 ? (
             <EmptyState title={t('results.matched')} />
           ) : (
             <VirtualList
@@ -129,35 +125,31 @@ export function ResultsPage() {
                 );
               }}
             />
-          ))}
-        {tab === 'missing' &&
-          (counts.missing === 0 ? (
+          )}
+        </TabsContent>
+        <TabsContent value="missing">
+          {counts.missing === 0 ? (
             <EmptyState title={t('results.missing')} />
           ) : (
             <>
               <div className="flex items-center justify-between py-2">
                 <label className="flex items-center gap-2 text-sm text-text-2">
-                  <input
-                    type="checkbox"
+                  <Checkbox
+                    aria-label={t('results.selectAll')}
                     checked={activeSelected.length === counts.missing && counts.missing > 0}
-                    onChange={() =>
+                    onCheckedChange={() =>
                       setSelected(
                         activeSelected.length === counts.missing
                           ? []
                           : results.data.missing.map((m) => m.id),
                       )
                     }
-                    className="size-5"
                   />
                   {t('results.selectAll')}
                 </label>
-                <button
-                  onClick={() => setPanelOpen(true)}
-                  disabled={activeSelected.length === 0}
-                  className="h-11 rounded-lg bg-accent px-4 font-medium text-white disabled:opacity-50"
-                >
+                <Button onClick={() => setPanelOpen(true)} disabled={activeSelected.length === 0}>
                   {t('results.apply')} ({activeSelected.length})
-                </button>
+                </Button>
               </div>
               <VirtualList
                 count={counts.missing}
@@ -181,17 +173,19 @@ export function ResultsPage() {
                 )}
               />
             </>
-          ))}
-        {tab === 'extra' &&
-          (counts.extra === 0 ? (
+          )}
+        </TabsContent>
+        <TabsContent value="extra">
+          {counts.extra === 0 ? (
             <EmptyState title={t('results.extra')} />
           ) : (
             <VirtualList
               count={counts.extra}
               renderItem={(i) => <ExtraRow tx={results.data.extra[i]} currency={currency} />}
             />
-          ))}
-      </div>
+          )}
+        </TabsContent>
+      </Tabs>
       {panelOpen && tab === 'missing' && (
         <ApplyPanel
           batchId={id}

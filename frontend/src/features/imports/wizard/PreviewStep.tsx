@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { UploadResponse } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
+import { Button } from '@/shared/ui/button';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { Table, Td, Tr } from '@/shared/ui/Table';
 
@@ -67,12 +68,10 @@ export function PreviewStep({
         </section>
       )}
       <div className="flex justify-between">
-        <button onClick={onBack} className="h-11 rounded-lg px-4 text-text-2">
+        <Button variant="ghost" onClick={onBack}>
           {t('common.back')}
-        </button>
-        <button onClick={onNext} className="h-11 rounded-lg bg-accent px-4 font-medium text-white">
-          {t('common.next')}
-        </button>
+        </Button>
+        <Button onClick={onNext}>{t('common.next')}</Button>
       </div>
     </div>
   );

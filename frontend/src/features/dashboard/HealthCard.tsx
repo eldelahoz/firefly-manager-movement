@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { getHealth } from '@/shared/api/endpoints';
 import { queryKeys } from '@/shared/lib/keys';
+import { Button } from '@/shared/ui/button';
 import { Skeleton } from '@/shared/ui/Skeleton';
 
 export function HealthCard() {
@@ -21,15 +23,12 @@ export function HealthCard() {
       >
         <span>{t('health.degraded')}</span>
         <span className="flex gap-2">
-          <button
-            onClick={() => void refetch()}
-            className="rounded-lg bg-surface px-3 py-2 text-sm font-medium text-text-1"
-          >
+          <Button variant="outline" onClick={() => void refetch()}>
             {t('common.retry')}
-          </button>
-          <button disabled className="rounded-lg bg-surface px-3 py-2 text-sm text-text-3">
-            {t('common.openSettings')}
-          </button>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/settings">{t('common.openSettings')}</Link>
+          </Button>
         </span>
       </div>
     );

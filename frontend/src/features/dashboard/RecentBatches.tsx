@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { getImports } from '@/shared/api/endpoints';
 import { queryKeys } from '@/shared/lib/keys';
@@ -9,7 +9,6 @@ import { TableSkeleton } from '@/shared/ui/Skeleton';
 
 export function RecentBatches() {
   const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
   const { data, isPending } = useQuery({ queryKey: queryKeys.imports, queryFn: getImports });
   if (isPending) return <TableSkeleton rows={4} cols={3} />;
   const top = (data ?? []).slice(0, 8);
@@ -19,8 +18,8 @@ export function RecentBatches() {
       <ul className="divide-y divide-border-subtle">
         {top.map((b) => (
           <li key={b.id}>
-            <button
-              onClick={() => navigate(b.status !== 'parsed' ? `/results/${b.id}` : '/imports')}
+            <Link
+              to={b.status !== 'parsed' ? `/results/${b.id}` : '/imports'}
               className="flex w-full items-center justify-between gap-2 py-2.5 text-left hover:text-accent"
             >
               <span className="truncate">{b.filename}</span>
@@ -28,7 +27,7 @@ export function RecentBatches() {
                 {formatDate(b.created_at.slice(0, 10), i18n.language)}
                 <StatusPill status={b.status} />
               </span>
-            </button>
+            </Link>
           </li>
         ))}
       </ul>
