@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom';
 import { Shell } from './layout/Shell';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { ImportsPage } from '@/features/imports/ImportsPage';
+import { ResultsPage } from '@/features/results/ResultsPage';
 import { ReconcileProvider } from './reconcileContext';
 
 export const router = createBrowserRouter([
@@ -14,7 +15,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/', element: <DashboardPage /> },
       { path: '/imports', element: <ImportsPage /> },
-      { path: '/results/:batchId', element: <div data-testid="page-results" /> },
+      { path: '/results/:batchId', element: <ResultsPage /> },
     ],
   },
 ]);
