@@ -1,5 +1,12 @@
 {
   "nav": { "dashboard": "Panel", "imports": "Importaciones", "settings": "Ajustes" },
+  "settings": {
+    "title": "Ajustes",
+    "appearance": "Apariencia",
+    "themeLight": "Claro",
+    "themeDark": "Oscuro",
+    "language": "Idioma"
+  },
   "common": {
     "retry": "Reintentar",
     "cancel": "Cancelar",

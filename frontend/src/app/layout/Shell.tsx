@@ -10,6 +10,7 @@ export function Shell() {
   const items = [
     { to: '/', label: t('nav.dashboard'), icon: LayoutDashboard },
     { to: '/imports', label: t('nav.imports'), icon: FolderInput },
+    { to: '/settings', label: t('nav.settings'), icon: Settings },
   ];
   return (
     <div className="min-h-screen bg-canvas text-text-1">
@@ -27,13 +28,6 @@ export function Shell() {
             {label}
           </NavLink>
         ))}
-        <span
-          className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-text-3"
-          aria-disabled="true"
-        >
-          <Settings className="size-5" />
-          {t('nav.settings')}
-        </span>
       </aside>
       <div className="md:pl-[220px]">
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border-subtle bg-surface px-4">
@@ -60,10 +54,6 @@ export function Shell() {
             <span className="text-xs">{label}</span>
           </NavLink>
         ))}
-        <span className="flex flex-1 flex-col items-center justify-center gap-1 text-text-3">
-          <Settings className="size-5" />
-          <span className="text-xs">{t('nav.settings')}</span>
-        </span>
       </nav>
     </div>
   );
