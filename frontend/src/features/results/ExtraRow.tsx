@@ -26,7 +26,7 @@ export function ExtraRow({ tx, currency }: { tx: Ff3CachedTxDTO; currency: strin
             <Button
               variant="ghost"
               size="sm"
-              className="text-status-extra-txt hover:bg-status-extra-bg"
+              className="text-status-extra-txt hover:bg-status-extra-bg hover:text-status-extra-txt"
               onClick={() => setConfirming(true)}
             >
               {t('dashboard.deleteDuplicate')}

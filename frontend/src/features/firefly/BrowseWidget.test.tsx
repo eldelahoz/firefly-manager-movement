@@ -22,11 +22,25 @@ test('idle state prompts account selection', async () => {
   expect((await screen.findAllByText('Select an account')).length).toBeGreaterThanOrEqual(1);
 });
 
-test('populated state lists transactions with delete action', async () => {
+test('populated state lists transactions with status pills', async () => {
   renderWithProviders(<BrowseWidget />);
   await pickCheckingAccount();
   expect(await screen.findByText('Coffee')).toBeInTheDocument();
   expect(screen.getByText('Duplicate A')).toBeInTheDocument();
+  expect(screen.getByText('Salary')).toBeInTheDocument();
+  expect(screen.getByText('Matched', { selector: 'span' })).toBeInTheDocument();
+  expect(screen.getByText('Duplicate', { selector: 'span' })).toBeInTheDocument();
+  expect(screen.queryByText('Extra', { selector: 'span' })).not.toBeInTheDocument();
+});
+
+test('delete duplicate action only appears on duplicates', async () => {
+  renderWithProviders(<BrowseWidget />);
+  await pickCheckingAccount();
+  await screen.findByText('Coffee');
+  const deleteButtons = screen.getAllByRole('button', { name: 'Delete duplicate' });
+  expect(deleteButtons).toHaveLength(1);
+  const dupRow = screen.getByText('Duplicate A').closest('li');
+  expect(dupRow).toContainElement(deleteButtons[0]);
 });
 
 test('502 shows error alert', async () => {

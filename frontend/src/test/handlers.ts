@@ -70,8 +70,27 @@ export const fixtures = {
     ],
   },
   txs: [
-    { id: 42, date: '2026-08-01', amount_cents: -4200, description: 'Coffee' },
-    { id: 43, date: '2026-08-03', amount_cents: -1500, description: 'Duplicate A' },
+    {
+      id: 42,
+      date: '2026-08-01',
+      amount_cents: -4200,
+      description: 'Coffee',
+      status: 'matched',
+    },
+    {
+      id: 43,
+      date: '2026-08-03',
+      amount_cents: -1500,
+      description: 'Duplicate A',
+      status: 'duplicate',
+    },
+    {
+      id: 44,
+      date: '2026-08-05',
+      amount_cents: 250000,
+      description: 'Salary',
+      status: null,
+    },
   ],
 };
 
