@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 
 use ffm_domain::entities::{Batch, CsvMapping, Movement};
@@ -25,6 +27,9 @@ pub trait BatchRepository: Send + Sync {
 pub trait MovementRepository: Send + Sync {
     async fn insert_batch(&self, movements: Vec<NewMovement>) -> Result<(), ApplicationError>;
     async fn by_batch(&self, batch_id: BatchId) -> Result<Vec<Movement>, ApplicationError>;
+    async fn count_by_batch(&self) -> Result<HashMap<BatchId, i64>, ApplicationError> {
+        Ok(HashMap::new())
+    }
     async fn update_status(
         &self,
         id: MovementId,

@@ -1,6 +1,6 @@
 //! Blanket impls so `Arc<dyn Trait>` can be used in use cases.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -108,6 +108,9 @@ impl<T: MovementRepository + ?Sized> MovementRepository for Arc<T> {
     }
     async fn by_batch(&self, batch_id: BatchId) -> Result<Vec<Movement>, ApplicationError> {
         self.as_ref().by_batch(batch_id).await
+    }
+    async fn count_by_batch(&self) -> Result<HashMap<BatchId, i64>, ApplicationError> {
+        self.as_ref().count_by_batch().await
     }
     async fn update_status(
         &self,

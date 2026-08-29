@@ -11,6 +11,9 @@ use utoipa::ToSchema;
 use ffm_application::csv::ColumnMapping;
 use ffm_application::use_cases::get_import::GetImport;
 use ffm_application::use_cases::list_imports::ListImports;
+use ffm_application::ports::MovementRepository;
+use ffm_domain::entities::Ff3Account;
+use std::collections::HashMap;
 use ffm_application::use_cases::save_csv_mapping::SaveCsvMapping;
 use ffm_application::use_cases::upload_import::{UploadImport, UploadImportInput};
 
@@ -63,6 +66,9 @@ pub struct BatchResponse {
     pub currency: String,
     pub status: String,
     pub created_at: NaiveDateTime,
+    pub account_id: Option<i64>,
+    pub account_name: Option<String>,
+    pub movements_count: i64,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -258,6 +264,19 @@ pub async fn upload_import(
     }))
 }
 
+/// Index cached FF3 accounts by their local primary key, so a batch's
+/// stored `account_id` (a local `ff3_accounts.id`) can be resolved to the
+/// external FF3 id and name that the frontend accounts list uses as its key.
+async fn account_index(
+    repo: std::sync::Arc<dyn ffm_application::ports::Ff3AccountRepository>,
+) -> Result<HashMap<i64, Ff3Account>, ApiError> {
+    let accounts = repo.all_asset().await.map_err(ApiError)?;
+    Ok(accounts
+        .into_iter()
+        .map(|a| (a.id.as_i64(), a))
+        .collect())
+}
+
 #[utoipa::path(
     get,
     path = "/api/imports",
@@ -271,17 +290,27 @@ pub async fn list_imports(
 ) -> Result<Json<Vec<BatchResponse>>, ApiError> {
     let uc = ListImports::new(state.batches.clone());
     let batches = uc.execute().await.map_err(ApiError)?;
+    let counts = state.movements.count_by_batch().await.map_err(ApiError)?;
+    let account_by_local_id = account_index(state.ff3_accounts.clone()).await?;
     Ok(Json(
         batches
             .into_iter()
-            .map(|b| BatchResponse {
-                id: b.id.as_i64(),
-                filename: b.filename,
-                file_hash: b.file_hash,
-                format: b.format,
-                currency: b.currency,
-                status: b.status.as_str().to_string(),
-                created_at: b.created_at,
+            .map(|b| {
+                let account = b
+                    .account_id
+                    .and_then(|id| account_by_local_id.get(&id.as_i64()).cloned());
+                BatchResponse {
+                    id: b.id.as_i64(),
+                    filename: b.filename,
+                    file_hash: b.file_hash,
+                    format: b.format,
+                    currency: b.currency,
+                    status: b.status.as_str().to_string(),
+                    created_at: b.created_at,
+                    account_id: account.as_ref().map(|a| a.ff3_id),
+                    account_name: account.as_ref().map(|a| a.name.clone()),
+                    movements_count: *counts.get(&b.id).unwrap_or(&0),
+                }
             })
             .collect(),
     ))
@@ -306,6 +335,10 @@ pub async fn get_import(
         .execute(ffm_domain::ids::BatchId::new(id))
         .await
         .map_err(ApiError)?;
+    let account_by_local_id = account_index(state.ff3_accounts.clone()).await?;
+    let account = batch
+        .account_id
+        .and_then(|a| account_by_local_id.get(&a.as_i64()).cloned());
     Ok(Json(GetImportResponse {
         batch: BatchResponse {
             id: batch.id.as_i64(),
@@ -315,6 +348,9 @@ pub async fn get_import(
             currency: batch.currency,
             status: batch.status.as_str().to_string(),
             created_at: batch.created_at,
+            account_id: account.as_ref().map(|a| a.ff3_id),
+            account_name: account.as_ref().map(|a| a.name.clone()),
+            movements_count: movements.len() as i64,
         },
         movements: movements
             .into_iter()
