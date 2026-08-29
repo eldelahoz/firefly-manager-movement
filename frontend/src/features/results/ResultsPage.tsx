@@ -6,7 +6,9 @@ import { getImport, getResults } from '@/shared/api/endpoints';
 import { formatDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { EmptyState } from '@/shared/ui/EmptyState';
+import { Button } from '@/shared/ui/button';
 import { MoneyText } from '@/shared/ui/MoneyText';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import type { ApplyReport } from '@/shared/api/dto';
 import { useRerun } from '@/app/reconcileContext';
@@ -70,17 +72,18 @@ export function ResultsPage() {
   const tabs: Tab[] = ['matched', 'missing', 'extra'];
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="truncate text-2xl font-bold">
-          {t('results.title')} — {detail.data?.batch.filename ?? `#${id}`}
-        </h1>
-        <button
-          onClick={() => openRerun(id)}
-          className="h-11 rounded-lg border border-border-subtle bg-surface px-4 text-sm font-medium text-text-2"
-        >
-          {t('imports.rerun')}
-        </button>
-      </div>
+      <PageHeader
+        title={
+          <span className="truncate">
+            {t('results.title')} — {detail.data?.batch.filename ?? `#${id}`}
+          </span>
+        }
+        actions={
+          <Button variant="outline" onClick={() => openRerun(id)}>
+            {t('imports.rerun')}
+          </Button>
+        }
+      />
       <div
         role="tablist"
         className="sticky top-0 z-[5] flex gap-1 border-b border-border-subtle bg-canvas py-1"
