@@ -7,6 +7,8 @@ import { getImports } from '@/shared/api/endpoints';
 import { formatDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { EmptyState } from '@/shared/ui/EmptyState';
+import { Button } from '@/shared/ui/button';
+import { PageHeader } from '@/shared/ui/PageHeader';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import { Table, Td, Tr } from '@/shared/ui/Table';
@@ -33,13 +35,10 @@ export function ImportsPage() {
   );
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">{t('imports.title')}</h1>
-      <button
-        onClick={() => setWizardOpen(true)}
-        className="h-11 rounded-lg bg-accent px-4 font-medium text-white"
-      >
-        {t('common.newImport')}
-      </button>
+      <PageHeader
+        title={t('imports.title')}
+        actions={<Button onClick={() => setWizardOpen(true)}>{t('common.newImport')}</Button>}
+      />
       <div className="flex flex-wrap items-center gap-2">
         <input
           placeholder={t('imports.search')}

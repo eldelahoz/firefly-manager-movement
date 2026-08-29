@@ -3,12 +3,13 @@ import { HealthCard } from './HealthCard';
 import { KpiCards } from './KpiCards';
 import { RecentBatches } from './RecentBatches';
 import { BrowseWidget } from '@/features/firefly/BrowseWidget';
+import { PageHeader } from '@/shared/ui/PageHeader';
 
 export function DashboardPage() {
   const { t } = useTranslation();
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">{t('dashboard.title')}</h1>
+      <PageHeader title={t('dashboard.title')} />
       <HealthCard />
       <KpiCards />
       <div className="grid gap-6 lg:grid-cols-2">
