@@ -6,6 +6,7 @@ import { queryKeys } from '@/shared/lib/keys';
 import { formatDate } from '@/shared/lib/dates';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
+import { Table, Td, Tr } from '@/shared/ui/Table';
 
 export function RecentBatches() {
   const { t, i18n } = useTranslation();
@@ -13,24 +14,28 @@ export function RecentBatches() {
   if (isPending) return <TableSkeleton rows={4} cols={3} />;
   const top = (data ?? []).slice(0, 8);
   return (
-    <section className="rounded-xl border border-border-subtle bg-surface p-4 shadow-sm">
+    <section className="min-w-0">
       <h2 className="mb-3 font-semibold">{t('dashboard.recentBatches')}</h2>
-      <ul className="divide-y divide-border-subtle">
+      <Table head={[t('imports.filename'), t('dashboard.date'), t('imports.status')]}>
         {top.map((b) => (
-          <li key={b.id}>
-            <Link
-              to={b.status !== 'parsed' ? `/results/${b.id}` : '/imports'}
-              className="flex w-full items-center justify-between gap-2 py-2.5 text-left hover:text-accent"
-            >
-              <span className="truncate">{b.filename}</span>
-              <span className="flex shrink-0 items-center gap-2 text-xs text-text-3">
-                {formatDate(b.created_at.slice(0, 10), i18n.language)}
-                <StatusPill status={b.status} />
-              </span>
-            </Link>
-          </li>
+          <Tr key={b.id}>
+            <Td className="w-2/5 max-w-[11rem] truncate font-medium sm:w-3/5 sm:max-w-[16rem]">
+              <Link
+                to={b.status !== 'parsed' ? `/results/${b.id}` : '/imports'}
+                className="hover:text-accent"
+              >
+                {b.filename}
+              </Link>
+            </Td>
+            <Td className="whitespace-nowrap text-text-2">
+              {formatDate(b.created_at.slice(0, 10), i18n.language)}
+            </Td>
+            <Td>
+              <StatusPill status={b.status} />
+            </Td>
+          </Tr>
         ))}
-      </ul>
+      </Table>
     </section>
   );
 }
