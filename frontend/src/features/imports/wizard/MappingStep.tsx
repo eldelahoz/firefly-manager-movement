@@ -3,6 +3,8 @@ import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { UploadResponse } from '@/shared/api/dto';
 import { putMapping } from '@/shared/api/endpoints';
+import { Button } from '@/shared/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 
 export type MappingColumns = {
   date_column: string;
@@ -35,33 +37,37 @@ export function MappingStep({
   return (
     <div className="space-y-4">
       {fields.map(([key, label]) => (
-        <label key={key} className="block text-sm text-text-2">
-          {label}
-          <select
-            value={cols[key]}
-            onChange={(e) => setCols({ ...cols, [key]: e.target.value })}
-            className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2 text-text-1"
+        <div key={key}>
+          <p className="mb-1 text-sm text-text-2">{label}</p>
+          <Select
+            value={cols[key] === '' ? 'none' : cols[key]}
+            onValueChange={(v) => setCols({ ...cols, [key]: v === 'none' ? '' : v })}
           >
-            <option value="">—</option>
-            {probe.headers.map((h) => (
-              <option key={h} value={h}>
-                {h}
-              </option>
-            ))}
-          </select>
-        </label>
+            <SelectTrigger className="w-full" aria-label={label}>
+              <SelectValue placeholder="—" />
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem value="none">—</SelectItem>
+              {probe.headers.map((h) => (
+                <SelectItem key={h} value={h}>
+                  {h}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       ))}
-      <button
+      <Button
         disabled={!complete || put.isPending}
         onClick={() =>
           put.mutate(undefined, {
             onSuccess: () => onMapped(cols),
           })
         }
-        className="h-11 w-full rounded-lg bg-accent font-medium text-white disabled:opacity-50"
+        className="w-full"
       >
         {t('common.next')}
-      </button>
+      </Button>
     </div>
   );
 }

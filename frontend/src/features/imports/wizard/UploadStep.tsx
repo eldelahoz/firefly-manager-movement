@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Ff3Account } from '@/shared/api/dto';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -32,23 +33,25 @@ export function UploadStep({
     <div className="space-y-4">
       <label className="block text-sm text-text-2">
         {t('wizard.account')}
-        <select
-          value={accountId}
-          onChange={(e) =>
-            onAccount(
-              e.target.value,
-              accounts?.find((a) => a.id === Number(e.target.value))?.currency ?? '',
-            )
-          }
-          className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2 text-text-1"
+        <Select
+          value={accountId === '' ? 'none' : accountId}
+          onValueChange={(v) => {
+            const id = v === 'none' ? '' : v;
+            onAccount(id, accounts?.find((a) => a.id === Number(id))?.currency ?? '');
+          }}
         >
-          <option value="">—</option>
-          {accounts?.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name} ({a.currency})
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="mt-1 w-full" aria-label={t('wizard.account')}>
+            <SelectValue placeholder="—" />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            <SelectItem value="none">—</SelectItem>
+            {accounts?.map((a) => (
+              <SelectItem key={a.id} value={String(a.id)}>
+                {a.name} ({a.currency})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </label>
       {currency && (
         <p className="text-sm text-text-3">{t('wizard.accountCurrency', { currency })}</p>

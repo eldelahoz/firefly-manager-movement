@@ -8,6 +8,7 @@ import { formatDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
 import { PageHeader } from '@/shared/ui/PageHeader';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { StatusPill } from '@/shared/ui/StatusPill';
@@ -40,11 +41,11 @@ export function ImportsPage() {
         actions={<Button onClick={() => setWizardOpen(true)}>{t('common.newImport')}</Button>}
       />
       <div className="flex flex-wrap items-center gap-2">
-        <input
+        <Input
           placeholder={t('imports.search')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-11 flex-1 rounded-lg border border-border-subtle bg-surface px-3"
+          className="h-9 flex-1"
         />
         <div className="flex gap-1">
           {(['all', ...STATUSES] as const).map((s) => (

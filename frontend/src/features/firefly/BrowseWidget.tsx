@@ -6,7 +6,9 @@ import { getAccounts, postAccountTransactions } from '@/shared/api/endpoints';
 import { addDays, formatDate, toIsoDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { MoneyText } from '@/shared/ui/MoneyText';
+import { Input } from '@/shared/ui/input';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { DeleteDuplicateDialog } from './DeleteDuplicateDialog';
 
 export function BrowseWidget() {
@@ -36,37 +38,40 @@ export function BrowseWidget() {
     <section className="rounded-xl border border-border-subtle bg-surface p-4 shadow-sm">
       <h2 className="mb-3 font-semibold">{t('dashboard.browseTitle')}</h2>
       <div className="flex flex-wrap gap-2">
-        <select
-          aria-label={t('wizard.account')}
-          value={accountId}
-          onChange={(e) => setAccountId(e.target.value)}
-          className="h-11 min-w-40 rounded-lg border border-border-subtle bg-surface px-2"
+        <Select
+          value={accountId === '' ? 'none' : accountId}
+          onValueChange={(v) => setAccountId(v === 'none' ? '' : v)}
         >
-          <option value="">{t('dashboard.browseSelectAccount')}</option>
-          {accounts.data?.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="min-w-40" aria-label={t('wizard.account')}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            <SelectItem value="none">{t('dashboard.browseSelectAccount')}</SelectItem>
+            {accounts.data?.map((a) => (
+              <SelectItem key={a.id} value={String(a.id)}>
+                {a.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <label className="flex items-center gap-1 text-sm text-text-2">
           {t('dashboard.browseFrom')}
-          <input
+          <Input
             type="date"
             value={start}
             max={addDays(end, -1)}
             onChange={(e) => setStart(e.target.value)}
-            className="h-11 rounded-lg border border-border-subtle bg-surface px-2"
+            className="w-auto"
           />
         </label>
         <label className="flex items-center gap-1 text-sm text-text-2">
           {t('dashboard.browseTo')}
-          <input
+          <Input
             type="date"
             value={end}
             min={addDays(start, 1)}
             onChange={(e) => setEnd(e.target.value)}
-            className="h-11 rounded-lg border border-border-subtle bg-surface px-2"
+            className="w-auto"
           />
         </label>
       </div>

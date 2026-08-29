@@ -37,9 +37,14 @@ test('next disabled until all columns chosen; PUT mapping then onMapped', async 
   let mapped: unknown = null;
   renderWithProviders(<MappingStep probe={probe} onMapped={(c) => (mapped = c)} />);
   expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
-  await userEvent.selectOptions(screen.getByLabelText('Date column'), 'Date');
-  await userEvent.selectOptions(screen.getByLabelText('Amount column'), 'Montant');
-  await userEvent.selectOptions(screen.getByLabelText('Description column'), 'Libelle');
+  for (const [label, header] of [
+    ['Date column', 'Date'],
+    ['Amount column', 'Montant'],
+    ['Description column', 'Libelle'],
+  ] as const) {
+    await userEvent.click(screen.getByLabelText(label));
+    await userEvent.click(await screen.findByRole('option', { name: header, exact: true }));
+  }
   await userEvent.click(screen.getByRole('button', { name: 'Next' }));
   expect(putBody).toEqual({
     headers: ['Date', 'Montant', 'Libelle'],

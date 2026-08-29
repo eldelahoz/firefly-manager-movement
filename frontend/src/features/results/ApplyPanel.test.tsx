@@ -13,6 +13,11 @@ beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
+async function pickCounterparty() {
+  await userEvent.click(await screen.findByLabelText('Counterparty account'));
+  await userEvent.click(await screen.findByRole('option', { name: 'Checking (EUR)' }));
+}
+
 test('apply mixed outcomes: toast recap and onDone', async () => {
   let body: unknown = null;
   server.use(
@@ -35,8 +40,7 @@ test('apply mixed outcomes: toast recap and onDone', async () => {
     <ApplyPanel batchId={1} selected={[12, 13]} onClose={() => {}} onDone={() => (done = true)} />,
   );
   expect(screen.getByRole('button', { name: 'Create in Firefly III' })).toBeDisabled();
-  await screen.findByRole('option', { name: 'Checking (EUR)' });
-  await userEvent.selectOptions(await screen.findByLabelText('Counterparty account'), '1');
+  await pickCounterparty();
   const btn = screen.getByRole('button', { name: 'Create in Firefly III' });
   await waitFor(() => expect(btn).toBeEnabled());
   await userEvent.click(btn);
@@ -57,8 +61,7 @@ test('apply failure shows error toast and keeps panel open', async () => {
       <Toaster />
     </>,
   );
-  await screen.findByRole('option', { name: 'Checking (EUR)' });
-  await userEvent.selectOptions(await screen.findByLabelText('Counterparty account'), '1');
+  await pickCounterparty();
   const btn = screen.getByRole('button', { name: 'Create in Firefly III' });
   await waitFor(() => expect(btn).toBeEnabled());
   await userEvent.click(btn);
