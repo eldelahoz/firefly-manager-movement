@@ -28,6 +28,38 @@ pub struct Ff3TransactionDto {
     pub description: String,
 }
 
+/// Reconciliation status of an FF3 transaction, derived from the local
+/// run cache (browse widget enrichment).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Ff3TxStatus {
+    Matched,
+    Duplicate,
+    Extra,
+}
+
+impl Ff3TxStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Ff3TxStatus::Matched => "matched",
+            Ff3TxStatus::Duplicate => "duplicate",
+            Ff3TxStatus::Extra => "extra",
+        }
+    }
+}
+
+/// Live FF3 transaction enriched with its cached reconciliation status:
+/// `duplicate` when the latest cache row flags it, else `matched` when it
+/// has a match in any run, else `extra` when cached without a match,
+/// else `None` (never seen in a reconciliation).
+#[derive(Debug, Clone)]
+pub struct BrowseTxDto {
+    pub ff3_id: i64,
+    pub date: NaiveDate,
+    pub amount_cents: AmountCents,
+    pub description: String,
+    pub status: Option<Ff3TxStatus>,
+}
+
 /// Data to create a transaction in Firefly III (RF-08/RF-11).
 #[derive(Debug, Clone)]
 pub struct NewFf3TransactionCreation {

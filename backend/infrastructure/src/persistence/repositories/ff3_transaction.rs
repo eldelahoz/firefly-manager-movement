@@ -86,4 +86,32 @@ impl Ff3TransactionRepository for MysqlFf3TransactionRepository {
             Err(e) => Err(ApplicationError::Database(e.to_string())),
         }
     }
+
+    async fn latest_by_ff3_ids(
+        &self,
+        ff3_ids: &[i64],
+    ) -> Result<Vec<Ff3Transaction>, ApplicationError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| ApplicationError::Database(e.to_string()))?;
+        if ff3_ids.is_empty() {
+            return Ok(Vec::new());
+        }
+        ff3_transactions::table
+            .filter(ff3_transactions::ff3_id.eq_any(ff3_ids))
+            .order(ff3_transactions::id.asc())
+            .load::<Ff3TransactionModel>(&mut conn)
+            .await
+            .map(|rows| {
+                // ascending id order: the last insert per ff3_id wins
+                let mut latest = std::collections::HashMap::new();
+                for m in rows {
+                    latest.insert(m.ff3_id, m);
+                }
+                latest.into_values().map(Into::into).collect()
+            })
+            .map_err(|e| ApplicationError::Database(e.to_string()))
+    }
 }

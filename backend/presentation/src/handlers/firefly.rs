@@ -42,6 +42,11 @@ pub struct FireflyTransactionResponse {
     pub date: NaiveDate,
     pub amount_cents: i64,
     pub description: String,
+    /// Reconciliation status from the local run cache:
+    /// `matched`, `duplicate`, `extra` — or absent when the transaction
+    /// was never seen in a reconciliation.
+    #[schema(example = "matched")]
+    pub status: Option<String>,
 }
 
 // ── GET /api/firefly/accounts ───────────────────────────────────────────
@@ -135,7 +140,11 @@ async fn handle_transactions(
     id: i64,
     body: PeriodRequest,
 ) -> Result<Json<Vec<FireflyTransactionResponse>>, ApiError> {
-    let uc = GetAccountTransactions::new(state.firefly.clone());
+    let uc = GetAccountTransactions::new(
+        state.firefly.clone(),
+        state.ff3_transactions.clone(),
+        state.matches.clone(),
+    );
     let txs = uc
         .execute(id, body.start, body.end)
         .await
@@ -147,6 +156,7 @@ async fn handle_transactions(
                 date: t.date,
                 amount_cents: t.amount_cents.as_i64(),
                 description: t.description,
+                status: t.status.map(|s| s.as_str().to_string()),
             })
             .collect(),
     ))
