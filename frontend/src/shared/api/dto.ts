@@ -53,6 +53,7 @@ export interface Ff3TxDTO {
   date: string;
   amount_cents: number;
   description: string;
+  status?: 'matched' | 'duplicate' | 'extra' | null;
 }
 
 export interface Ff3CachedTxDTO {

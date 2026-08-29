@@ -8,6 +8,7 @@ import { queryKeys } from '@/shared/lib/keys';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
+import { StatusPill } from '@/shared/ui/StatusPill';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { DeleteDuplicateDialog } from './DeleteDuplicateDialog';
@@ -90,22 +91,23 @@ export function BrowseWidget() {
         ) : (
           <ul className="divide-y divide-border-subtle">
             {txs.data.map((tx) => (
-              <li key={tx.id} className="flex items-center justify-between gap-2 py-2.5">
-                <span className="min-w-0">
-                  <span className="block truncate text-sm">{tx.description}</span>
-                  <span className="text-xs text-text-3">{formatDate(tx.date, i18n.language)}</span>
+              <li key={tx.id} className="flex items-center gap-3 py-2.5">
+                <span className="w-20 shrink-0 text-xs text-text-3">
+                  {formatDate(tx.date, i18n.language)}
                 </span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <MoneyText cents={tx.amount_cents} currency={currency} />
+                <span className="min-w-0 flex-1 truncate text-sm">{tx.description}</span>
+                <MoneyText cents={tx.amount_cents} currency={currency} signed colored />
+                {tx.status && <StatusPill status={tx.status} />}
+                {tx.status === 'duplicate' && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-status-extra-txt hover:bg-status-extra-bg"
+                    className="text-status-extra-txt hover:bg-status-extra-bg hover:text-status-extra-txt"
                     onClick={() => setPendingDelete(tx)}
                   >
                     {t('dashboard.deleteDuplicate')}
                   </Button>
-                </span>
+                )}
               </li>
             ))}
           </ul>
