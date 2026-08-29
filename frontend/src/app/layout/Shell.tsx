@@ -3,6 +3,7 @@ import { FolderInput, LayoutDashboard, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { HealthChip } from './HealthChip';
+import { PageHeaderProvider } from '@/shared/ui/PageHeader';
 
 export function Shell() {
   const { t } = useTranslation();
@@ -35,9 +36,11 @@ export function Shell() {
         </div>
       </aside>
       <div className="md:pl-[220px]">
-        <main className="mx-auto max-w-6xl p-4 pb-24 md:pb-8">
-          <Outlet />
-        </main>
+        <PageHeaderProvider>
+          <main className="mx-auto max-w-6xl p-4 pb-24 md:pb-8">
+            <Outlet />
+          </main>
+        </PageHeaderProvider>
       </div>
       <nav className="fixed inset-x-0 bottom-0 z-10 flex h-16 border-t border-border-subtle bg-surface md:hidden">
         {items.map(({ to, label, icon: Icon }) => (
