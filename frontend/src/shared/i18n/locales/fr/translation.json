@@ -1,5 +1,12 @@
 {
   "nav": { "dashboard": "Tableau de bord", "imports": "Imports", "settings": "Paramètres" },
+  "settings": {
+    "title": "Paramètres",
+    "appearance": "Apparence",
+    "themeLight": "Clair",
+    "themeDark": "Sombre",
+    "language": "Langue"
+  },
   "common": {
     "retry": "Réessayer",
     "cancel": "Annuler",

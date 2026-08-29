@@ -1,5 +1,12 @@
 {
   "nav": { "dashboard": "Dashboard", "imports": "Imports", "settings": "Settings" },
+  "settings": {
+    "title": "Settings",
+    "appearance": "Appearance",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "language": "Language"
+  },
   "common": {
     "retry": "Retry",
     "cancel": "Cancel",
