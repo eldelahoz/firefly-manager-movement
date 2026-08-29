@@ -32,10 +32,11 @@ test('shows probe hint when no movements', async () => {
   expect(await screen.findByText('no movements (mapping probe)')).toBeInTheDocument();
 });
 
-test('backdrop click closes the drawer', async () => {
+test('overlay click closes the drawer', async () => {
   let closed = false;
   renderWithProviders(<BatchDrawer batchId={1} onClose={() => (closed = true)} />);
   await screen.findByText('Book');
-  await userEvent.click(screen.getByRole('dialog'));
+  const overlay = document.querySelector('[data-slot="sheet-overlay"]') as HTMLElement;
+  await userEvent.click(overlay);
   expect(closed).toBe(true);
 });

@@ -2,9 +2,12 @@ import { useReducer } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { X } from 'lucide-react';
 import { getAccounts, uploadCsv } from '@/shared/api/endpoints';
 import type { UploadResponse } from '@/shared/api/dto';
 import { queryKeys } from '@/shared/lib/keys';
+import { Button } from '@/shared/ui/button';
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { initialWizardState, wizardReducer } from './state';
 import { UploadStep } from './UploadStep';
 import { PreviewStep } from './PreviewStep';
@@ -35,24 +38,22 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
   if (!open) return null;
   const activeIndex = STEP_ORDER.indexOf(state.step as (typeof STEP_ORDER)[number]);
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('wizard.title')}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 md:items-center md:p-4"
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
     >
-      <div className="flex max-h-[95vh] w-full max-w-2xl flex-col overflow-y-auto rounded-t-xl bg-surface p-6 shadow-lg md:rounded-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{t('wizard.title')}</h2>
-          <button
-            onClick={onClose}
-            aria-label={t('common.close')}
-            className="h-11 px-2 text-text-2"
-          >
-            ✕
-          </button>
-        </div>
-        <div className="mb-6 flex gap-1" aria-hidden="true">
+      <DialogContent showCloseButton={false} className="sm:max-w-2xl">
+        <DialogHeader className="flex-row items-center justify-between">
+          <DialogTitle className="text-lg">{t('wizard.title')}</DialogTitle>
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon" aria-label={t('common.close')}>
+              <X className="size-5" />
+            </Button>
+          </DialogClose>
+        </DialogHeader>
+        <div className="flex gap-1" aria-hidden="true">
           {STEP_ORDER.map((s, i) => (
             <span
               key={s}
@@ -114,7 +115,7 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
             }}
           />
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
