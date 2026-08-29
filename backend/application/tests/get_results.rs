@@ -95,6 +95,12 @@ impl Ff3TransactionRepository for FakeFf3TxRepo {
             .rfind(|t| t.ff3_id == ff3_id)
             .cloned())
     }
+    async fn latest_by_ff3_ids(
+        &self,
+        _ff3_ids: &[i64],
+    ) -> Result<Vec<Ff3Transaction>, ApplicationError> {
+        unimplemented!()
+    }
 }
 
 struct FakeMatchRepo {
@@ -118,6 +124,12 @@ impl MatchRepository for FakeMatchRepo {
             .filter(|m| m.reconciliation_id == reconciliation_id)
             .cloned()
             .collect())
+    }
+    async fn matched_ff3_ids(
+        &self,
+        _ff3_ids: &[i64],
+    ) -> Result<std::collections::HashSet<i64>, ApplicationError> {
+        unimplemented!()
     }
 }
 

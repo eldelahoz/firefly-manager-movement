@@ -11,7 +11,8 @@ mod reconciliation;
 
 pub use audit::NewDeletedAudit;
 pub use firefly::{
-    About, Ff3AccountDto, Ff3TransactionDto, NewFf3Account, NewFf3TransactionCreation,
+    About, BrowseTxDto, Ff3AccountDto, Ff3TransactionDto, Ff3TxStatus, NewFf3Account,
+    NewFf3TransactionCreation,
 };
 pub use imports::{NewBatch, NewCsvMapping, NewMovement};
 pub use reconciliation::{
