@@ -9,7 +9,8 @@ import { queryKeys } from '@/shared/lib/keys';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
-import { PageHeader } from '@/shared/ui/PageHeader';
+import { Eye, Info, Repeat, RefreshCw } from 'lucide-react';
+import { usePageHeader } from '@/shared/ui/PageHeader';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import { Table, Td, Tr } from '@/shared/ui/Table';
@@ -26,7 +27,27 @@ export function ImportsPage() {
   const [statusFilter, setStatusFilter] = useState<(typeof STATUSES)[number] | 'all'>('all');
   const [drawerId, setDrawerId] = useState<number | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
-  const { data, isPending } = useQuery({ queryKey: queryKeys.imports, queryFn: getImports });
+  const { data, isPending, isFetching, refetch } = useQuery({
+    queryKey: queryKeys.imports,
+    queryFn: getImports,
+  });
+  const headerActions = useMemo(
+    () => (
+      <>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isFetching}
+          onClick={() => refetch({ cancelRefetch: true })}
+        >
+          <RefreshCw className={isFetching ? 'size-4 animate-spin' : 'size-4'} />
+        </Button>
+        <Button onClick={() => setWizardOpen(true)}>{t('common.newImport')}</Button>
+      </>
+    ),
+    [refetch, isFetching, setWizardOpen, t],
+  );
+  usePageHeader({ title: t('imports.title'), actions: headerActions });
   const rows = useMemo(
     () =>
       (data ?? [])
@@ -36,10 +57,6 @@ export function ImportsPage() {
   );
   return (
     <div className="space-y-4">
-      <PageHeader
-        title={t('imports.title')}
-        actions={<Button onClick={() => setWizardOpen(true)}>{t('common.newImport')}</Button>}
-      />
       <div className="flex flex-wrap items-center gap-2">
         <Input
           placeholder={t('imports.search')}
@@ -73,7 +90,9 @@ export function ImportsPage() {
             t('imports.format'),
             t('imports.currency'),
             t('imports.status'),
-            t('imports.actions'),
+            <span key="actions" className="block text-right">
+              {t('imports.actions')}
+            </span>,
           ]}
         >
           {rows.map((b) => (
@@ -87,23 +106,36 @@ export function ImportsPage() {
               <Td>
                 <StatusPill status={b.status} />
               </Td>
-              <Td>
-                <div className="flex gap-2">
+              <Td className="text-right">
+                <div className="flex items-center justify-end gap-1">
                   {b.status !== 'parsed' && (
                     <Button
                       variant="ghost"
-                      size="sm"
-                      className="text-accent"
+                      size="icon-sm"
+                      aria-label={t('imports.viewResults')}
+                      title={t('imports.viewResults')}
                       onClick={() => navigate(`/results/${b.id}`)}
                     >
-                      {t('imports.viewResults')}
+                      <Eye className="size-4" />
                     </Button>
                   )}
-                  <Button variant="ghost" size="sm" onClick={() => openRerun(b.id)}>
-                    {t('imports.rerun')}
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={t('imports.rerun')}
+                    title={t('imports.rerun')}
+                    onClick={() => openRerun(b.id)}
+                  >
+                    <Repeat className="size-4" />
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setDrawerId(b.id)}>
-                    {t('imports.detail')}
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={t('imports.detail')}
+                    title={t('imports.detail')}
+                    onClick={() => setDrawerId(b.id)}
+                  >
+                    <Info className="size-4" />
                   </Button>
                 </div>
               </Td>

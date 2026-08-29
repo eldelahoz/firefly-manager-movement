@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -9,7 +9,7 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { Button } from '@/shared/ui/button';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { MoneyText } from '@/shared/ui/MoneyText';
-import { PageHeader } from '@/shared/ui/PageHeader';
+import { usePageHeader } from '@/shared/ui/PageHeader';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import type { ApplyReport } from '@/shared/api/dto';
@@ -39,6 +39,23 @@ export function ResultsPage() {
     queryFn: () => getResults(id),
     retry: false,
   });
+  const headerTitle = useMemo(
+    () => (
+      <span className="truncate">
+        {t('results.title')} — {detail.data?.batch.filename ?? `#${id}`}
+      </span>
+    ),
+    [t, id, detail.data?.batch.filename],
+  );
+  const headerActions = useMemo(
+    () => (
+      <Button variant="outline" onClick={() => openRerun(id)}>
+        {t('imports.rerun')}
+      </Button>
+    ),
+    [openRerun, id, t],
+  );
+  usePageHeader({ title: headerTitle, actions: headerActions });
   if (!Number.isFinite(id)) {
     return (
       <EmptyState
@@ -74,18 +91,6 @@ export function ResultsPage() {
   const tabs: Tab[] = ['matched', 'missing', 'extra'];
   return (
     <div className="space-y-4">
-      <PageHeader
-        title={
-          <span className="truncate">
-            {t('results.title')} — {detail.data?.batch.filename ?? `#${id}`}
-          </span>
-        }
-        actions={
-          <Button variant="outline" onClick={() => openRerun(id)}>
-            {t('imports.rerun')}
-          </Button>
-        }
-      />
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">
         <TabsList
           variant="line"
