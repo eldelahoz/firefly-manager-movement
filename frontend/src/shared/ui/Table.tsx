@@ -19,9 +19,17 @@ export function Table({ head, children }: { head: ReactNode[]; children: ReactNo
   );
 }
 
-export function Tr({ children }: { children: ReactNode }) {
+export function Tr({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <tr className="border-b border-border-strong last:border-0 hover:bg-canvas">{children}</tr>
+    <tr className={`border-b border-border-strong last:border-0 hover:bg-canvas ${className}`}>
+      {children}
+    </tr>
   );
 }
 

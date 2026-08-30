@@ -18,7 +18,7 @@ const STYLES: Record<string, string> = {
   duplicate: 'bg-status-extra-bg text-status-extra-txt',
   already_created: 'bg-border-subtle text-text-2',
   failed: 'bg-status-extra-bg text-status-extra-txt',
-  parsed: 'bg-border-subtle text-text-2',
+  parsed: 'bg-status-missing-bg text-status-missing-txt',
   reconciled: 'bg-status-matched-bg text-status-matched-txt',
   applied: 'bg-accent-soft text-accent',
 };
