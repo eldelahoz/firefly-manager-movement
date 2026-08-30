@@ -14,6 +14,7 @@ import { usePageHeader } from '@/shared/ui/PageHeader';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { Pill, StatusPill } from '@/shared/ui/StatusPill';
 import { Table, Td, Tr } from '@/shared/ui/Table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { BatchDrawer } from './BatchDrawer';
 import { ImportWizard } from './wizard/ImportWizard';
 
@@ -25,6 +26,8 @@ export function ImportsPage() {
   const openRerun = useRerun();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<(typeof STATUSES)[number] | 'all'>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [drawerId, setDrawerId] = useState<number | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const { data, isPending, isFetching, refetch } = useQuery({
@@ -58,8 +61,12 @@ export function ImportsPage() {
     () =>
       (data ?? [])
         .filter((b) => statusFilter === 'all' || b.status === statusFilter)
-        .filter((b) => b.filename.toLowerCase().includes(search.toLowerCase())),
-    [data, statusFilter, search],
+        .filter((b) => b.filename.toLowerCase().includes(search.toLowerCase()))
+        .filter((b) => {
+          const day = b.created_at.slice(0, 10);
+          return (!dateFrom || day >= dateFrom) && (!dateTo || day <= dateTo);
+        }),
+    [data, statusFilter, search, dateFrom, dateTo],
   );
   return (
     <div className="space-y-4">
@@ -70,19 +77,37 @@ export function ImportsPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="h-9 flex-1"
         />
-        <div className="flex gap-1">
-          {(['all', ...STATUSES] as const).map((s) => (
-            <Button
-              key={s}
-              size="sm"
-              variant={statusFilter === s ? 'default' : 'outline'}
-              className="rounded-full"
-              onClick={() => setStatusFilter(s)}
-            >
-              {s === 'all' ? t('imports.all') : t(`imports.${s}`)}
-            </Button>
-          ))}
-        </div>
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => setStatusFilter(v as (typeof STATUSES)[number] | 'all')}
+        >
+          <SelectTrigger aria-label={t('imports.filterStatus')} className="w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            {(['all', ...STATUSES] as const).map((s) => (
+              <SelectItem key={s} value={s}>
+                {s === 'all' ? t('imports.all') : t(`imports.${s}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          type="date"
+          aria-label={t('imports.from')}
+          value={dateFrom}
+          max={dateTo || undefined}
+          onChange={(e) => setDateFrom(e.target.value)}
+          className="h-9 w-40"
+        />
+        <Input
+          type="date"
+          aria-label={t('imports.to')}
+          value={dateTo}
+          min={dateFrom || undefined}
+          onChange={(e) => setDateTo(e.target.value)}
+          className="h-9 w-40"
+        />
       </div>
       {isPending ? (
         <TableSkeleton />
