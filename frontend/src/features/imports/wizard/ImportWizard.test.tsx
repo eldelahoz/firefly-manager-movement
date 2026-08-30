@@ -1,9 +1,9 @@
 import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
-import { handlers } from '@/test/handlers';
+import { fixtures, handlers } from '@/test/handlers';
 import { renderWithProviders } from '@/test/utils';
 import { ImportWizard } from './ImportWizard';
 import type { UploadResponse } from '@/shared/api/dto';
@@ -47,7 +47,10 @@ async function upload(file: File) {
 }
 
 test('known mapping: preview then straight to reconcile config', async () => {
-  server.use(http.post('/api/imports', () => HttpResponse.json(knownMapping)));
+  server.use(
+    http.get('/api/imports', () => HttpResponse.json([])),
+    http.post('/api/imports', () => HttpResponse.json(knownMapping)),
+  );
   renderWithProviders(<ImportWizard open onClose={() => {}} />);
   await upload(makeCsv());
   expect(
@@ -58,7 +61,10 @@ test('known mapping: preview then straight to reconcile config', async () => {
 });
 
 test('unknown mapping: preview then mapping step', async () => {
-  server.use(http.post('/api/imports', () => HttpResponse.json(probeBatch)));
+  server.use(
+    http.get('/api/imports', () => HttpResponse.json([])),
+    http.post('/api/imports', () => HttpResponse.json(probeBatch)),
+  );
   renderWithProviders(<ImportWizard open onClose={() => {}} />);
   await upload(makeCsv());
   await screen.findByRole('button', { name: 'Next' });
@@ -75,6 +81,7 @@ test('oversize file shows inline error without upload', async () => {
 
 test('parse error shows banner and reset dropzone', async () => {
   server.use(
+    http.get('/api/imports', () => HttpResponse.json([])),
     http.post('/api/imports', () =>
       HttpResponse.json({ error: 'Could not parse OFX: malformed header' }, { status: 400 }),
     ),
@@ -83,4 +90,53 @@ test('parse error shows banner and reset dropzone', async () => {
   await upload(makeCsv());
   expect(await screen.findByText('Could not parse OFX: malformed header')).toBeInTheDocument();
   expect(screen.getByText('Try another file?')).toBeInTheDocument();
+});
+
+test('duplicate filename is blocked before upload', async () => {
+  let posted = false;
+  let importsFetched = false;
+  server.use(
+    http.get('/api/imports', () => {
+      importsFetched = true;
+      return HttpResponse.json(fixtures.imports);
+    }),
+    http.post('/api/imports', () => {
+      posted = true;
+      return HttpResponse.json(knownMapping);
+    }),
+  );
+  renderWithProviders(<ImportWizard open onClose={() => {}} />);
+  await screen.findByLabelText('Firefly III account');
+  await waitFor(() => expect(importsFetched).toBe(true));
+  await upload(makeCsv()); // filename 'bank.csv' — already in fixtures.imports
+  expect(await screen.findByText(/already exists/i)).toBeInTheDocument();
+  expect(posted).toBe(false);
+});
+
+test('mapping confirm deletes probe batch before re-upload', async () => {
+  const calls: string[] = [];
+  server.use(
+    http.get('/api/imports', () => HttpResponse.json([])),
+    http.post('/api/imports', () => {
+      calls.push('POST');
+      return HttpResponse.json(probeBatch);
+    }),
+    http.put('/api/imports/:id/mapping', () => HttpResponse.json({ mapping_id: 1 })),
+    http.delete('/api/imports/:id', ({ params }) => {
+      calls.push(`DELETE:${params.id}`);
+      return HttpResponse.json({ id: Number(params.id), status: 'deleted' });
+    }),
+  );
+  renderWithProviders(<ImportWizard open onClose={() => {}} />);
+  await upload(makeCsv());
+  await userEvent.click(await screen.findByRole('button', { name: 'Next' })); // preview → mapping
+  expect(await screen.findByLabelText('Date column')).toBeInTheDocument();
+  await userEvent.click(screen.getByLabelText('Date column'));
+  await userEvent.click(await screen.findByRole('option', { name: 'Date' }));
+  await userEvent.click(screen.getByLabelText('Amount column'));
+  await userEvent.click(await screen.findByRole('option', { name: 'Montant' }));
+  await userEvent.click(screen.getByLabelText('Description column'));
+  await userEvent.click(await screen.findByRole('option', { name: 'Libelle' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Next' })); // confirm mapping
+  await waitFor(() => expect(calls).toEqual(['POST', 'DELETE:1', 'POST']));
 });

@@ -109,4 +109,7 @@ export const handlers = [
   http.post('/api/imports/:id/movements/:mid/ignore', ({ params }) =>
     HttpResponse.json({ movement_id: Number(params.mid), status: 'ignored' }),
   ),
+  http.delete('/api/imports/:id', ({ params }) =>
+    HttpResponse.json({ id: Number(params.id), status: 'deleted' }),
+  ),
 ];
