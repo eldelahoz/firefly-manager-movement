@@ -21,6 +21,8 @@ function props(over: Partial<Parameters<typeof ReconcileConfigStep>[0]> = {}) {
     onStart: () => {},
     onError: () => {},
     onDone: () => {},
+    onBack: () => {},
+    onCancel: () => {},
     ...over,
   };
 }
@@ -38,7 +40,7 @@ test('currency mismatch shows blocking banner and disables finish', async () => 
       'Currency mismatch between the batch (EUR) and the selected account (USD)',
     ),
   ).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Finish' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Reconcile' })).toBeDisabled();
 });
 
 test('happy path posts reconcile with computed window and calls onDone', async () => {
@@ -63,7 +65,7 @@ test('happy path posts reconcile with computed window and calls onDone', async (
   renderWithProviders(<ReconcileConfigStep {...props({ onDone: () => (done += 1) })} />);
   await pickAccount('Checking (EUR)');
   await userEvent.click(screen.getByRole('button', { name: '0' }));
-  const finish = await screen.findByRole('button', { name: 'Finish' });
+  const finish = await screen.findByRole('button', { name: 'Reconcile' });
   await waitFor(() => expect(finish).toBeEnabled());
   await userEvent.click(finish);
   await waitFor(() => expect(done).toBe(1));
@@ -89,7 +91,7 @@ test('400 from reconcile surfaces error banner', async () => {
   );
   renderWithProviders(<ErrorHarness />);
   await pickAccount('Checking (EUR)');
-  const finish = await screen.findByRole('button', { name: 'Finish' });
+  const finish = await screen.findByRole('button', { name: 'Reconcile' });
   await waitFor(() => expect(finish).toBeEnabled());
   await userEvent.click(finish);
   expect(await screen.findByText('currency mismatch batch/account')).toBeInTheDocument();

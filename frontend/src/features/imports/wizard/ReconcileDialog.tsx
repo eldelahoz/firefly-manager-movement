@@ -47,6 +47,7 @@ export function ReconcileDialog({
             onClose();
             navigate(`/results/${id}`);
           }}
+          onCancel={onClose}
         />
       </DialogContent>
     </Dialog>
