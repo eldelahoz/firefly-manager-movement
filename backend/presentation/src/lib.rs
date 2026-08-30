@@ -11,6 +11,7 @@ use utoipa_axum::routes;
 use utoipa_scalar::Scalar;
 
 use tower_http::limit::RequestBodyLimitLayer;
+use tower_http::trace::TraceLayer;
 
 use crate::handlers::firefly::{
     __path_delete_transaction, __path_list_accounts, account_transactions,
@@ -115,4 +116,6 @@ pub fn app(state: AppState) -> axum::Router {
         )
         // RF-01: limit multipart upload size (10 MB)
         .layer(RequestBodyLimitLayer::new(10 * 1024 * 1024))
+        // Request tracking: logs each incoming request (method, path, status, latency) at INFO.
+        .layer(TraceLayer::new_for_http())
 }

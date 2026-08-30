@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Ff3CachedTxDTO } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
+import { Button } from '@/shared/ui/button';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import { DeleteDuplicateDialog } from '@/features/firefly/DeleteDuplicateDialog';
@@ -22,12 +23,14 @@ export function ExtraRow({ tx, currency }: { tx: Ff3CachedTxDTO; currency: strin
         {tx.is_duplicate && (
           <>
             <StatusPill status="duplicate" />
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-status-extra-txt hover:bg-status-extra-bg hover:text-status-extra-txt"
               onClick={() => setConfirming(true)}
-              className="rounded-lg px-2 py-1 text-xs text-status-extra-txt hover:bg-status-extra-bg"
             >
               {t('dashboard.deleteDuplicate')}
-            </button>
+            </Button>
           </>
         )}
       </div>

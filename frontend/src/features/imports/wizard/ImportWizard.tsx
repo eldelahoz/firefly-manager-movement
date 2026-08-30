@@ -5,13 +5,15 @@ import { useTranslation } from 'react-i18next';
 import { getAccounts, uploadCsv } from '@/shared/api/endpoints';
 import type { UploadResponse } from '@/shared/api/dto';
 import { queryKeys } from '@/shared/lib/keys';
+import { Dialog } from '@/shared/ui/dialog';
+import { WizardShell } from './WizardShell';
 import { initialWizardState, wizardReducer } from './state';
 import { UploadStep } from './UploadStep';
 import { PreviewStep } from './PreviewStep';
 import { MappingStep } from './MappingStep';
 import { ReconcileConfigStep } from './ReconcileConfigStep';
 
-const STEP_ORDER = ['upload', 'preview', 'mapping', 'reconcile-config'] as const;
+const STEP_ORDER = ['upload', 'preview', 'mapping', 'reconcile'] as const;
 
 export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation();
@@ -33,33 +35,36 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
     onError: (e: { message: string }) => dispatch({ type: 'UPLOAD_ERROR', message: e.message }),
   });
   if (!open) return null;
-  const activeIndex = STEP_ORDER.indexOf(state.step as (typeof STEP_ORDER)[number]);
+  const headerStep = state.step === 'submitting' ? 'reconcile' : state.step;
+  const idx = Math.max(0, STEP_ORDER.indexOf(headerStep as (typeof STEP_ORDER)[number]));
+  const stepNames = STEP_ORDER.map((s) => t(`wizard.steps.${s}`));
+  const subtitle =
+    state.step === 'upload'
+      ? state.error
+        ? t('wizard.couldNotParse')
+        : upload.isPending
+          ? t('wizard.subtitleParsing')
+          : t('wizard.subtitleUpload')
+      : state.step === 'mapping'
+        ? t('wizard.subtitleMapping')
+        : state.step === 'preview'
+          ? state.probe && state.probe.invalid_count > 0
+            ? t('wizard.subtitlePreviewInvalid')
+            : t('wizard.subtitlePreview')
+          : t('wizard.subtitleReconcile');
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('wizard.title')}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 md:items-center md:p-4"
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
     >
-      <div className="flex max-h-[95vh] w-full max-w-2xl flex-col overflow-y-auto rounded-t-xl bg-surface p-6 shadow-lg md:rounded-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{t('wizard.title')}</h2>
-          <button
-            onClick={onClose}
-            aria-label={t('common.close')}
-            className="h-11 px-2 text-text-2"
-          >
-            ✕
-          </button>
-        </div>
-        <div className="mb-6 flex gap-1" aria-hidden="true">
-          {STEP_ORDER.map((s, i) => (
-            <span
-              key={s}
-              className={`h-1.5 flex-1 rounded ${i <= activeIndex ? 'bg-accent' : 'bg-border-subtle'}`}
-            />
-          ))}
-        </div>
+      <WizardShell
+        title={t('wizard.stepTitle', { n: idx + 1, step: stepNames[idx] })}
+        subtitle={subtitle}
+        steps={stepNames}
+        current={idx}
+      >
         {state.step === 'upload' && (
           <UploadStep
             accounts={accounts.data}
@@ -70,10 +75,23 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
               upload.mutate({ file, currency: state.currency });
             }}
             uploading={upload.isPending}
+            onCancel={onClose}
+            error={state.error}
           />
         )}
         {state.step === 'preview' && !state.probe && (
-          <p aria-live="polite">{t('wizard.uploading')}</p>
+          <div
+            className="flex flex-1 flex-col items-center justify-center gap-3"
+            aria-live="polite"
+          >
+            <p className="text-sm font-semibold">{state.file?.name}</p>
+            <div className="h-2 w-full max-w-md overflow-hidden rounded bg-border-subtle">
+              <div className="h-full w-1/3 animate-pulse rounded bg-accent" />
+            </div>
+            <p className="text-xs text-text-2">
+              {t('wizard.parsingFile', { filename: state.file?.name ?? '' })}
+            </p>
+          </div>
         )}
         {state.step === 'preview' && state.probe && (
           <PreviewStep
@@ -81,6 +99,7 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
             currency={state.currency}
             onNext={() => dispatch({ type: 'NEXT_FROM_PREVIEW' })}
             onBack={() => dispatch({ type: 'RESET' })}
+            onClose={onClose}
           />
         )}
         {state.step === 'mapping' && state.probe && state.file && (
@@ -97,6 +116,8 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
                 },
               )
             }
+            onBack={() => dispatch({ type: 'BACK_FROM_MAPPING' })}
+            onCancel={onClose}
           />
         )}
         {(state.step === 'reconcile-config' || state.step === 'submitting') && (
@@ -112,9 +133,11 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
               onClose();
               navigate(`/results/${batchId}`);
             }}
+            onBack={() => dispatch({ type: 'BACK_FROM_RECONCILE' })}
+            onCancel={onClose}
           />
         )}
-      </div>
-    </div>
+      </WizardShell>
+    </Dialog>
   );
 }

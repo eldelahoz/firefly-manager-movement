@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use async_trait::async_trait;
 
 use ffm_domain::entities::{Creation, Ff3Transaction, Match, Reconciliation};
@@ -38,6 +40,12 @@ pub trait Ff3TransactionRepository: Send + Sync {
         &self,
         ff3_id: i64,
     ) -> Result<Option<Ff3Transaction>, ApplicationError>;
+    /// Most recent cached row per external FF3 id, for a batch of ids
+    /// (browse enrichment; one query instead of N).
+    async fn latest_by_ff3_ids(
+        &self,
+        ff3_ids: &[i64],
+    ) -> Result<Vec<Ff3Transaction>, ApplicationError>;
 }
 
 #[async_trait]
@@ -47,6 +55,9 @@ pub trait MatchRepository: Send + Sync {
         &self,
         reconciliation_id: ReconciliationId,
     ) -> Result<Vec<Match>, ApplicationError>;
+    /// External FF3 ids (from the batch) that have at least one match
+    /// in any run (browse enrichment to flag `matched`).
+    async fn matched_ff3_ids(&self, ff3_ids: &[i64]) -> Result<HashSet<i64>, ApplicationError>;
 }
 
 #[async_trait]

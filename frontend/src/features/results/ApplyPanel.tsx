@@ -5,6 +5,10 @@ import { toast } from 'sonner';
 import { getAccounts, postApply } from '@/shared/api/endpoints';
 import type { ApplyReport } from '@/shared/api/dto';
 import { queryKeys } from '@/shared/lib/keys';
+import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet';
 
 export function ApplyPanel({
   batchId,
@@ -54,68 +58,68 @@ export function ApplyPanel({
   });
   const ready = selected.length > 0 && !!counterparty && !apply.isPending;
   return (
-    <div
-      role="dialog"
-      aria-label={t('results.apply')}
-      className="fixed inset-x-0 bottom-0 z-40 rounded-t-xl border-t border-border-subtle bg-surface p-4 shadow-lg md:inset-y-0 md:right-0 md:left-auto md:w-96 md:rounded-none md:border-l"
+    <Sheet
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
     >
-      <h2 className="font-semibold">
-        {t('results.apply')} — {selected.length}
-      </h2>
-      <label className="mt-3 block text-sm text-text-2">
-        {t('results.counterparty')}
-        <select
-          value={counterparty}
-          onChange={(e) => setCounterparty(e.target.value)}
-          className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2 text-text-1"
-        >
-          <option value="">—</option>
-          {accounts.data?.map((a) => (
-            <option key={a.id} value={String(a.id)}>
-              {a.name} ({a.currency})
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="mt-3 block text-sm text-text-2">
-        {t('results.category')}
-        <input
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2"
-        />
-      </label>
-      <label className="mt-3 block text-sm text-text-2">
-        {t('results.budget')}
-        <input
-          value={budget}
-          onChange={(e) => setBudget(e.target.value)}
-          className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2"
-        />
-      </label>
-      <label className="mt-3 block text-sm text-text-2">
-        {t('results.notes')}
-        <input
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="mt-1 h-11 w-full rounded-lg border border-border-subtle bg-surface px-2"
-        />
-      </label>
-      <div className="mt-4 flex gap-2">
-        <button
-          onClick={onClose}
-          className="h-11 rounded-lg border border-border-subtle bg-surface px-4 font-medium text-text-2"
-        >
-          {t('common.cancel')}
-        </button>
-        <button
-          disabled={!ready}
-          onClick={() => apply.mutate()}
-          className="h-11 flex-1 rounded-lg bg-accent font-medium text-white disabled:opacity-50"
-        >
-          {t('results.apply')}
-        </button>
-      </div>
-    </div>
+      <SheetContent
+        side="right"
+        showCloseButton={false}
+        className="w-full gap-4 overflow-y-auto p-4 sm:max-w-md"
+      >
+        <SheetHeader className="p-0">
+          <SheetTitle>
+            {t('results.apply')} — {selected.length}
+          </SheetTitle>
+        </SheetHeader>
+        <div>
+          <p className="mb-1 text-sm text-text-2">{t('results.counterparty')}</p>
+          <Select
+            value={counterparty === '' ? 'none' : counterparty}
+            onValueChange={(v) => setCounterparty(v === 'none' ? '' : v)}
+          >
+            <SelectTrigger className="w-full" aria-label={t('results.counterparty')}>
+              <SelectValue placeholder="—" />
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem value="none">—</SelectItem>
+              {accounts.data?.map((a) => (
+                <SelectItem key={a.id} value={String(a.id)}>
+                  {a.name} ({a.currency})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <label className="block text-sm text-text-2">
+          {t('results.category')}
+          <Input value={category} onChange={(e) => setCategory(e.target.value)} className="mt-1" />
+        </label>
+        <label className="block text-sm text-text-2">
+          {t('results.budget')}
+          <Input value={budget} onChange={(e) => setBudget(e.target.value)} className="mt-1" />
+        </label>
+        <label className="block text-sm text-text-2">
+          {t('results.notes')}
+          <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1" />
+        </label>
+        <div className="mt-auto flex gap-2">
+          <Button variant="cancel" onClick={onClose}>
+            {t('common.cancel')}
+          </Button>
+          <Button
+            disabled={!ready}
+            className="flex-1"
+            onClick={() => {
+              apply.mutate();
+            }}
+          >
+            {t('results.apply')}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }

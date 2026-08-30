@@ -6,6 +6,8 @@ import { postIgnore } from '@/shared/api/endpoints';
 import { formatDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { MoneyText } from '@/shared/ui/MoneyText';
+import { Button } from '@/shared/ui/button';
+import { Checkbox } from '@/shared/ui/checkbox';
 import { StatusPill } from '@/shared/ui/StatusPill';
 
 export function MissingRow({
@@ -35,12 +37,10 @@ export function MissingRow({
   });
   return (
     <div className="flex items-center gap-3 border-b border-border-subtle py-3 text-sm">
-      <input
-        type="checkbox"
+      <Checkbox
         aria-label={movement.description}
         checked={selected ?? false}
-        onChange={() => onToggle?.(movement.id)}
-        className="size-5"
+        onCheckedChange={() => onToggle?.(movement.id)}
       />
       <div className="min-w-0 flex-1">
         <p className="truncate">{movement.description}</p>
@@ -52,13 +52,14 @@ export function MissingRow({
       {movement.status === 'ignored' ? (
         <StatusPill status="ignored" />
       ) : (
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => ignore.mutate()}
           disabled={ignore.isPending}
-          className="rounded-lg px-2 py-1 text-xs text-text-2 hover:bg-canvas"
         >
           {t('results.ignore')}
-        </button>
+        </Button>
       )}
       {report && (
         <span title={report.reason ?? ''}>

@@ -1,6 +1,8 @@
 //! `MysqlMatchRepository` — implements `MatchRepository`.
 //! The module is named `match_repo` because `match` is a reserved keyword.
 
+use std::collections::HashSet;
+
 use async_trait::async_trait;
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
@@ -13,7 +15,7 @@ use ffm_domain::ids::ReconciliationId;
 
 use crate::models::{MatchModel, NewMatchModel};
 use crate::persistence::pool::DbPool;
-use crate::schema::matches;
+use crate::schema::{ff3_transactions, matches};
 
 pub struct MysqlMatchRepository {
     pool: DbPool,
@@ -60,6 +62,26 @@ impl MatchRepository for MysqlMatchRepository {
             .load::<MatchModel>(&mut conn)
             .await
             .map(|v| v.into_iter().map(Into::into).collect())
+            .map_err(|e| ApplicationError::Database(e.to_string()))
+    }
+
+    async fn matched_ff3_ids(&self, ff3_ids: &[i64]) -> Result<HashSet<i64>, ApplicationError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| ApplicationError::Database(e.to_string()))?;
+        if ff3_ids.is_empty() {
+            return Ok(HashSet::new());
+        }
+        ff3_transactions::table
+            .inner_join(matches::table.on(matches::ff3_transaction_id.eq(ff3_transactions::id)))
+            .filter(ff3_transactions::ff3_id.eq_any(ff3_ids))
+            .select(ff3_transactions::ff3_id)
+            .distinct()
+            .load::<i64>(&mut conn)
+            .await
+            .map(|v| v.into_iter().collect())
             .map_err(|e| ApplicationError::Database(e.to_string()))
     }
 }
