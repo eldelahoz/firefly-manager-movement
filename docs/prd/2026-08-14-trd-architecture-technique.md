@@ -1,45 +1,45 @@
-# TRD — Architecture technique du rapprochement bancaire
+# TRD — Technical Architecture of Bank Reconciliation
 
-| Champ | Valeur |
+| Field | Value |
 |---|---|
-| Projet | firefly-manager-movement |
-| Version | 0.3 |
-| Créé le | 2026-08-14 |
-| Dernière modification | 2026-08-28 |
-| PRD associé | [`2026-08-14-prd-rapprochement-bancaire.md`](./2026-08-14-prd-rapprochement-bancaire.md) |
-| Statut | En cours de rédaction |
+| Project | firefly-manager-movement |
+| Version | 0.4 |
+| Created | 2026-08-14 |
+| Last modified | 2026-08-30 |
+| Related PRD | [`2026-08-14-prd-rapprochement-bancaire.md`](./2026-08-14-prd-rapprochement-bancaire.md) |
+| Status | Draft in progress |
 
 ---
 
-## 1. Vue d'ensemble
+## 1. Overview
 
-Application web self-hosted en 3 services, déployable en Docker Compose à côté de Firefly III :
+Self-hosted web app in 3 services, deployable with Docker Compose next to Firefly III:
 
 ```mermaid
 flowchart LR
     FE["Frontend<br/>React/TS"] -->|REST| BE["Backend<br/>Rust (axum)"]
-    BE -->|API v1| FF3["Firefly III<br/>(existant)"]
+    BE -->|API v1| FF3["Firefly III<br/>(existing)"]
     BE -->|SQL| DB[("MySQL")]
 ```
 
-| Service | Technologie | Rôle |
+| Service | Technology | Role |
 |---|---|---|
-| Backend | Rust — axum + tokio, reqwest (client HTTP), Diesel (ORM, MySQL) | API REST interne, parsing CSV, moteur de rapprochement, client Firefly III |
-| Frontend | React + Vite + TypeScript | SPA : upload, mapping, tableau de rapprochement, création en lot |
-| Base | MySQL 8 | Persistance des batchs, mouvements, résultats, mappings CSV |
+| Backend | Rust — axum + tokio, reqwest (HTTP client), Diesel (ORM, MySQL) | Internal REST API, CSV parsing, reconciliation engine, Firefly III client |
+| Frontend | React + Vite + TypeScript | SPA: upload, mapping, reconciliation table, batch creation |
+| Database | MySQL 8 | Persistence of batches, movements, results, CSV mappings |
 
-## 2. Modèle de données
+## 2. Data model
 
 ```mermaid
 erDiagram
-    FF3_ACCOUNTS ||--o{ BATCHES : "cible"
-    BATCHES ||--o{ MOVEMENTS : "contient"
-    BATCHES ||--o{ RECONCILIATIONS : "produit"
-    RECONCILIATIONS ||--o{ FF3_TRANSACTIONS : "examine"
-    RECONCILIATIONS ||--o{ MATCHES : "génère"
-    MOVEMENTS ||--o| MATCHES : "rapproché 0..1 par run"
-    FF3_TRANSACTIONS ||--o| MATCHES : "apparié 0..1 par run"
-    MOVEMENTS ||--o| CREATIONS : "créé 0..1"
+    FF3_ACCOUNTS ||--o{ BATCHES : "targets"
+    BATCHES ||--o{ MOVEMENTS : "contains"
+    BATCHES ||--o{ RECONCILIATIONS : "produces"
+    RECONCILIATIONS ||--o{ FF3_TRANSACTIONS : "examines"
+    RECONCILIATIONS ||--o{ MATCHES : "generates"
+    MOVEMENTS ||--o| MATCHES : "matched 0..1 per run"
+    FF3_TRANSACTIONS ||--o| MATCHES : "paired 0..1 per run"
+    MOVEMENTS ||--o| CREATIONS : "created 0..1"
 
     FF3_ACCOUNTS {
         bigint id PK
@@ -64,7 +64,7 @@ erDiagram
         bigint batch_id FK
         int line_no
         date date
-        bigint amount_cents "signé, sens dérivé du signe"
+        bigint amount_cents "signed, direction derived from sign"
         text description
         json raw_json
         varchar status "imported|matched|missing|created|ignored"
@@ -76,9 +76,9 @@ erDiagram
         int tolerance_days
         date window_start
         date window_end
-        int matched_count "snapshot figé au run"
-        int missing_count "snapshot figé au run"
-        int extra_count "snapshot figé au run"
+        int matched_count "snapshot frozen at run"
+        int missing_count "snapshot frozen at run"
+        int extra_count "snapshot frozen at run"
         datetime ran_at
     }
     FF3_TRANSACTIONS {
@@ -86,7 +86,7 @@ erDiagram
         bigint reconciliation_id FK
         bigint ff3_id
         date date
-        bigint amount_cents "signé"
+        bigint amount_cents "signed"
         text description
         boolean is_duplicate
         datetime created_at
@@ -100,9 +100,9 @@ erDiagram
     }
     CREATIONS {
         bigint id PK
-        bigint movement_id FK "UNIQUE = idempotence"
+        bigint movement_id FK "UNIQUE = idempotency"
         bigint ff3_id
-        datetime created_at "date réelle de création"
+        datetime created_at "actual creation date"
     }
     CSV_MAPPINGS {
         bigint id PK
@@ -113,95 +113,100 @@ erDiagram
     DELETED_AUDIT {
         bigint id PK
         bigint ff3_id
-        json snapshot_json "dénormalisé volontairement"
+        json snapshot_json "denormalized on purpose"
         datetime deleted_at
     }
 ```
 
-Contraintes clés :
+Key constraints:
 
-- `movements` : `UNIQUE(batch_id, line_no)`, `CHECK amount_cents != 0`. Pas de colonne `direction` : le sens se déduit du signe de `amount_cents` (règle de matching « sens » = comparaison de signes).
-- `matches` : `UNIQUE(reconciliation_id, movement_id)` + `UNIQUE(reconciliation_id, ff3_transaction_id)` → le 1-pour-1 est garanti par le schéma, plus par convention. Historisé par run de rapprochement.
-- `creations` : `UNIQUE(movement_id)` → idempotence de création (NFR-05). Contient la date réelle de création et la provenance (« créé par nous »).
-- `ff3_transactions` : `UNIQUE(reconciliation_id, ff3_id)`. Cache par run : les groupes `extra` et le flag `duplicate` y vivent (résout RF-13 re-rapprochement et RF-15 doublons).
-- `ff3_accounts` : `UNIQUE(ff3_id)`. Cache local synchronisé à la demande (au lancement du rapprochement ou via endpoint dédié) ; évite des appels API répétés et donne un nom affichable.
-- `amount_cents` : BIGINT signé (centimes), jamais de flottant (NFR-06).
-- `raw_json` : ligne brute du fichier, pour audit et re-parsing.
-- Dénormalisations assumées et justifiées :
-  - compteurs de `reconciliations` = snapshot figé au moment du run (audit) ;
-  - `movements.status` = état courant issu du dernier run + actions utilisateur, indexé pour le filtrage ;
-  - `deleted_audit.snapshot_json` = point-in-time, intentionnellement non normalisé.
-- Sémantique de `movements.status` : reflète le dernier run (`imported` → `matched`/`missing`) ; `created` et `ignored` sont posés par action utilisateur. Un re-rapprochement confirmatoire fait passer `created` → `matched` sans perte d'info (la provenance reste dans `creations`).
-- Index : `movements(batch_id, status)`, `movements(batch_id, date)`, `ff3_transactions(reconciliation_id, amount_cents)`.
+- `movements`: `UNIQUE(batch_id, line_no)`, `CHECK amount_cents != 0`. No `direction` column: the direction is derived from the sign of `amount_cents` (matching rule "direction" = sign comparison).
+- `matches`: `UNIQUE(reconciliation_id, movement_id)` + `UNIQUE(reconciliation_id, ff3_transaction_id)` → 1-to-1 is guaranteed by the schema, not just by convention. Historized per reconciliation run.
+- `creations`: `UNIQUE(movement_id)` → creation idempotency (NFR-05). Holds the actual creation date and the provenance ("created by us").
+- `ff3_transactions`: `UNIQUE(reconciliation_id, ff3_id)`. Per-run cache: the `extra` group and the `duplicate` flag live there (solves RF-13 re-reconciliation and RF-15 duplicates).
+- `ff3_accounts`: `UNIQUE(ff3_id)`. Local cache synced on demand (when launching a reconciliation or via a dedicated endpoint); avoids repeated API calls and provides a displayable name.
+- `amount_cents`: signed BIGINT (cents), never floats (NFR-06).
+- `raw_json`: raw file line, for audit and re-parsing.
+- Assumed and justified denormalizations:
+  - `reconciliations` counters = snapshot frozen at run time (audit);
+  - `movements.status` = current state from the latest run + user actions, indexed for filtering;
+  - `deleted_audit.snapshot_json` = point-in-time, intentionally not normalized.
+- Semantics of `movements.status`: reflects the latest run (`imported` → `matched`/`missing`); `created` and `ignored` are set by user action. A confirmation re-reconciliation moves `created` → `matched` without losing information (provenance stays in `creations`).
+- Batch statuses (`batches.status`): `parsed` → `reconciled` → `applied` (see PRD section 4). A batch in `parsed` status can be deleted with its movements (`DELETE /api/imports/{id}`); `reconciled`/`applied` batches are immutable (RF-09).
+- Indexes: `movements(batch_id, status)`, `movements(batch_id, date)`, `ff3_transactions(reconciliation_id, amount_cents)`.
 
-## 3. API backend
+## 3. Backend API
 
-| Méthode | Route | Rôle |
+| Method | Route | Role |
 |---|---|---|
-| POST | `/api/imports` | Upload fichier → création batch + parse |
-| GET | `/api/imports` / `/api/imports/{id}` | Liste / détail batch |
-| PUT | `/api/imports/{id}/mapping` | Enregistrer mapping CSV |
-| POST | `/api/imports/{id}/reconcile` | Lancer le rapprochement |
-| GET | `/api/imports/{id}/results` | Résultats en 3 groupes |
-| POST | `/api/imports/{id}/apply` | Créer les manquants sélectionnés dans Firefly III |
-| GET | `/api/firefly/accounts` | Proxy lecture des comptes d'actif |
-| QUERY | `/api/firefly/accounts/{id}/transactions` | Proxy lecture des mouvements d'un compte sur une période — filtres en body : `{start, end}` (RF-14) |
-| DELETE | `/api/firefly/transactions/{id}` | Suppression d'un doublon avec snapshot d'audit (RF-15) |
+| POST | `/api/imports` | File upload → batch creation + parse; **409 Conflict if the file name already exists** |
+| GET | `/api/imports` / `/api/imports/{id}` | List / batch detail |
+| PUT | `/api/imports/{id}/mapping` | Save CSV mapping |
+| POST | `/api/imports/{id}/reconcile` | Run the reconciliation |
+| GET | `/api/imports/{id}/results` | Results in 3 groups |
+| POST | `/api/imports/{id}/apply` | Create the selected missing transactions in Firefly III |
+| DELETE | `/api/imports/{id}` | Delete a batch in `parsed` status (+ its movements) — 409 if the batch is not `parsed`; response `200 {id, status: "deleted"}` |
+| GET | `/api/firefly/accounts` | Read proxy of asset accounts |
+| QUERY | `/api/firefly/accounts/{id}/transactions` | Read proxy of an account's transactions over a period — filters in body: `{start, end}` (RF-14) |
+| DELETE | `/api/firefly/transactions/{id}` | Duplicate deletion with audit snapshot (RF-15) |
 
-Notes :
+Notes:
 
-- Devise du batch (`POST /api/imports`, champ `currency`) : depuis la v1.5 du frontend, elle est **dérivée du compte FF3 sélectionné** dans l'assistant d'import et transmise telle quelle ; le backend conserve son défaut `EUR` si le champ est absent (contrat inchangé).
-- `POST /apply` est idempotent par mouvement : avant chaque création, vérifier l'existence d'une ligne dans `creations` (`UNIQUE(movement_id)`, NFR-05) ; ignorer les mouvements déjà créés.
-- Erreurs de l'API Firefly III lors d'un `apply` en lot : traitement par mouvement, le lot continue, rapport final par mouvement (succès/échec/raison).
-- **Méthode QUERY (RFC 9295)** : utilisée uniquement pour les routes à filtres complexes en body (lectures avec critères de recherche). Les récupérations simples par ID ou listes complètes restent en GET. Le backend traduit `QUERY` → `GET` lors de l'appel à l'API Firefly III (qui reste en GET). Nécessite d'enregistrer la méthode explicitement dans axum (`Route::on("QUERY", handler)` ou macro équivalente).
+- Batch currency (`POST /api/imports`, `currency` field): since frontend v1.5, it is **derived from the FF3 account selected** in the import wizard and transmitted as-is; the backend keeps its `EUR` default if the field is absent (contract unchanged).
+- **Duplicate file names**: `POST /api/imports` refuses a file whose name already exists in an existing batch — `find_by_filename` check before insertion (RF-16, case-insensitive via MySQL collation). The wizard also pre-checks client-side against the batch list and blocks the upload with an inline error.
+- **Mapping probe flow**: when no mapping is memorized or auto-detected, the wizard performs a "probe" upload (headers only, 0 movements, batch in `parsed` status). Upon mapping confirmation, the probe is deleted (`DELETE /api/imports/{id}`) and the file is re-uploaded with the confirmed columns — no orphan batches.
+- `POST /apply` is idempotent per movement: before each creation, check the existence of a row in `creations` (`UNIQUE(movement_id)`, NFR-05); skip already-created movements.
+- Firefly III API errors during a batch `apply`: handled per movement, the batch continues, final report per movement (success/failure/reason).
+- **QUERY method (RFC 9295)**: used only for routes with complex filters in body (reads with search criteria). Simple retrievals by ID or full lists stay in GET. The backend translates `QUERY` → `GET` when calling the Firefly III API (which stays GET). Requires registering the method explicitly in axum (`Route::on("QUERY", handler)` or equivalent macro).
 
-## 4. Intégration Firefly III (API v1)
+## 4. Firefly III integration (API v1)
 
 | Usage | Endpoint |
 |---|---|
-| Auth | Header `Authorization: Bearer <token>` (personal access token ; OAuth2 supporté aussi) |
-| Comptes | `GET /api/v1/accounts?type=asset` |
-| Transactions | `GET /api/v1/accounts/{id}/transactions?start=..&end=..` (pagination exhaustive) — appelé par le backend en traduisant notre `QUERY` interne |
-| Création | `POST /api/v1/transactions` |
-| Suppression | `DELETE /api/v1/transactions/{id}` |
-| Santé | `GET /api/v1/about` |
+| Auth | `Authorization: Bearer <token>` header (personal access token; OAuth2 also supported) |
+| Accounts | `GET /api/v1/accounts?type=asset` |
+| Transactions | `GET /api/v1/accounts/{id}/transactions?start=..&end=..` (exhaustive pagination) — called by the backend by translating our internal `QUERY` |
+| Creation | `POST /api/v1/transactions` |
+| Deletion | `DELETE /api/v1/transactions/{id}` |
+| Health | `GET /api/v1/about` |
 
-Configuration backend (variables d'environnement) :
+Backend configuration (environment variables):
 
 | Variable | Description |
 |---|---|
-| `FF3_URL` | URL de l'instance Firefly III |
-| `FF3_TOKEN` | Token API (jamais exposé au frontend, NFR-02) |
-| `DATABASE_URL` | Chaîne de connexion MySQL |
-| `MATCH_TOLERANCE_DAYS` | Tolérance de date par défaut (défaut 0) |
+| `FF3_URL` | Firefly III instance URL |
+| `FF3_TOKEN` | API token (never exposed to the frontend, NFR-02) |
+| `DATABASE_URL` | MySQL connection string |
+| `MATCH_TOLERANCE_DAYS` | Default date tolerance (default 0) |
 
-Le frontend ne parle jamais directement à Firefly III : tout passe par le backend.
+The frontend never talks to Firefly III directly: everything goes through the backend.
 
-## 5. Parsing des fichiers
+## 5. File parsing
 
-- **CSV** : détection du délimiteur et de l'encodage ; si les en-têtes correspondent à un mapping mémorisé (`csv_mappings.header_signature`, hash des en-têtes normalisés), application automatique ; sinon mapping manuel requis. Les fichiers XLSX doivent être convertis en CSV par l'utilisateur avant import (support natif XLSX/OFX prévu en V2).
-- Lignes invalides : conservées avec erreur attachée, exposées dans l'aperçu (RF-03).
+- **CSV**: delimiter and encoding detection; if the headers match a memorized mapping (`csv_mappings.header_signature`, hash of normalized headers), automatic application; otherwise manual mapping is required. XLSX files must be converted to CSV by the user before import (native XLSX/OFX support planned for V2).
+- Invalid lines: kept with the error attached, exposed in the preview (RF-03).
+- When the CSV requires manual mapping, the preview displays an explanatory message (0 valid rows) and the wizard guides the user to the mapping step (RF-02, v0.5 amendment).
 
-## 6. Moteur de rapprochement
+## 6. Reconciliation engine
 
-1. Charger les mouvements du batch (`status != ignored`).
-2. Récupérer les transactions Firefly III du compte cible sur `[min_date - fenêtre, max_date + fenêtre]`, pagination exhaustive.
-3. Indexer les deux jeux par clé `montant_cents` (le sens est encodé dans le signe de chaque montant).
-4. Pour chaque clé, apparier chronologiquement 1-pour-1 dans la tolérance de date ; les transactions Firefly III surnuméraires face à un même mouvement bancaire sont marquées `is_duplicate = true` (RF-15).
-5. Produire les 3 groupes ; persister une ligne `reconciliations` (compteurs snapshot) + les `ff3_transactions` examinées (avec flag `is_duplicate`) + les `matches` 1-pour-1 ; mettre à jour les statuts des mouvements (`imported` → `matched`/`missing`).
+1. Load the batch movements (`status != ignored`).
+2. Fetch the Firefly III transactions of the target account over `[min_date - window, max_date + window]`, exhaustive pagination.
+3. Index both sets by `amount_cents` key (the direction is encoded in the sign of each amount).
+4. For each key, pair 1-to-1 chronologically within the date tolerance; Firefly III transactions outnumbering a given bank movement are flagged `is_duplicate = true` (RF-15).
+5. Produce the 3 groups; persist a `reconciliations` row (snapshot counters) + the examined `ff3_transactions` (with `is_duplicate` flag) + the 1-to-1 `matches`; update the movement statuses (`imported` → `matched`/`missing`).
 
-Complexité cible : O(n log n) sur le relevé ; 1 000 mouvements < 5 s hors latence API (NFR-04).
+Target complexity: O(n log n) on the statement; 1,000 movements < 5 s excluding API latency (NFR-04).
 
-## 7. Déploiement
+## 7. Deployment
 
-Docker Compose : 3 services (`backend`, `frontend`, `mysql`) + réseau partagé avec l'instance Firefly III existante. Migrations de schéma gérées par Diesel (`diesel migration run`) au démarrage du backend.
+Docker Compose: 3 services (`backend`, `frontend`, `mysql`) + shared network with the existing Firefly III instance. Schema migrations managed by Diesel (`diesel migration run`) at backend startup.
 
-Note ORM : Diesel est synchrone par défaut ; l'intégration avec axum/tokio se fait via `diesel-async` (pool MySQL async) pour ne pas bloquer le runtime.
+ORM note: Diesel is synchronous by default; integration with axum/tokio uses `diesel-async` (async MySQL pool) to avoid blocking the runtime.
 
-## 8. Décisions ouvertes
+## 8. Open decisions
 
-| # | Sujet | Options |
+| # | Topic | Options |
 |---|---|---|
-| D1 | Framework backend Rust | axum (recommandé) vs actix-web |
-| D2 | Représentation des montants | **Tranché** : BIGINT signé (centimes), sens dérivé du signe — pas de colonne `direction` ni de DECIMAL. |
-| D3 | Stratégie de re-rapprochement après `apply` | complet vs incrémental sur les mouvements créés |
+| D1 | Rust backend framework | axum (recommended) vs actix-web |
+| D2 | Amount representation | **Settled**: signed BIGINT (cents), direction derived from the sign — no `direction` column and no DECIMAL. |
+| D3 | Re-reconciliation strategy after `apply` | full vs incremental on created movements |
