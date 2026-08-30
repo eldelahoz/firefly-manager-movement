@@ -96,6 +96,16 @@ impl BatchRepository for FakeBatchRepo {
         }
         Ok(())
     }
+    async fn find_by_filename(&self, filename: &str) -> Result<Vec<Batch>, ApplicationError> {
+        Ok(self
+            .batches
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|b| b.filename == filename)
+            .cloned()
+            .collect())
+    }
 }
 
 struct FakeMovementRepo {
@@ -448,6 +458,59 @@ async fn upload_import_computes_file_hash() {
         .await
         .unwrap();
     assert_eq!(result.file_hash, result2.file_hash);
+}
+
+#[tokio::test]
+async fn upload_import_rejects_duplicate_filename() {
+    let csv = b"Date,Amount,Description\n2026-01-05,100.00,Coffee".to_vec();
+    let decoder = FakeCsvDecoder;
+    let batch_repo = Arc::new(FakeBatchRepo::new());
+    let movement_repo = Arc::new(FakeMovementRepo::new());
+    let mapping_repo = Arc::new(FakeCsvMappingRepo::new());
+
+    let uc = UploadImport::new(
+        decoder,
+        batch_repo.clone(),
+        movement_repo.clone(),
+        mapping_repo.clone(),
+    );
+
+    uc.execute(UploadImportInput {
+        filename: "test.csv".into(),
+        bytes: csv.clone(),
+        currency: "EUR".into(),
+        mapping: None,
+    })
+    .await
+    .unwrap();
+
+    let second = uc
+        .execute(UploadImportInput {
+            filename: "test.csv".into(),
+            bytes: csv,
+            currency: "EUR".into(),
+            mapping: None,
+        })
+        .await;
+
+    match second {
+        Err(ApplicationError::Conflict(_)) => {}
+        Err(e) => panic!("expected Conflict, got other error: {e}"),
+        Ok(_) => panic!("expected Conflict, got Ok"),
+    }
+
+    // Un filename distinto sí pasa.
+    uc.execute(UploadImportInput {
+        filename: "other.csv".into(),
+        bytes: b"Date,Amount,Description\n2026-01-06,-1.00,Tea".to_vec(),
+        currency: "EUR".into(),
+        mapping: None,
+    })
+    .await
+    .unwrap();
+
+    let batches = batch_repo.batches.lock().unwrap();
+    assert_eq!(batches.len(), 2);
 }
 
 #[tokio::test]
