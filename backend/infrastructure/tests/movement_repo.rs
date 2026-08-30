@@ -71,3 +71,49 @@ async fn insert_batch_and_by_batch_movements() {
 
     common::clean(&pool).await;
 }
+
+#[tokio::test]
+async fn delete_by_batch_removes_movements() {
+    let pool = common::setup_pool().await;
+    common::clean(&pool).await;
+    let batches = MysqlBatchRepository::new(pool.clone());
+    let movements = MysqlMovementRepository::new(pool.clone());
+
+    let batch_id = batches
+        .insert(NewBatch {
+            filename: "del-movs.csv".into(),
+            file_hash: "hash-del".into(),
+            format: "csv".into(),
+            currency: "EUR".into(),
+            account_id: None,
+            status: BatchStatus::Parsed,
+        })
+        .await
+        .expect("insert batch");
+
+    movements
+        .insert_batch(vec![NewMovement {
+            batch_id,
+            line_no: 1,
+            date: NaiveDate::from_ymd_opt(2026, 1, 5).unwrap(),
+            amount_cents: AmountCents::new(12340),
+            description: "lunch".into(),
+            raw_json: r#"{"a":1}"#.to_string(),
+            status: MovementStatus::Imported,
+        }])
+        .await
+        .expect("insert_batch");
+
+    let got = movements.by_batch(batch_id).await.expect("by_batch");
+    assert_eq!(got.len(), 1);
+
+    movements
+        .delete_by_batch(batch_id)
+        .await
+        .expect("delete_by_batch");
+
+    let after = movements.by_batch(batch_id).await.expect("by_batch after");
+    assert!(after.is_empty());
+
+    common::clean(&pool).await;
+}

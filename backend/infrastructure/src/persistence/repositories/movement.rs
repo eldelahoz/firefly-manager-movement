@@ -97,4 +97,17 @@ impl MovementRepository for MysqlMovementRepository {
             .map(|_| ())
             .map_err(|e| ApplicationError::Database(e.to_string()))
     }
+
+    async fn delete_by_batch(&self, batch_id: BatchId) -> Result<(), ApplicationError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| ApplicationError::Database(e.to_string()))?;
+        diesel::delete(movements::table.filter(movements::batch_id.eq(batch_id.as_i64())))
+            .execute(&mut conn)
+            .await
+            .map(|_| ())
+            .map_err(|e| ApplicationError::Database(e.to_string()))
+    }
 }

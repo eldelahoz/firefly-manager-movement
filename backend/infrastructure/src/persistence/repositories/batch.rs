@@ -121,4 +121,33 @@ impl BatchRepository for MysqlBatchRepository {
             .map(|_| ())
             .map_err(map_diesel_err)
     }
+
+    async fn find_by_filename(&self, filename: &str) -> Result<Vec<Batch>, ApplicationError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| ApplicationError::Database(e.to_string()))?;
+        // MySQL collation (utf8mb4_*) es case-insensitive: `=` basta.
+        batches::table
+            .filter(batches::filename.eq(filename))
+            .order(batches::id.desc())
+            .load::<BatchModel>(&mut conn)
+            .await
+            .map(|v| v.into_iter().map(Into::into).collect())
+            .map_err(map_diesel_err)
+    }
+
+    async fn delete(&self, id: BatchId) -> Result<(), ApplicationError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| ApplicationError::Database(e.to_string()))?;
+        diesel::delete(batches::table.filter(batches::id.eq(id.as_i64())))
+            .execute(&mut conn)
+            .await
+            .map(|_| ())
+            .map_err(map_diesel_err)
+    }
 }
