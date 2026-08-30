@@ -15,13 +15,7 @@ import { usePageHeader } from '@/shared/ui/PageHeader';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { Pill, StatusPill } from '@/shared/ui/StatusPill';
 import { Table, Td, Tr } from '@/shared/ui/Table';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/shared/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { ImportWizard } from './wizard/ImportWizard';
 

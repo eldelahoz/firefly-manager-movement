@@ -23,5 +23,5 @@ test('rerun dialog mounts inside the router without throwing (useNavigate contex
     </ReconcileProvider>,
   );
   await userEvent.click(screen.getByRole('button', { name: 'open-rerun' }));
-  expect(await screen.findByRole('dialog', { name: 'Re-run reconciliation' })).toBeInTheDocument();
+  expect(await screen.findByRole('dialog', { name: 'Reconcile import' })).toBeInTheDocument();
 });

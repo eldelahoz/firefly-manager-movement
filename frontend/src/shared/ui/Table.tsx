@@ -22,12 +22,17 @@ export function Table({ head, children }: { head: ReactNode[]; children: ReactNo
 export function Tr({
   children,
   className = '',
+  title,
 }: {
   children: ReactNode;
   className?: string;
+  title?: string;
 }) {
   return (
-    <tr className={`border-b border-border-strong last:border-0 hover:bg-canvas ${className}`}>
+    <tr
+      className={`border-b border-border-strong last:border-0 hover:bg-canvas ${className}`}
+      title={title}
+    >
       {children}
     </tr>
   );
