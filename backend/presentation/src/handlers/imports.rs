@@ -9,13 +9,14 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 use ffm_application::csv::ColumnMapping;
+use ffm_application::ports::MovementRepository;
+use ffm_application::use_cases::delete_import::DeleteImport;
 use ffm_application::use_cases::get_import::GetImport;
 use ffm_application::use_cases::list_imports::ListImports;
-use ffm_application::ports::MovementRepository;
-use ffm_domain::entities::Ff3Account;
-use std::collections::HashMap;
 use ffm_application::use_cases::save_csv_mapping::SaveCsvMapping;
 use ffm_application::use_cases::upload_import::{UploadImport, UploadImportInput};
+use ffm_domain::entities::Ff3Account;
+use std::collections::HashMap;
 
 use crate::error::ApiError;
 use crate::state::AppState;
@@ -106,6 +107,7 @@ pub struct SaveMappingResponse {
     responses(
         (status = 200, description = "CSV uploaded and parsed", body = UploadImportResponse),
         (status = 400, description = "Invalid multipart request"),
+        (status = 409, description = "Filename already imported"),
         (status = 413, description = "File too large"),
     ),
     tag = "imports",
@@ -271,10 +273,7 @@ async fn account_index(
     repo: std::sync::Arc<dyn ffm_application::ports::Ff3AccountRepository>,
 ) -> Result<HashMap<i64, Ff3Account>, ApiError> {
     let accounts = repo.all_asset().await.map_err(ApiError)?;
-    Ok(accounts
-        .into_iter()
-        .map(|a| (a.id.as_i64(), a))
-        .collect())
+    Ok(accounts.into_iter().map(|a| (a.id.as_i64(), a)).collect())
 }
 
 #[utoipa::path(
@@ -363,6 +362,37 @@ pub async fn get_import(
                 status: m.status.as_str().to_string(),
             })
             .collect(),
+    }))
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct DeleteImportResponse {
+    pub id: i64,
+    pub status: String,
+}
+
+#[utoipa::path(
+    delete,
+    path = "/api/imports/{id}",
+    params(("id" = i64, Path, description = "Batch id")),
+    responses(
+        (status = 200, description = "Import deleted", body = DeleteImportResponse),
+        (status = 400, description = "Batch is not in 'parsed' state"),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "imports",
+)]
+pub async fn delete_import(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> Result<Json<DeleteImportResponse>, ApiError> {
+    let uc = DeleteImport::new(state.batches.clone(), state.movements.clone());
+    uc.execute(ffm_domain::ids::BatchId::new(id))
+        .await
+        .map_err(ApiError)?;
+    Ok(Json(DeleteImportResponse {
+        id,
+        status: "deleted".to_string(),
     }))
 }
 
