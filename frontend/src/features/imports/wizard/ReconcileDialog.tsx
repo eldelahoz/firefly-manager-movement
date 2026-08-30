@@ -27,7 +27,7 @@ export function ReconcileDialog({
     >
       <DialogContent showCloseButton={false} className="sm:max-w-md">
         <DialogHeader className="flex-row items-center justify-between">
-          <DialogTitle>{t('imports.rerun')}</DialogTitle>
+          <DialogTitle>{t('imports.reconcileTitle')}</DialogTitle>
           <DialogClose asChild>
             <Button variant="ghost" size="icon" aria-label={t('common.close')}>
               <X className="size-5" />
