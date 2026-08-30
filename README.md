@@ -55,7 +55,7 @@ backend/
 | Document | Content |
 |----------|---------|
 | [COLLABORATION.md](COLLABORATION.md) | Local dev setup, environment variables, tests, git workflow, coding conventions |
-| [docs/prd/](docs/prd/) | Product requirements (PRD) and technical architecture (TRD) |
+| [docs/specs/](docs/specs/) | Product requirements (PRD) and technical architecture (TRD) |
 
 ## License
 
