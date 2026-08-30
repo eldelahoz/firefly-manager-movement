@@ -82,9 +82,12 @@ impl BatchRepository for FakeBatchRepo {
     }
     async fn update_status(
         &self,
-        _id: BatchId,
-        _status: BatchStatus,
+        id: BatchId,
+        status: BatchStatus,
     ) -> Result<(), ApplicationError> {
+        if let Some(b) = self.batches.lock().unwrap().iter_mut().find(|b| b.id == id) {
+            b.status = status;
+        }
         Ok(())
     }
     async fn update_account(
@@ -92,6 +95,20 @@ impl BatchRepository for FakeBatchRepo {
         _id: BatchId,
         _account_id: ffm_domain::ids::Ff3AccountId,
     ) -> Result<(), ApplicationError> {
+        Ok(())
+    }
+    async fn find_by_filename(&self, filename: &str) -> Result<Vec<Batch>, ApplicationError> {
+        Ok(self
+            .batches
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|b| b.filename == filename)
+            .cloned()
+            .collect())
+    }
+    async fn delete(&self, id: BatchId) -> Result<(), ApplicationError> {
+        self.batches.lock().unwrap().retain(|b| b.id != id);
         Ok(())
     }
 }
@@ -143,6 +160,13 @@ impl MovementRepository for FakeMovementRepo {
         _id: MovementId,
         _status: MovementStatus,
     ) -> Result<(), ApplicationError> {
+        Ok(())
+    }
+    async fn delete_by_batch(&self, batch_id: BatchId) -> Result<(), ApplicationError> {
+        self.movements
+            .lock()
+            .unwrap()
+            .retain(|m| m.batch_id != batch_id);
         Ok(())
     }
 }
@@ -381,6 +405,200 @@ async fn get_import_returns_batch_and_movements() {
     assert_eq!(value["movements"].as_array().unwrap().len(), 2);
     assert_eq!(value["movements"][0]["amount_cents"], 10000);
     assert_eq!(value["movements"][1]["amount_cents"], -5000);
+}
+
+fn multipart(filename: &str, csv: &str) -> (String, String) {
+    let boundary = "BOUNDARY";
+    let body = format!(
+        "--{b}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{f}\"\r\nContent-Type: text/csv\r\n\r\n{csv}\r\n--{b}\r\nContent-Disposition: form-data; name=\"currency\"\r\n\r\nEUR\r\n--{b}--\r\n",
+        b = boundary,
+        f = filename,
+        csv = csv
+    );
+    (format!("multipart/form-data; boundary={}", boundary), body)
+}
+
+#[tokio::test]
+async fn post_imports_same_filename_twice_returns_409() {
+    let batches = Arc::new(FakeBatchRepo::new());
+
+    let state = AppState {
+        firefly: Arc::new(FakeFireflyClient::ok()),
+        ff3_accounts: Arc::new(FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(FakeCsvDecoder),
+        batches: batches.clone(),
+        movements: Arc::new(FakeMovementRepo::new()),
+        csv_mappings: Arc::new(FakeCsvMappingRepo::new()),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
+        ff3_health_probe: false,
+    };
+    let router = app(state);
+
+    let (ct, body) = multipart(
+        "test.csv",
+        "Date,Amount,Description\n2026-01-05,100.00,Coffee\n",
+    );
+
+    let first = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/imports")
+                .header("content-type", ct.clone())
+                .body(Body::from(body.clone()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(first.status(), StatusCode::OK);
+
+    let second = router
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/imports")
+                .header("content-type", ct)
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(second.status(), StatusCode::CONFLICT);
+    assert_eq!(batches.batches.lock().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn delete_import_removes_parsed_batch() {
+    let batches = Arc::new(FakeBatchRepo::new());
+    let movements = Arc::new(FakeMovementRepo::new());
+
+    let state = AppState {
+        firefly: Arc::new(FakeFireflyClient::ok()),
+        ff3_accounts: Arc::new(FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(FakeCsvDecoder),
+        batches: batches.clone(),
+        movements: movements.clone(),
+        csv_mappings: Arc::new(FakeCsvMappingRepo::new()),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
+        ff3_health_probe: false,
+    };
+    let router = app(state);
+
+    let (ct, body) = multipart(
+        "test.csv",
+        "Date,Amount,Description\n2026-01-05,100.00,Coffee\n",
+    );
+    let upload = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/imports")
+                .header("content-type", ct)
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(upload.status(), StatusCode::OK);
+    assert_eq!(movements.movements.lock().unwrap().len(), 1);
+
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/api/imports/1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(value["id"], 1);
+    assert_eq!(value["status"], "deleted");
+
+    assert!(batches.batches.lock().unwrap().is_empty());
+    assert!(movements.movements.lock().unwrap().is_empty());
+
+    let response = router
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/api/imports/1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn delete_import_rejects_reconciled_batch() {
+    let batches = Arc::new(FakeBatchRepo::new());
+
+    let state = AppState {
+        firefly: Arc::new(FakeFireflyClient::ok()),
+        ff3_accounts: Arc::new(FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(FakeCsvDecoder),
+        batches: batches.clone(),
+        movements: Arc::new(FakeMovementRepo::new()),
+        csv_mappings: Arc::new(FakeCsvMappingRepo::new()),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
+        ff3_health_probe: false,
+    };
+    let router = app(state);
+
+    let (ct, body) = multipart(
+        "test.csv",
+        "Date,Amount,Description\n2026-01-05,100.00,Coffee\n",
+    );
+    let _ = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/imports")
+                .header("content-type", ct)
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    batches
+        .update_status(BatchId::new(1), BatchStatus::Reconciled)
+        .await
+        .unwrap();
+
+    let response = router
+        .oneshot(
+            Request::builder()
+                .method("DELETE")
+                .uri("/api/imports/1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(batches.batches.lock().unwrap().len(), 1);
 }
 
 #[tokio::test]
