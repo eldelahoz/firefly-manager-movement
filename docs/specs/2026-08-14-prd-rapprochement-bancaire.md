@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Project | firefly-manager-movement |
-| Version | 0.5 |
+| Version | 0.6 |
 | Created | 2026-08-14 |
 | Last modified | 2026-08-30 |
 | Author | A. Delahoz |
@@ -57,16 +57,17 @@ Runs Firefly III in Docker at home. Downloads an XLSX from his bank's website ev
 
 | ID | Case | Description |
 |---|---|---|
-| CU-1 | Import a statement | David uploads a CSV file; the system parses it, detects the format and displays a preview of the movements. |
+| CU-1 | Import a statement | David uploads a CSV file and selects the Firefly III account to compare against; the system parses it, detects the format and displays a preview of the movements. |
 | CU-2 | Map columns (CSV) | If the CSV is not recognized automatically, David maps columns → fields (date, amount, description, account). |
-| CU-3 | Run the reconciliation | David picks the target Firefly III account and starts the comparison. |
-| CU-4 | View the results | View in 3 groups: matched / missing in Firefly III / present in Firefly III but absent from the statement. |
-| CU-5 | Create the missing transactions | David selects all or part of the missing items, picks counterparty account/category, and confirms creation in Firefly III. |
+| CU-3 | Run the reconciliation | David launches the reconciliation; the account chosen at import is pre-selected and can still be changed. |
+| CU-4 | View the results | View in 3 groups: matched / missing in Firefly III / present in Firefly III but absent from the statement; a dedicated section shows ignored movements. |
+| CU-5 | Create the missing transactions | David selects all or part of the missing items, picks counterparty account, category, budget, tags, attachment, notes, and confirms creation in Firefly III. |
 | CU-6 | Import history | David finds his past imports (batches) and their status. |
 | CU-7 | Browse an account's transactions | David picks a Firefly III account and a period (min / max date) and views his transactions, independently of any import. |
 | CU-8 | Delete a duplicate | David identifies a duplicated transaction in Firefly III (via the reconciliation or the account view) and deletes it after confirmation. |
-| CU-9 | Resume an incomplete import | David resumes a `parsed` batch (with movements) directly at the reconciliation step (step 4 of the wizard), without re-importing the file. |
+| CU-9 | Resume an incomplete import | David resumes a `parsed` batch (with movements); the wizard reopens at the first pending step (reconciliation) and David can move back and forth between the wizard steps. |
 | CU-10 | Delete an incomplete import | David deletes a `parsed` batch and its movements after explicit confirmation (file name + number of movements); irreversible. |
+| CU-11 | Configure the Firefly III connection | David enters the Firefly III URL and API token in the app settings, verifies the connection and saves it; required before first use. |
 
 ---
 
@@ -80,7 +81,7 @@ flowchart TD
     subgraph S1[1. IMPORT]
         B[parsing + validation] --> C[preview + mapping]
     end
-    C --> D[(Immutable batch - MySQL)]
+    C --> D[(Immutable batch)]
     D --> E
     subgraph S2[2. RECONCILIATION]
         E[Firefly III API call<br/>target account + date window] --> F[Matching engine]
@@ -113,8 +114,8 @@ flowchart TD
 
 Rules:
 
-- `parsed` rows with movements are visually highlighted as incomplete (tooltip "pending reconciliation — step 4").
-- **Resume**: from the history, the wizard reopens directly at the reconciliation step (step 4) with the batch preloaded.
+- `parsed` rows with movements are visually highlighted as incomplete.
+- **Resume**: from the history, the wizard reopens at the first pending step (reconciliation); the user can move back and forth between the wizard steps.
 - **Delete**: only `parsed` batches can be deleted (movements + batch), after explicit confirmation.
 - **Unique file names**: uploading a file whose name already matches an existing batch is refused.
 
@@ -145,6 +146,7 @@ Special cases:
 | **Matched** (`matched`) | Movements present on both sides | None (read-only) |
 | **Missing** (`missing`) | In the statement, absent from Firefly III | Create in Firefly III (single or batch) |
 | **Extras** (`extra`) | In Firefly III, absent from the statement | Informative in v1; deletion possible when flagged `duplicate` |
+| **Ignored** (`ignored`) | Movements dismissed by the user during review | Shown in a dedicated section below the results; un-ignore (returns the movement to its group) |
 
 ### Deleting duplicates in Firefly III
 
@@ -163,7 +165,9 @@ Special cases:
 ### Creating missing transactions
 
 - The user selects the movements to create (checkbox + "select all").
-- Required fields before creation: counterparty account (expense/income account or asset account depending on direction). Optional fields: category, budget, notes.
+- Required fields before creation: counterparty account (expense/income account or asset account depending on direction).
+- Editable fields before creation: **description** (pre-filled from the statement, editable), category, budget, **tags**, **attachment (file)**, notes.
+- The system lists existing Firefly III categories, budgets and tags for selection.
 - Creation calls the Firefly III API (`POST /api/v1/transactions`) with: type, amount, date, description (from the statement), source/destination account, and a tag/notes tracing the origin (file name + batch id).
 - After creation, the movement moves to `created` and an incremental re-reconciliation confirms the match.
 - **No creation happens without explicit action.** No automatic mode in v1.
@@ -177,21 +181,22 @@ Special cases:
 | RF-01 | The system allows uploading CSV files (max size 10 MB). XLSX files must be manually converted to CSV by the user before import. | P0 |
 | RF-02 | The system parses the CSV with manual column mapping; it memorizes the mapping by file signature (headers). | P0 |
 | RF-03 | The system detects and reports invalid lines (unreadable date, empty amount) without blocking the import; valid lines are kept. | P0 |
-| RF-04 | The system lists Firefly III asset accounts to choose the reconciliation target account. | P0 |
+| RF-04 | The system lists Firefly III asset accounts; the target account for the comparison is selected during the import and pre-selected when running the reconciliation. | P0 |
 | RF-05 | The system fetches the target account's transactions via the Firefly III API over the date window. | P0 |
 | RF-06 | The reconciliation engine applies the section 4 rules with configurable date tolerance. | P0 |
 | RF-07 | Results are presented in 3 groups (matched / missing / extras) with visual highlighting of the gaps. | P0 |
-| RF-08 | The user can batch-create the missing transactions in Firefly III. | P0 |
+| RF-08 | The user can batch-create the missing transactions in Firefly III. Before creation, each missing movement can be edited: description (pre-filled from the statement), category, budget, tags, attachment and notes; the system lists existing Firefly III categories, budgets and tags. | P0 |
 | RF-09 | Each import batch is immutable and viewable a posteriori (history). | P1 |
-| RF-10 | The user can manually ignore a movement (`ignored`). | P1 |
+| RF-10 | The user can manually ignore a movement (`ignored`). Ignored movements are listed in a dedicated section of the results view and can be restored (un-ignored) at any time. | P1 |
 | RF-11 | Created transactions carry an origin trace (tag or note: file + batch). | P1 |
 | RF-12 | The system handles multiple currencies: the statement currency must match the target account's, otherwise a blocking warning. | P1 |
 | RF-13 | The user can re-run a reconciliation on an existing batch. | P1 |
 | RF-14 | The system displays the transactions of a selected Firefly III account over a given period (min / max date). | P0 |
 | RF-15 | The system flags duplicates (several Firefly III transactions matching the same bank movement) and allows unit deletion with double confirmation; a JSON snapshot of the deleted transaction is kept for audit. | P0 |
-| RF-16 | The system refuses uploading a file whose name matches an existing batch: pre-check in the import wizard (inline error, no upload) and 409 Conflict from the backend. | P1 |
+| RF-16 | The system refuses uploading a file whose name matches an existing batch: the upload is refused with a clear error message before any data is stored. | P1 |
 | RF-17 | The user can delete an import in `parsed` status after explicit confirmation (recap: file name + movement count). Deletion removes the movements and the batch, is irreversible, and is refused for `reconciled`/`applied` batches. | P1 |
-| RF-18 | The user can resume an incomplete import: from the history, the wizard reopens directly at the reconciliation step (step 4) with the target batch preloaded. | P1 |
+| RF-18 | The user can resume an incomplete import: from the history, the wizard reopens at the first pending step (reconciliation), and the user can navigate back and forth between the wizard steps. | P1 |
+| RF-19 | The app settings allow configuring the Firefly III connection (URL and API token), verifying connectivity and saving it; this replaces environment-variable configuration and is required before first use. | P1 |
 
 > **Amendment (v0.4, 2026-08-28) — RF-12**: the statement currency is no longer manually selected at import. It is **derived from the Firefly III account selected** in the import wizard (the frontend transmits that currency to the backend; API contract unchanged). The blocking warning remains when switching to an account with a different currency during reconciliation or a re-run.
 
@@ -200,12 +205,20 @@ Special cases:
 > - When the CSV requires manual mapping (0 valid rows, no memorized or auto-detected mapping), the preview displays an explanatory message instead of an empty table.
 > - Mapping probes (headers-only batches with 0 movements, uploaded to detect the mapping) are automatically deleted before re-uploading the file with the confirmed mapping — no orphan batches.
 
+> **Amendment (v0.6, 2026-08-30) — new functionalities**:
+> - Resume of an incomplete import reopens the wizard at the first pending step (reconciliation) with free back/forward navigation between steps (RF-18).
+> - The target Firefly III account is selected at import time and pre-selected at reconciliation (CU-1, RF-04).
+> - Ignored movements are listed in a dedicated section of the results view and can be un-ignored (RF-10).
+> - Missing movements are editable before creation: description, category, budget, tags, attachment, notes — with lists of existing Firefly III categories, budgets and tags (RF-08).
+> - The Firefly III connection (URL + token) is configured in the app settings with a connectivity check, replacing environment-variable configuration (RF-19, NFR-02). TRD to be updated at implementation time.
+> - Technical details removed from this PRD (HTTP status codes etc.): they live in the TRD.
+
 ## 6. Non-functional requirements
 
 | ID | Requirement |
 |---|---|
 | NFR-01 | **Architecture**: standalone web app; Rust backend, React frontend, MySQL database. Deployable with Docker Compose. |
-| NFR-02 | **Security**: the Firefly III API token is stored backend-side only (environment variables / local vault), never exposed to the browser. No banking data is sent to a third-party service. |
+| NFR-02 | **Security**: the Firefly III connection (URL + API token) is configured in the app settings and stored backend-side only (never exposed to the browser). No banking data is sent to a third-party service. |
 | NFR-03 | **Privacy**: self-hosted only; no telemetry. |
 | NFR-04 | **Performance**: reconciliation of a 1,000-movement statement < 5 s (excluding Firefly III API latency). |
 | NFR-05 | **Reliability**: creations in Firefly III are idempotent per batch+movement (no double creation on retry). |
@@ -251,7 +264,7 @@ Technical details (data model, endpoints, Firefly III API integration) are descr
 | Accidental batch creation | Polluting Firefly III | Explicit confirmation, traceability (batch tag), never auto-create |
 | Accidental transaction deletion | Data loss in Firefly III | Double confirmation with recap, scope limited to transactions visible in context (reconciliation/period), JSON audit snapshot kept in database |
 | Compromised API token | Full access to Firefly III | Backend-only token, documented rotation |
-| Duplicate file names | Confusing import history, ambiguous resume | Unique file name among batches: client-side pre-check + backend 409 (RF-16) |
+| Duplicate file names | Confusing import history, ambiguous resume | Upload refused with an explicit error before any data is stored (RF-16) |
 
 ---
 
