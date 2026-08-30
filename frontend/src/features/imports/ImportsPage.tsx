@@ -1,19 +1,27 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useRerun } from '@/app/reconcileContext';
-import { getAccounts, getImports } from '@/shared/api/endpoints';
+import { getAccounts, getImports, deleteImport } from '@/shared/api/endpoints';
+import type { BatchSummary } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
-import { Eye, Repeat, RefreshCw } from 'lucide-react';
+import { Eye, Play, Repeat, RefreshCw, Trash2 } from 'lucide-react';
 import { usePageHeader } from '@/shared/ui/PageHeader';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { Pill, StatusPill } from '@/shared/ui/StatusPill';
 import { Table, Td, Tr } from '@/shared/ui/Table';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/shared/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { ImportWizard } from './wizard/ImportWizard';
 
@@ -28,6 +36,14 @@ export function ImportsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<BatchSummary | null>(null);
+  const del = useMutation({
+    mutationFn: () => deleteImport(deleteTarget!.id),
+    onSuccess: () => {
+      setDeleteTarget(null);
+      void refetch();
+    },
+  });
   const { data, isPending, isFetching, refetch } = useQuery({
     queryKey: queryKeys.imports,
     queryFn: getImports,
@@ -127,7 +143,17 @@ export function ImportsPage() {
           ]}
         >
           {rows.map((b) => (
-            <Tr key={b.id}>
+            <Tr
+              key={b.id}
+              className={b.status === 'parsed' ? 'bg-status-missing-bg/50' : undefined}
+              title={
+                b.status !== 'parsed'
+                  ? undefined
+                  : b.movements_count > 0
+                    ? t('imports.pendingReconcile')
+                    : t('imports.probeHint')
+              }
+            >
               <Td className="font-medium">{b.filename}</Td>
               <Td className="text-text-2">
                 {formatDate(b.created_at.slice(0, 10), i18n.language)}
@@ -147,32 +173,90 @@ export function ImportsPage() {
               </Td>
               <Td className="text-center">
                 <div className="flex items-center justify-center gap-1">
-                  {b.status !== 'parsed' && (
+                  {b.status === 'parsed' && b.movements_count > 0 && (
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      aria-label={t('imports.viewResults')}
-                      title={t('imports.viewResults')}
-                      onClick={() => navigate(`/results/${b.id}`)}
+                      aria-label={t('imports.resume')}
+                      title={t('imports.resume')}
+                      onClick={() => openRerun(b.id)}
                     >
-                      <Eye className="size-4" />
+                      <Play className="size-4" />
                     </Button>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t('imports.rerun')}
-                    title={t('imports.rerun')}
-                    onClick={() => openRerun(b.id)}
-                  >
-                    <Repeat className="size-4" />
-                  </Button>
+                  {b.status !== 'parsed' && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={t('imports.viewResults')}
+                        title={t('imports.viewResults')}
+                        onClick={() => navigate(`/results/${b.id}`)}
+                      >
+                        <Eye className="size-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={t('imports.rerun')}
+                        title={t('imports.rerun')}
+                        onClick={() => openRerun(b.id)}
+                      >
+                        <Repeat className="size-4" />
+                      </Button>
+                    </>
+                  )}
+                  {b.status === 'parsed' && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={t('imports.delete')}
+                      title={t('imports.delete')}
+                      className="text-destructive"
+                      onClick={() => setDeleteTarget(b)}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
                 </div>
               </Td>
             </Tr>
           ))}
         </Table>
       )}
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(o) => {
+          if (!o && !del.isPending) setDeleteTarget(null);
+        }}
+      >
+        <DialogContent showCloseButton={false} className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('imports.deleteTitle')}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-text-2">
+            {t('imports.deleteBody', {
+              filename: deleteTarget?.filename ?? '',
+              count: deleteTarget?.movements_count ?? 0,
+            })}
+          </p>
+          {del.isError && (
+            <p role="alert" className="text-sm text-destructive">
+              {(del.error as { message: string })?.message ?? t('common.error')}
+            </p>
+          )}
+          <div className="mt-2 flex justify-end gap-2">
+            <DialogClose asChild>
+              <Button variant="outline" disabled={del.isPending}>
+                {t('common.cancel')}
+              </Button>
+            </DialogClose>
+            <Button variant="destructive" disabled={del.isPending} onClick={() => del.mutate()}>
+              {t('common.confirm')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <ImportWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
     </div>
   );
