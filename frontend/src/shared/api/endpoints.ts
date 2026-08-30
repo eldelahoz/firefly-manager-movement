@@ -34,6 +34,8 @@ export const postIgnore = (batchId: number, movementId: number) =>
   );
 export const postApply = (batchId: number, body: ApplyRequest) =>
   api.post<ApplyResponse>(`/api/imports/${batchId}/apply`, body);
+export const deleteImport = (id: number) =>
+  api.del<{ id: number; status: 'deleted' }>(`/api/imports/${id}`);
 export const getAccounts = () => api.get<Ff3Account[]>('/api/firefly/accounts');
 export const postAccountTransactions = (id: string, start: string, end: string) =>
   api.post<Ff3TxDTO[]>(`/api/firefly/accounts/${id}/transactions`, { start, end });
