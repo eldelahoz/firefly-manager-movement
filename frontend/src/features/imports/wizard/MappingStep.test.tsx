@@ -35,7 +35,14 @@ test('next disabled until all columns chosen; PUT mapping then onMapped', async 
     }),
   );
   let mapped: unknown = null;
-  renderWithProviders(<MappingStep probe={probe} onMapped={(c) => (mapped = c)} />);
+  renderWithProviders(
+    <MappingStep
+      probe={probe}
+      onMapped={(c) => (mapped = c)}
+      onBack={() => {}}
+      onCancel={() => {}}
+    />,
+  );
   expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
   for (const [label, header] of [
     ['Date column', 'Date'],

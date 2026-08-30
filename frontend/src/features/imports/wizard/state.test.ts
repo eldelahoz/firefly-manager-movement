@@ -90,6 +90,23 @@ test('set account stores account and derived currency', () => {
   expect(s.currency).toBe('USD');
 });
 
+test('back from reconcile returns to mapping keeping probe', () => {
+  const s1 = wizardReducer(initialWizardState, { type: 'UPLOAD_SUCCESS', probe });
+  const s2 = wizardReducer(s1, { type: 'NEXT_FROM_PREVIEW' });
+  const s3 = wizardReducer(s2, { type: 'MAPPING_SUCCESS', probe: { ...probe, batch_id: 2 } });
+  const s4 = wizardReducer(s3, { type: 'BACK_FROM_RECONCILE' });
+  expect(s4.step).toBe('mapping');
+  expect(s4.probe).not.toBeNull();
+});
+
+test('back from mapping returns to preview', () => {
+  const s1 = wizardReducer(initialWizardState, { type: 'UPLOAD_SUCCESS', probe });
+  const s2 = wizardReducer(s1, { type: 'NEXT_FROM_PREVIEW' });
+  const s3 = wizardReducer(s2, { type: 'BACK_FROM_MAPPING' });
+  expect(s3.step).toBe('preview');
+  expect(s3.probe).not.toBeNull();
+});
+
 test('reset returns to initial', () => {
   const s = wizardReducer(initialWizardState, { type: 'RESET' });
   expect(s).toEqual(initialWizardState);
