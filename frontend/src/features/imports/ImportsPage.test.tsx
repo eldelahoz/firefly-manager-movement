@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, test } from 'vitest';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { setupServer } from 'msw/node';
 import { handlers } from '@/test/handlers';
@@ -23,9 +23,17 @@ test('search with no match shows empty state', async () => {
   expect(await screen.findByText('No imports yet')).toBeInTheDocument();
 });
 
-test('status chip filters parsed-only rows out', async () => {
+test('status select filters parsed-only rows out', async () => {
   renderWithProviders(<ImportsPage />);
   await screen.findByText('bank.csv');
-  await userEvent.click(screen.getByRole('button', { name: 'Parsed' }));
+  await userEvent.click(screen.getByRole('combobox', { name: 'Filter by status' }));
+  await userEvent.click(await screen.findByRole('option', { name: 'Parsed' }));
+  expect(await screen.findByText('No imports yet')).toBeInTheDocument();
+});
+
+test('date range filters out older rows', async () => {
+  renderWithProviders(<ImportsPage />);
+  await screen.findByText('bank.csv');
+  fireEvent.change(screen.getByLabelText('From'), { target: { value: '2026-08-21' } });
   expect(await screen.findByText('No imports yet')).toBeInTheDocument();
 });
