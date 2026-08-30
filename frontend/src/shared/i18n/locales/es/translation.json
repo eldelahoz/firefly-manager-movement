@@ -66,7 +66,14 @@
     "viewResults": "Ver resultados",
     "rerun": "Reejecutar conciliación",
     "probeHint": "sin movimientos (sonda de mapping)",
-    "empty": "Aún no hay importaciones"
+    "empty": "Aún no hay importaciones",
+    "duplicateFilename": "Ya existe una importación con este archivo. Elimínala o reanúdala desde la lista.",
+    "resume": "Reanudar",
+    "delete": "Eliminar",
+    "deleteTitle": "Eliminar importación",
+    "deleteBody": "¿Eliminar «{{filename}}» ({{count}} movimientos)? Esta acción no se puede deshacer.",
+    "pendingReconcile": "Importación incompleta: pendiente de conciliar (paso 4)",
+    "reconcileTitle": "Conciliar importación"
   },
   "wizard": {
     "stepTitle": "Nueva importación — Paso {{n}} de 4: {{step}}",
