@@ -1,5 +1,7 @@
 //! `MysqlMovementRepository` — implements `MovementRepository`.
 
+use std::collections::HashMap;
+
 use async_trait::async_trait;
 use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
@@ -58,6 +60,24 @@ impl MovementRepository for MysqlMovementRepository {
             .await
             .map(|v| v.into_iter().map(Into::into).collect())
             .map_err(|e| ApplicationError::Database(e.to_string()))
+    }
+
+    async fn count_by_batch(&self) -> Result<HashMap<BatchId, i64>, ApplicationError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| ApplicationError::Database(e.to_string()))?;
+        let ids = movements::table
+            .select(movements::batch_id)
+            .load::<i64>(&mut conn)
+            .await
+            .map_err(|e| ApplicationError::Database(e.to_string()))?;
+        let mut counts: HashMap<BatchId, i64> = HashMap::new();
+        for id in ids {
+            *counts.entry(BatchId::new(id)).or_insert(0) += 1;
+        }
+        Ok(counts)
     }
 
     async fn update_status(

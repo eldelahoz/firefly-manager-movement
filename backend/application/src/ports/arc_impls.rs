@@ -1,5 +1,6 @@
 //! Blanket impls so `Arc<dyn Trait>` can be used in use cases.
 
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -108,6 +109,9 @@ impl<T: MovementRepository + ?Sized> MovementRepository for Arc<T> {
     async fn by_batch(&self, batch_id: BatchId) -> Result<Vec<Movement>, ApplicationError> {
         self.as_ref().by_batch(batch_id).await
     }
+    async fn count_by_batch(&self) -> Result<HashMap<BatchId, i64>, ApplicationError> {
+        self.as_ref().count_by_batch().await
+    }
     async fn update_status(
         &self,
         id: MovementId,
@@ -176,6 +180,12 @@ impl<T: Ff3TransactionRepository + ?Sized> Ff3TransactionRepository for Arc<T> {
     ) -> Result<Option<Ff3Transaction>, ApplicationError> {
         self.as_ref().latest_by_ff3_id(ff3_id).await
     }
+    async fn latest_by_ff3_ids(
+        &self,
+        ff3_ids: &[i64],
+    ) -> Result<Vec<Ff3Transaction>, ApplicationError> {
+        self.as_ref().latest_by_ff3_ids(ff3_ids).await
+    }
 }
 
 #[async_trait]
@@ -188,6 +198,9 @@ impl<T: MatchRepository + ?Sized> MatchRepository for Arc<T> {
         reconciliation_id: ReconciliationId,
     ) -> Result<Vec<Match>, ApplicationError> {
         self.as_ref().by_reconciliation(reconciliation_id).await
+    }
+    async fn matched_ff3_ids(&self, ff3_ids: &[i64]) -> Result<HashSet<i64>, ApplicationError> {
+        self.as_ref().matched_ff3_ids(ff3_ids).await
     }
 }
 

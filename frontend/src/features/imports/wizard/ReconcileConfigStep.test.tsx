@@ -21,19 +21,26 @@ function props(over: Partial<Parameters<typeof ReconcileConfigStep>[0]> = {}) {
     onStart: () => {},
     onError: () => {},
     onDone: () => {},
+    onBack: () => {},
+    onCancel: () => {},
     ...over,
   };
 }
 
+async function pickAccount(name: string) {
+  await userEvent.click(await screen.findByLabelText('Firefly III account'));
+  await userEvent.click(await screen.findByRole('option', { name }));
+}
+
 test('currency mismatch shows blocking banner and disables finish', async () => {
   renderWithProviders(<ReconcileConfigStep {...props()} />);
-  await userEvent.selectOptions(await screen.findByLabelText('Firefly III account'), '2');
+  await pickAccount('Savings USD (USD)');
   expect(
     await screen.findByText(
       'Currency mismatch between the batch (EUR) and the selected account (USD)',
     ),
   ).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Finish' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Reconcile' })).toBeDisabled();
 });
 
 test('happy path posts reconcile with computed window and calls onDone', async () => {
@@ -56,9 +63,9 @@ test('happy path posts reconcile with computed window and calls onDone', async (
   );
   let done = 0;
   renderWithProviders(<ReconcileConfigStep {...props({ onDone: () => (done += 1) })} />);
-  await userEvent.selectOptions(await screen.findByLabelText('Firefly III account'), '1');
+  await pickAccount('Checking (EUR)');
   await userEvent.click(screen.getByRole('button', { name: '0' }));
-  const finish = await screen.findByRole('button', { name: 'Finish' });
+  const finish = await screen.findByRole('button', { name: 'Reconcile' });
   await waitFor(() => expect(finish).toBeEnabled());
   await userEvent.click(finish);
   await waitFor(() => expect(done).toBe(1));
@@ -67,8 +74,8 @@ test('happy path posts reconcile with computed window and calls onDone', async (
 
 test('initialAccountId preselects the account', async () => {
   renderWithProviders(<ReconcileConfigStep {...props({ initialAccountId: '1' })} />);
-  const select = (await screen.findByLabelText('Firefly III account')) as HTMLSelectElement;
-  expect(select.value).toBe('1');
+  const trigger = await screen.findByLabelText('Firefly III account');
+  expect(trigger).toHaveTextContent('Checking (EUR)');
 });
 
 function ErrorHarness() {
@@ -83,8 +90,8 @@ test('400 from reconcile surfaces error banner', async () => {
     ),
   );
   renderWithProviders(<ErrorHarness />);
-  await userEvent.selectOptions(await screen.findByLabelText('Firefly III account'), '1');
-  const finish = await screen.findByRole('button', { name: 'Finish' });
+  await pickAccount('Checking (EUR)');
+  const finish = await screen.findByRole('button', { name: 'Reconcile' });
   await waitFor(() => expect(finish).toBeEnabled());
   await userEvent.click(finish);
   expect(await screen.findByText('currency mismatch batch/account')).toBeInTheDocument();

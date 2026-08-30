@@ -89,6 +89,12 @@ impl Ff3TransactionRepository for FakeFf3TxRepo {
             .max_by_key(|t| t.id.as_i64())
             .cloned())
     }
+    async fn latest_by_ff3_ids(
+        &self,
+        _ff3_ids: &[i64],
+    ) -> Result<Vec<Ff3Transaction>, ApplicationError> {
+        unimplemented!()
+    }
 }
 
 #[derive(Default)]

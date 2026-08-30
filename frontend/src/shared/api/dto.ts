@@ -32,8 +32,11 @@ export interface BatchSummary {
   file_hash: string;
   format: string;
   currency: string;
-  status: 'parsed' | 'reconciled' | 'applied';
+  status: string;
   created_at: string;
+  account_id: number | null;
+  account_name: string | null;
+  movements_count: number;
 }
 
 export interface ImportDetail {
@@ -53,6 +56,7 @@ export interface Ff3TxDTO {
   date: string;
   amount_cents: number;
   description: string;
+  status?: 'matched' | 'duplicate' | 'extra' | null;
 }
 
 export interface Ff3CachedTxDTO {

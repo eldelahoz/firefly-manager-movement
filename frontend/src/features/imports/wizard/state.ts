@@ -30,6 +30,8 @@ export type WizardAction =
   | { type: 'UPLOAD_ERROR'; message: string }
   | { type: 'NEXT_FROM_PREVIEW' }
   | { type: 'MAPPING_SUCCESS'; probe: UploadResponse }
+  | { type: 'BACK_FROM_MAPPING' }
+  | { type: 'BACK_FROM_RECONCILE' }
   | { type: 'RECONCILE_START' }
   | { type: 'RECONCILE_SUCCESS'; batchId: number }
   | { type: 'RECONCILE_ERROR'; message: string }
@@ -49,6 +51,10 @@ export function wizardReducer(s: WizardState, a: WizardAction): WizardState {
       return { ...s, step: s.probe?.mapping_used ? 'reconcile-config' : 'mapping' };
     case 'MAPPING_SUCCESS':
       return { ...s, probe: a.probe, finalBatchId: a.probe.batch_id, step: 'reconcile-config' };
+    case 'BACK_FROM_MAPPING':
+      return { ...s, step: 'preview', error: null };
+    case 'BACK_FROM_RECONCILE':
+      return { ...s, step: 'mapping', error: null };
     case 'RECONCILE_START':
       return { ...s, step: 'submitting', error: null };
     case 'RECONCILE_SUCCESS':

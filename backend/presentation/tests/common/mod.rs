@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 //! Shared test fakes for presentation E2E tests.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use async_trait::async_trait;
 use chrono::{NaiveDate, NaiveDateTime};
@@ -441,6 +441,19 @@ impl Ff3TransactionRepository for FakeReconciliationStore {
             .rfind(|t| t.ff3_id == ff3_id)
             .cloned())
     }
+    async fn latest_by_ff3_ids(
+        &self,
+        ff3_ids: &[i64],
+    ) -> Result<Vec<Ff3Transaction>, ApplicationError> {
+        let rows = self.tx_rows.lock().unwrap();
+        let mut latest = std::collections::HashMap::new();
+        for t in rows.iter() {
+            if ff3_ids.contains(&t.ff3_id) {
+                latest.insert(t.ff3_id, t.clone());
+            }
+        }
+        Ok(latest.into_values().collect())
+    }
 }
 
 #[async_trait]
@@ -459,6 +472,20 @@ impl MatchRepository for FakeReconciliationStore {
             .iter()
             .filter(|m| m.reconciliation_id == reconciliation_id)
             .cloned()
+            .collect())
+    }
+    async fn matched_ff3_ids(&self, ff3_ids: &[i64]) -> Result<HashSet<i64>, ApplicationError> {
+        let rows = self.tx_rows.lock().unwrap();
+        let local_to_ff3: HashMap<i64, i64> =
+            rows.iter().map(|t| (t.id.as_i64(), t.ff3_id)).collect();
+        let wanted: HashSet<i64> = ff3_ids.iter().copied().collect();
+        Ok(self
+            .match_rows
+            .lock()
+            .unwrap()
+            .iter()
+            .filter_map(|m| local_to_ff3.get(&m.ff3_transaction_id.as_i64()).copied())
+            .filter(|ff3_id| wanted.contains(ff3_id))
             .collect())
     }
 }

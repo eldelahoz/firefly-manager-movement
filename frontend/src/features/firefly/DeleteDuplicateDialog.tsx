@@ -7,6 +7,7 @@ import { ApiError } from '@/shared/api/client';
 import { deleteTransaction } from '@/shared/api/endpoints';
 import { formatDate } from '@/shared/lib/dates';
 import { Button } from '@/shared/ui/button';
+import { Dialog, DialogContent, DialogTitle } from '@/shared/ui/dialog';
 import { MoneyText } from '@/shared/ui/MoneyText';
 
 export function DeleteDuplicateDialog({
@@ -36,14 +37,14 @@ export function DeleteDuplicateDialog({
   });
   if (!tx) return null;
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('deleteDialog.title')}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    <Dialog
+      open
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
     >
-      <div className="w-full max-w-md rounded-lg bg-surface p-6 shadow-lg">
-        <h2 className="text-base font-semibold text-destructive">{t('deleteDialog.title')}</h2>
+      <DialogContent showCloseButton={false} className="sm:max-w-md">
+        <DialogTitle className="text-base text-destructive">{t('deleteDialog.title')}</DialogTitle>
         {!confirmed ? (
           <>
             <p className="mt-2 text-sm text-text-2">{t('deleteDialog.recap')}</p>
@@ -95,7 +96,7 @@ export function DeleteDuplicateDialog({
             </div>
           </>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -40,12 +40,9 @@ function makeCsv() {
 }
 
 async function upload(file: File) {
-  await screen.findByText('Checking (EUR)');
-  await userEvent.selectOptions(screen.getByLabelText('Firefly III account'), '1');
-  const drop = screen.getByText('Drop your CSV here or click to browse');
-  const input = drop.parentElement!.parentElement!.querySelector(
-    'input[type="file"]',
-  ) as HTMLInputElement;
+  await userEvent.click(await screen.findByLabelText('Firefly III account'));
+  await userEvent.click(await screen.findByRole('option', { name: 'Checking (EUR)' }));
+  const input = document.querySelector('input[type="file"]') as HTMLInputElement;
   await userEvent.upload(input, file);
 }
 
@@ -74,4 +71,16 @@ test('oversize file shows inline error without upload', async () => {
   const big = new File([new ArrayBuffer(10 * 1024 * 1024 + 1)], 'big.csv');
   await upload(big);
   expect(await screen.findByText('File too large (max 10 MB)')).toBeInTheDocument();
+});
+
+test('parse error shows banner and reset dropzone', async () => {
+  server.use(
+    http.post('/api/imports', () =>
+      HttpResponse.json({ error: 'Could not parse OFX: malformed header' }, { status: 400 }),
+    ),
+  );
+  renderWithProviders(<ImportWizard open onClose={() => {}} />);
+  await upload(makeCsv());
+  expect(await screen.findByText('Could not parse OFX: malformed header')).toBeInTheDocument();
+  expect(screen.getByText('Try another file?')).toBeInTheDocument();
 });
