@@ -2,7 +2,7 @@ import { useReducer } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { getAccounts, uploadCsv } from '@/shared/api/endpoints';
+import { getAccounts, getImports, uploadCsv, deleteImport } from '@/shared/api/endpoints';
 import type { UploadResponse } from '@/shared/api/dto';
 import { queryKeys } from '@/shared/lib/keys';
 import { Dialog } from '@/shared/ui/dialog';
@@ -24,6 +24,11 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
     queryKey: queryKeys.accounts,
     queryFn: getAccounts,
     staleTime: 300_000,
+  });
+  const imports = useQuery({
+    queryKey: queryKeys.imports,
+    queryFn: getImports,
+    staleTime: 30_000,
   });
   const upload = useMutation({
     mutationFn: (args: { file: File; currency: string; columns?: Record<string, string> }) =>
@@ -71,6 +76,13 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
             accountId={state.accountId}
             onAccount={(id, currency) => dispatch({ type: 'SET_ACCOUNT', accountId: id, currency })}
             onFile={(file) => {
+              const dup = (imports.data ?? []).some(
+                (b) => b.filename.toLowerCase() === file.name.toLowerCase(),
+              );
+              if (dup) {
+                dispatch({ type: 'UPLOAD_ERROR', message: t('imports.duplicateFilename') });
+                return;
+              }
               dispatch({ type: 'UPLOAD_START', file });
               upload.mutate({ file, currency: state.currency });
             }}
@@ -105,7 +117,15 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
         {state.step === 'mapping' && state.probe && state.file && (
           <MappingStep
             probe={state.probe}
-            onMapped={(columns) =>
+            onMapped={async (columns) => {
+              const probeId = state.probe?.batch_id;
+              if (probeId == null) return;
+              try {
+                await deleteImport(probeId);
+              } catch (e) {
+                dispatch({ type: 'UPLOAD_ERROR', message: (e as { message: string }).message });
+                return;
+              }
               upload.mutate(
                 { file: state.file!, currency: state.currency, columns },
                 {
@@ -114,8 +134,8 @@ export function ImportWizard({ open, onClose }: { open: boolean; onClose: () => 
                     void qc.invalidateQueries({ queryKey: queryKeys.imports });
                   },
                 },
-              )
-            }
+              );
+            }}
             onBack={() => dispatch({ type: 'BACK_FROM_MAPPING' })}
             onCancel={onClose}
           />
