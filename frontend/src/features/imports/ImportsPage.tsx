@@ -9,13 +9,12 @@ import { queryKeys } from '@/shared/lib/keys';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
-import { Eye, Info, Repeat, RefreshCw } from 'lucide-react';
+import { Eye, Repeat, RefreshCw } from 'lucide-react';
 import { usePageHeader } from '@/shared/ui/PageHeader';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { Pill, StatusPill } from '@/shared/ui/StatusPill';
 import { Table, Td, Tr } from '@/shared/ui/Table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { BatchDrawer } from './BatchDrawer';
 import { ImportWizard } from './wizard/ImportWizard';
 
 const STATUSES = ['parsed', 'reconciled', 'applied'] as const;
@@ -28,7 +27,6 @@ export function ImportsPage() {
   const [statusFilter, setStatusFilter] = useState<(typeof STATUSES)[number] | 'all'>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [drawerId, setDrawerId] = useState<number | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const { data, isPending, isFetching, refetch } = useQuery({
     queryKey: queryKeys.imports,
@@ -120,9 +118,9 @@ export function ImportsPage() {
             t('imports.createdAt'),
             t('imports.format'),
             t('imports.currency'),
-            t('imports.status'),
             t('imports.matchedAccount'),
             t('imports.movements'),
+            t('imports.status'),
             <span key="actions" className="block text-center">
               {t('imports.actions')}
             </span>,
@@ -138,15 +136,15 @@ export function ImportsPage() {
                 <Pill>{b.format}</Pill>
               </Td>
               <Td>{b.currency}</Td>
-              <Td>
-                <StatusPill status={b.status} />
-              </Td>
               <Td className="text-text-2">
                 {b.account_id != null
                   ? `${b.account_name ?? accountNameById.get(b.account_id) ?? String(b.account_id)} (${b.account_id})`
                   : '—'}
               </Td>
               <Td className="text-text-2">{b.movements_count}</Td>
+              <Td>
+                <StatusPill status={b.status} />
+              </Td>
               <Td className="text-center">
                 <div className="flex items-center justify-center gap-1">
                   {b.status !== 'parsed' && (
@@ -169,22 +167,12 @@ export function ImportsPage() {
                   >
                     <Repeat className="size-4" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t('imports.detail')}
-                    title={t('imports.detail')}
-                    onClick={() => setDrawerId(b.id)}
-                  >
-                    <Info className="size-4" />
-                  </Button>
                 </div>
               </Td>
             </Tr>
           ))}
         </Table>
       )}
-      <BatchDrawer batchId={drawerId} onClose={() => setDrawerId(null)} />
       <ImportWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
     </div>
   );
