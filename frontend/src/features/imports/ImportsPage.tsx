@@ -30,6 +30,7 @@ export function ImportsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [resumeBatchId, setResumeBatchId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BatchSummary | null>(null);
   const del = useMutation({
     mutationFn: () => deleteImport(deleteTarget!.id),
@@ -173,7 +174,10 @@ export function ImportsPage() {
                       size="icon-sm"
                       aria-label={t('imports.resume')}
                       title={t('imports.resume')}
-                      onClick={() => openRerun(b.id)}
+                      onClick={() => {
+                        setResumeBatchId(b.id);
+                        setWizardOpen(true);
+                      }}
                     >
                       <Play className="size-4" />
                     </Button>
@@ -251,7 +255,16 @@ export function ImportsPage() {
           </div>
         </DialogContent>
       </Dialog>
-      <ImportWizard open={wizardOpen} onClose={() => setWizardOpen(false)} />
+      {wizardOpen && (
+        <ImportWizard
+          open
+          onClose={() => {
+            setResumeBatchId(null);
+            setWizardOpen(false);
+          }}
+          resumeBatchId={resumeBatchId}
+        />
+      )}
     </div>
   );
 }

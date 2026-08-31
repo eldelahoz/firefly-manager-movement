@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, expect, test } from 'vitest';
+import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { setupServer } from 'msw/node';
@@ -9,6 +9,7 @@ import { ImportsPage } from './ImportsPage';
 
 const server = setupServer(...handlers);
 beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 const parsedImports = [
@@ -78,6 +79,15 @@ test('parsed rows show resume (with movements) and delete actions', async () => 
   expect(screen.queryByTitle('Re-run reconciliation')).not.toBeInTheDocument();
 });
 
+test('clicking resume opens wizard at the reconcile-config step', async () => {
+  server.use(http.get('/api/imports', () => HttpResponse.json(parsedImports)));
+  renderWithProviders(<ImportsPage />);
+  await screen.findByText('pending.csv');
+  await userEvent.click(screen.getByRole('button', { name: 'Resume' }));
+  expect(await screen.findByText('Firefly III account')).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'Reconcile' })).toBeInTheDocument();
+});
+
 test('delete parsed import asks confirmation and removes row', async () => {
   let current = parsedImports;
   let deleted = 0;
@@ -93,10 +103,19 @@ test('delete parsed import asks confirmation and removes row', async () => {
   await screen.findByText('pending.csv');
   await userEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
   expect(await screen.findByText('Delete import')).toBeInTheDocument();
-  // filename appears in both the table row and the confirm dialog body
   expect(screen.getAllByText(/pending.csv/).length).toBeGreaterThanOrEqual(2);
   await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
   await waitFor(() => expect(deleted).toBe(1));
   expect(await screen.findByText('stub.csv')).toBeInTheDocument();
   expect(screen.queryByText('pending.csv')).not.toBeInTheDocument();
+});
+
+test('wizard resets to step 1 on close and reopen', async () => {
+  renderWithProviders(<ImportsPage />);
+  await screen.findByText('bank.csv');
+  await userEvent.click(screen.getByRole('button', { name: 'New import' }));
+  expect(await screen.findByText('Drag CSV or OFX here')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  await userEvent.click(screen.getByRole('button', { name: 'New import' }));
+  expect(await screen.findByText('Drag CSV or OFX here')).toBeInTheDocument();
 });
