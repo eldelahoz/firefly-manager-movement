@@ -626,7 +626,7 @@ async fn apply_retry_creates_nothing_nfr05() {
     assert_eq!(result.created_count, 0);
     assert_eq!(result.already_created_count, 2);
     assert_eq!(result.failed_count, 0);
-    // 0 double creations — same FF3 call count (NFR-05).
+    // 0 double creations - same FF3 call count (NFR-05).
     assert_eq!(f.firefly.calls().len(), 2);
     // No extra run persisted for a pure no-op retry.
     assert_eq!(f.runs.saved_runs().len(), 1);

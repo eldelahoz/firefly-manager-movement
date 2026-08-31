@@ -343,7 +343,7 @@ async fn latest_by_ff3_id_returns_most_recent_cached_row() {
     reconciliations.save_run(mk_run(1)).await.expect("run 1");
     reconciliations.save_run(mk_run(2)).await.expect("run 2");
 
-    // Two cached rows for ff3_id 777 — the latest (second run) wins.
+    // Two cached rows for ff3_id 777 - the latest (second run) wins.
     let latest = transactions
         .latest_by_ff3_id(777)
         .await

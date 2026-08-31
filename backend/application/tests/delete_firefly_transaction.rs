@@ -81,7 +81,7 @@ impl Ff3TransactionRepository for FakeFf3TxRepo {
         &self,
         ff3_id: i64,
     ) -> Result<Option<Ff3Transaction>, ApplicationError> {
-        // Later rows (higher local id) win — "latest" cached copy.
+        // Later rows (higher local id) win - "latest" cached copy.
         Ok(self
             .rows
             .iter()
