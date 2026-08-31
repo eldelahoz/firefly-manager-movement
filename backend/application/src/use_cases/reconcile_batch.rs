@@ -116,7 +116,7 @@ where
                 ))
             })?;
 
-        // Currency check (RF-12) — blocking.
+        // Currency check (RF-12) - blocking.
         if !batch
             .currency
             .trim()

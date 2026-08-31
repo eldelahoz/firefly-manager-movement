@@ -1,4 +1,4 @@
-//! `MysqlMatchRepository` — implements `MatchRepository`.
+//! `MysqlMatchRepository` - implements `MatchRepository`.
 //! The module is named `match_repo` because `match` is a reserved keyword.
 
 use std::collections::HashSet;

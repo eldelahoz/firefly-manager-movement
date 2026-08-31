@@ -1,4 +1,4 @@
-//! Embedded migrations — run at backend startup (no `diesel_cli` needed at runtime).
+//! Embedded migrations - run at backend startup (no `diesel_cli` needed at runtime).
 
 use diesel_async::AsyncMigrationHarness;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};

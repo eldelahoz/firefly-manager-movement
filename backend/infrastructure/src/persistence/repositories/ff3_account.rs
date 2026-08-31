@@ -1,4 +1,4 @@
-//! `MysqlFf3AccountRepository` — implements `Ff3AccountRepository`.
+//! `MysqlFf3AccountRepository` - implements `Ff3AccountRepository`.
 //! The upsert uses raw SQL with `ON DUPLICATE KEY UPDATE` (MySQL has no
 //! Postgres `ON CONFLICT`). The `type` column is named `type_` in diesel.
 

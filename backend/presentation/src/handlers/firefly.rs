@@ -43,7 +43,7 @@ pub struct FireflyTransactionResponse {
     pub amount_cents: i64,
     pub description: String,
     /// Reconciliation status from the local run cache:
-    /// `matched`, `duplicate`, `extra` — or absent when the transaction
+    /// `matched`, `duplicate`, `extra` - or absent when the transaction
     /// was never seen in a reconciliation.
     #[schema(example = "matched")]
     pub status: Option<String>,
@@ -110,7 +110,7 @@ pub async fn account_transactions_fallback(
         return (
             StatusCode::METHOD_NOT_ALLOWED,
             Json(crate::error::ErrorBody {
-                error: "method not allowed — use POST or QUERY".into(),
+                error: "method not allowed - use POST or QUERY".into(),
             }),
         )
             .into_response();
