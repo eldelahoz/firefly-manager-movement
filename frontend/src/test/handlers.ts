@@ -14,6 +14,9 @@ export const fixtures = {
       currency: 'EUR',
       status: 'reconciled',
       created_at: '2026-08-20T10:00:00Z',
+      account_id: null,
+      account_name: null,
+      movements_count: 2,
     },
   ],
   results: {
