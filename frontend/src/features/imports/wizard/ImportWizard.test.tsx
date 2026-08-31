@@ -1,12 +1,12 @@
 import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
 import { fixtures, handlers } from '@/test/handlers';
 import { renderWithProviders } from '@/test/utils';
 import { ImportWizard } from './ImportWizard';
-import type { UploadResponse } from '@/shared/api/dto';
+import type { ImportDetail, UploadResponse } from '@/shared/api/dto';
 
 const server = setupServer(...handlers);
 beforeAll(() => server.listen());
@@ -67,6 +67,9 @@ test('unknown mapping: preview then mapping step', async () => {
   );
   renderWithProviders(<ImportWizard open onClose={() => {}} />);
   await upload(makeCsv());
+  await screen.findByText(
+    'We could not detect the columns automatically. Configure them in the next step to see the rows.',
+  );
   await screen.findByRole('button', { name: 'Next' });
   await userEvent.click(screen.getByRole('button', { name: 'Next' }));
   expect(await screen.findByLabelText('Date column')).toBeInTheDocument();
@@ -139,4 +142,123 @@ test('mapping confirm deletes probe batch before re-upload', async () => {
   await userEvent.click(await screen.findByRole('option', { name: 'Libelle' }));
   await userEvent.click(screen.getByRole('button', { name: 'Next' })); // confirm mapping
   await waitFor(() => expect(calls).toEqual(['POST', 'DELETE:1', 'POST']));
+});
+
+test('drop fires upload and shows preview rows (parity with picker)', async () => {
+  server.use(
+    http.get('/api/imports', () => HttpResponse.json([])),
+    http.post('/api/imports', () => HttpResponse.json(knownMapping)),
+  );
+  renderWithProviders(<ImportWizard open onClose={() => {}} />);
+  await userEvent.click(await screen.findByLabelText('Firefly III account'));
+  await userEvent.click(await screen.findByRole('option', { name: 'Checking (EUR)' }));
+  const dropzone = screen
+    .getByText('Drag CSV or OFX here')
+    .closest('[role="button"]') as HTMLElement;
+  fireEvent.drop(dropzone, { dataTransfer: { files: [makeCsv()] } });
+  expect(
+    await screen.findByText('auto-applied (saved mapping / auto-detected)'),
+  ).toBeInTheDocument();
+});
+
+test('resumeBatchId initializes wizard at reconcile-config step', async () => {
+  renderWithProviders(<ImportWizard open onClose={() => {}} resumeBatchId={3} />);
+  expect(await screen.findByText('Firefly III account')).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'Reconcile' })).toBeInTheDocument();
+});
+
+test('resume: back from reconcile-config navigates to preview (not close)', async () => {
+  let closed = false;
+  const resumeDetail: ImportDetail = {
+    batch: {
+      id: 5,
+      filename: 'may.csv',
+      file_hash: 'h5',
+      format: 'csv',
+      currency: 'EUR',
+      status: 'parsed',
+      created_at: '2026-08-20T10:00:00Z',
+      account_id: 1,
+      account_name: 'Checking',
+      movements_count: 2,
+    },
+    movements: [
+      {
+        id: 20,
+        line_no: 1,
+        date: '2026-05-01',
+        amount_cents: -1500,
+        description: 'Rent',
+        status: 'imported',
+      },
+      {
+        id: 21,
+        line_no: 2,
+        date: '2026-05-03',
+        amount_cents: 30000,
+        description: 'Salary',
+        status: 'imported',
+      },
+    ],
+  };
+  server.use(http.get('/api/imports/:id', () => HttpResponse.json(resumeDetail)));
+  renderWithProviders(
+    <ImportWizard
+      open
+      onClose={() => {
+        closed = true;
+      }}
+      resumeBatchId={5}
+    />,
+  );
+  expect(await screen.findByText('Firefly III account')).toBeInTheDocument();
+  const backBtn = await screen.findByRole('button', { name: 'Back' });
+  await userEvent.click(backBtn);
+  expect(closed).toBe(false);
+  expect(await screen.findByText('2 valid rows')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
+});
+
+test('resume: back from reconcile-config with null mapping_used navigates to preview', async () => {
+  let closed = false;
+  const resumeDetailNoMapping: ImportDetail = {
+    batch: {
+      id: 6,
+      filename: 'jun.csv',
+      file_hash: 'h6',
+      format: 'csv',
+      currency: 'EUR',
+      status: 'parsed',
+      created_at: '2026-08-20T10:00:00Z',
+      account_id: 1,
+      account_name: 'Checking',
+      movements_count: 1,
+    },
+    movements: [
+      {
+        id: 30,
+        line_no: 1,
+        date: '2026-06-01',
+        amount_cents: -500,
+        description: 'Groceries',
+        status: 'imported',
+      },
+    ],
+  };
+  server.use(http.get('/api/imports/:id', () => HttpResponse.json(resumeDetailNoMapping)));
+  renderWithProviders(
+    <ImportWizard
+      open
+      onClose={() => {
+        closed = true;
+      }}
+      resumeBatchId={6}
+    />,
+  );
+  expect(await screen.findByText('Firefly III account')).toBeInTheDocument();
+  const backBtn = await screen.findByRole('button', { name: 'Back' });
+  await userEvent.click(backBtn);
+  expect(closed).toBe(false);
+  expect(await screen.findByText('1 valid rows')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
 });

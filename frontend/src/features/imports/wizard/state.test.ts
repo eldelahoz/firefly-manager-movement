@@ -91,7 +91,11 @@ test('set account stores account and derived currency', () => {
 });
 
 test('back from reconcile returns to mapping keeping probe', () => {
-  const s1 = wizardReducer(initialWizardState, { type: 'UPLOAD_SUCCESS', probe });
+  const s0 = wizardReducer(initialWizardState, {
+    type: 'UPLOAD_START',
+    file: new File([''], 'test.csv'),
+  });
+  const s1 = wizardReducer(s0, { type: 'UPLOAD_SUCCESS', probe });
   const s2 = wizardReducer(s1, { type: 'NEXT_FROM_PREVIEW' });
   const s3 = wizardReducer(s2, { type: 'MAPPING_SUCCESS', probe: { ...probe, batch_id: 2 } });
   const s4 = wizardReducer(s3, { type: 'BACK_FROM_RECONCILE' });
