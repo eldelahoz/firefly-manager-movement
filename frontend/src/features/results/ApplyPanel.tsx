@@ -71,7 +71,7 @@ export function ApplyPanel({
       >
         <SheetHeader className="p-0">
           <SheetTitle>
-            {t('results.apply')} — {selected.length}
+            {t('results.apply')} - {selected.length}
           </SheetTitle>
         </SheetHeader>
         <div>

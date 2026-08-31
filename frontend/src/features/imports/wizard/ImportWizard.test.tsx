@@ -111,7 +111,7 @@ test('duplicate filename is blocked before upload', async () => {
   renderWithProviders(<ImportWizard open onClose={() => {}} />);
   await screen.findByLabelText('Firefly III account');
   await waitFor(() => expect(importsFetched).toBe(true));
-  await upload(makeCsv()); // filename 'bank.csv' — already in fixtures.imports
+  await upload(makeCsv()); // filename 'bank.csv' - already in fixtures.imports
   expect(await screen.findByText(/already exists/i)).toBeInTheDocument();
   expect(posted).toBe(false);
 });

@@ -1,5 +1,5 @@
 //! Domain entities (POD structs).
-//! No serde or diesel derives — those are infrastructure details.
+//! No serde or diesel derives - those are infrastructure details.
 //! One file per aggregate, re-exported here so the public path stays
 //! `ffm_domain::entities::*`.
 

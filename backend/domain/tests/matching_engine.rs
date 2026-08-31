@@ -1,4 +1,4 @@
-//! Matching engine unit tests (moved out of src/ — see tests/ folder convention).
+//! Matching engine unit tests (moved out of src/ - see tests/ folder convention).
 
 use chrono::{NaiveDate, NaiveDateTime};
 

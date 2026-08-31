@@ -77,7 +77,7 @@ export function PreviewStep({
             <ul className="mt-2 space-y-1">
               {probe.invalid.map((r) => (
                 <li key={r.line_no} className="text-xs text-text-2">
-                  #{r.line_no} — {r.reason}
+                  #{r.line_no} - {r.reason}
                 </li>
               ))}
             </ul>

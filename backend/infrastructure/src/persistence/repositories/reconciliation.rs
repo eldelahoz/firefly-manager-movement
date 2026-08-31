@@ -1,4 +1,4 @@
-//! `MysqlReconciliationRepository` — implements `ReconciliationRepository`.
+//! `MysqlReconciliationRepository` - implements `ReconciliationRepository`.
 
 use std::collections::HashMap;
 

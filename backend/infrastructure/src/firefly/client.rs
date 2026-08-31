@@ -1,4 +1,4 @@
-//! `ReqwestFireflyClient` — Firefly III API v1 adapter.
+//! `ReqwestFireflyClient` - Firefly III API v1 adapter.
 
 use async_trait::async_trait;
 use chrono::NaiveDate;

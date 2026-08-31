@@ -1,4 +1,4 @@
-//! `EncodingCsvDecoder` — decodes raw bytes to a UTF-8 string.
+//! `EncodingCsvDecoder` - decodes raw bytes to a UTF-8 string.
 //!
 //! Detection strategy:
 //! 1. BOM present → decode with the BOM's encoding (UTF-8, UTF-16LE, UTF-16BE).

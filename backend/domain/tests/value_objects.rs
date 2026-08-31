@@ -1,4 +1,4 @@
-//! Value object unit tests (moved out of src/ — see tests/ folder convention).
+//! Value object unit tests (moved out of src/ - see tests/ folder convention).
 
 use std::str::FromStr;
 
@@ -107,7 +107,7 @@ fn parse_preserves_sign_and_sens() {
 
 #[test]
 fn parse_api_str_ff3_precision() {
-    // FF3 devuelve precisión arbitraria (12 decimales) — regresión del bug real.
+    // FF3 devuelve precisión arbitraria (12 decimales) - regresión del bug real.
     assert_eq!(
         AmountCents::from_api_str("1000.000000000000").map(|a| a.as_i64()),
         Ok(100_000) // = 1000.00

@@ -77,7 +77,7 @@
     "reconcileTitle": "Conciliar importación"
   },
   "wizard": {
-    "stepTitle": "Nueva importación — Paso {{n}} de 4: {{step}}",
+    "stepTitle": "Nueva importación - Paso {{n}} de 4: {{step}}",
     "steps": {
       "upload": "Carga",
       "preview": "Vista previa",

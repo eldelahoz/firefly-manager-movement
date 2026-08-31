@@ -1,4 +1,4 @@
-//! `MysqlMovementRepository` — implements `MovementRepository`.
+//! `MysqlMovementRepository` - implements `MovementRepository`.
 
 use std::collections::HashMap;
 

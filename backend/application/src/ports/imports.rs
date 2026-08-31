@@ -63,7 +63,7 @@ pub trait CsvMappingRepository: Send + Sync {
     async fn upsert(&self, mapping: NewCsvMapping) -> Result<CsvMappingId, ApplicationError>;
 }
 
-/// File decoder (encoding + delimiter) — infra detail.
+/// File decoder (encoding + delimiter) - infra detail.
 #[async_trait]
 pub trait CsvDecoder: Send + Sync {
     async fn decode(&self, bytes: Vec<u8>) -> Result<String, ApplicationError>;

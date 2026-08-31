@@ -1,11 +1,12 @@
 .env
 
-# Obsidian vault over docs/ — everything under docs/.obsidian/ is ignored
+# Obsidian vault over docs/ - everything under docs/.obsidian/ is ignored
 # except the curated config whitelisted below (volatile files stay local).
 docs/.obsidian/**
 !docs/.obsidian/app.json
 !docs/.obsidian/appearance.json
 !docs/.obsidian/core-plugins.json
+!docs/.obsidian/community-plugins.json
 !docs/.obsidian/snippets/
 docs/.obsidian/snippets/**
 !docs/.obsidian/snippets/docs-reading.css

@@ -1,4 +1,4 @@
-//! `MysqlCsvMappingRepository` — implements `CsvMappingRepository`.
+//! `MysqlCsvMappingRepository` - implements `CsvMappingRepository`.
 //! Upsert by `header_signature` (UNIQUE) with `ON DUPLICATE KEY UPDATE`;
 //! `LAST_INSERT_ID(id)` in the UPDATE keeps the row id accessible to a
 //! subsequent `LAST_INSERT_ID()` (whether it inserted or updated).
