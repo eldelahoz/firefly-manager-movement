@@ -99,6 +99,12 @@ impl<T: BatchRepository + ?Sized> BatchRepository for Arc<T> {
     ) -> Result<(), ApplicationError> {
         self.as_ref().update_account(id, account_id).await
     }
+    async fn find_by_filename(&self, filename: &str) -> Result<Vec<Batch>, ApplicationError> {
+        self.as_ref().find_by_filename(filename).await
+    }
+    async fn delete(&self, id: BatchId) -> Result<(), ApplicationError> {
+        self.as_ref().delete(id).await
+    }
 }
 
 #[async_trait]
@@ -118,6 +124,9 @@ impl<T: MovementRepository + ?Sized> MovementRepository for Arc<T> {
         status: MovementStatus,
     ) -> Result<(), ApplicationError> {
         self.as_ref().update_status(id, status).await
+    }
+    async fn delete_by_batch(&self, batch_id: BatchId) -> Result<(), ApplicationError> {
+        self.as_ref().delete_by_batch(batch_id).await
     }
 }
 

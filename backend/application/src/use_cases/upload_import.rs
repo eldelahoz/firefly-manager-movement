@@ -70,6 +70,14 @@ where
         &self,
         input: UploadImportInput,
     ) -> Result<UploadImportResult, ApplicationError> {
+        let existing = self.batches.find_by_filename(&input.filename).await?;
+        if !existing.is_empty() {
+            return Err(ApplicationError::Conflict(format!(
+                "ya existe un import con el archivo '{}'",
+                input.filename
+            )));
+        }
+
         let file_hash = compute_hash(&input.bytes);
 
         let content = self.decoder.decode(input.bytes).await?;

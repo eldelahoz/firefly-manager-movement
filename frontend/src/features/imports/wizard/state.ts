@@ -32,10 +32,18 @@ export type WizardAction =
   | { type: 'MAPPING_SUCCESS'; probe: UploadResponse }
   | { type: 'BACK_FROM_MAPPING' }
   | { type: 'BACK_FROM_RECONCILE' }
+  | { type: 'BACK_FROM_PREVIEW' }
   | { type: 'RECONCILE_START' }
   | { type: 'RECONCILE_SUCCESS'; batchId: number }
   | { type: 'RECONCILE_ERROR'; message: string }
-  | { type: 'RESET' };
+  | { type: 'RESET' }
+  | {
+      type: 'RESUME_INIT';
+      probe: UploadResponse;
+      accountId: string;
+      currency: string;
+      batchId: number;
+    };
 
 export function wizardReducer(s: WizardState, a: WizardAction): WizardState {
   switch (a.type) {
@@ -53,8 +61,26 @@ export function wizardReducer(s: WizardState, a: WizardAction): WizardState {
       return { ...s, probe: a.probe, finalBatchId: a.probe.batch_id, step: 'reconcile-config' };
     case 'BACK_FROM_MAPPING':
       return { ...s, step: 'preview', error: null };
+    case 'BACK_FROM_PREVIEW':
+      return {
+        ...s,
+        step: 'upload',
+        file: s.file,
+        accountId: s.accountId,
+        currency: s.currency,
+        error: null,
+      };
     case 'BACK_FROM_RECONCILE':
-      return { ...s, step: 'mapping', error: null };
+      return { ...s, step: s.file ? 'mapping' : 'preview', error: null };
+    case 'RESUME_INIT':
+      return {
+        ...s,
+        step: 'reconcile-config',
+        probe: a.probe,
+        accountId: a.accountId,
+        currency: a.currency,
+        finalBatchId: a.batchId,
+      };
     case 'RECONCILE_START':
       return { ...s, step: 'submitting', error: null };
     case 'RECONCILE_SUCCESS':

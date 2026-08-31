@@ -66,7 +66,15 @@
     "viewResults": "Voir les résultats",
     "rerun": "Relancer le rapprochement",
     "probeHint": "aucun mouvement (sonde de mapping)",
-    "empty": "Aucun import pour l'instant"
+    "empty": "Aucun import pour l'instant",
+    "duplicateFilename": "Un import avec ce nom de fichier existe déjà. Supprimez-le ou reprenez-le depuis la liste.",
+    "resume": "Reprendre",
+    "delete": "Supprimer",
+    "deleteTitle": "Supprimer l'import",
+    "deleteBody": "Supprimer « {{filename}} » ({{count}} mouvements) ? Cette action est irréversible.",
+    "needsMapping": "Impossible de détecter les colonnes automatiquement. Configurez-les à l'étape suivante pour voir les lignes.",
+    "pendingReconcile": "Import incomplet : rapprochement en attente (étape 4)",
+    "reconcileTitle": "Réconcilier l'import"
   },
   "wizard": {
     "stepTitle": "Nouvelle importation — Étape {{n}} sur 4 : {{step}}",
@@ -116,7 +124,8 @@
     "helperSelectAccount": "Sélectionnez un compte pour continuer",
     "helperMismatch": "Résolvez d'abord la différence de devise",
     "helperError": "Corrigez l'erreur avant de continuer",
-    "uploading": "Envoi en cours…"
+    "uploading": "Envoi en cours…",
+    "resumeAccountHint": "Compte sélectionné lors de l'importation (ne peut pas être modifié)"
   },
   "results": {
     "title": "Résultats",

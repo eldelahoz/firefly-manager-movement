@@ -14,6 +14,9 @@ export const fixtures = {
       currency: 'EUR',
       status: 'reconciled',
       created_at: '2026-08-20T10:00:00Z',
+      account_id: null,
+      account_name: null,
+      movements_count: 2,
     },
   ],
   results: {
@@ -108,5 +111,8 @@ export const handlers = [
   ),
   http.post('/api/imports/:id/movements/:mid/ignore', ({ params }) =>
     HttpResponse.json({ movement_id: Number(params.mid), status: 'ignored' }),
+  ),
+  http.delete('/api/imports/:id', ({ params }) =>
+    HttpResponse.json({ id: Number(params.id), status: 'deleted' }),
   ),
 ];

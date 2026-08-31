@@ -17,9 +17,10 @@ use crate::handlers::firefly::{
     __path_delete_transaction, __path_list_accounts, account_transactions,
     account_transactions_fallback, delete_transaction, list_accounts,
 };
+use crate::handlers::imports::__path_delete_import;
 use crate::handlers::imports::{__path_get_import, __path_list_imports, __path_save_mapping};
 use crate::handlers::imports::{__path_upload_import, upload_import};
-use crate::handlers::imports::{get_import, list_imports, save_mapping};
+use crate::handlers::imports::{delete_import, get_import, list_imports, save_mapping};
 use crate::handlers::reconcile::{__path_apply, __path_get_results, __path_ignore_movement};
 use crate::handlers::reconcile::{__path_reconcile, apply};
 use crate::handlers::reconcile::{get_results, ignore_movement, reconcile};
@@ -92,6 +93,7 @@ pub fn app(state: AppState) -> axum::Router {
         .routes(routes!(list_imports))
         .routes(routes!(get_import))
         .routes(routes!(save_mapping))
+        .routes(routes!(delete_import))
         .routes(routes!(reconcile))
         .routes(routes!(get_results))
         .routes(routes!(ignore_movement))

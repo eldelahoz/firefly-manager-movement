@@ -1,5 +1,6 @@
 pub mod apply_missing;
 pub mod delete_firefly_transaction;
+pub mod delete_import;
 pub mod get_account_transactions;
 pub mod get_import;
 pub mod get_results;

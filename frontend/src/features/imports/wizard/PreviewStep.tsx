@@ -34,6 +34,9 @@ export function PreviewStep({
         </span>
       </div>
       {probe.mapping_used && <p className="text-xs text-text-3">{t('wizard.autoApplied')}</p>}
+      {!probe.mapping_used && probe.valid_count === 0 && probe.invalid_count === 0 && (
+        <p className="mt-3 text-sm text-text-2">{t('imports.needsMapping')}</p>
+      )}
       {probe.valid.length > 0 && (
         <div className="mt-3 overflow-hidden rounded-lg border border-border-subtle">
           <table className="w-full text-sm">
