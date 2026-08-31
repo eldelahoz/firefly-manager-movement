@@ -72,6 +72,7 @@
     "delete": "Eliminar",
     "deleteTitle": "Eliminar importación",
     "deleteBody": "¿Eliminar «{{filename}}» ({{count}} movimientos)? Esta acción no se puede deshacer.",
+    "needsMapping": "No pudimos detectar las columnas automáticamente. Configúralas en el siguiente paso para ver las filas.",
     "pendingReconcile": "Importación incompleta: pendiente de conciliar (paso 4)",
     "reconcileTitle": "Conciliar importación"
   },
@@ -123,7 +124,8 @@
     "helperSelectAccount": "Selecciona una cuenta para continuar",
     "helperMismatch": "Resuelve el mismatch de moneda primero",
     "helperError": "Corrige el error antes de continuar",
-    "uploading": "Subiendo…"
+    "uploading": "Subiendo…",
+    "resumeAccountHint": "Cuenta seleccionada durante la importación (no se puede cambiar)"
   },
   "results": {
     "title": "Resultados",

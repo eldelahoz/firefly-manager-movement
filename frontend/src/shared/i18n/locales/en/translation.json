@@ -72,6 +72,7 @@
     "delete": "Delete",
     "deleteTitle": "Delete import",
     "deleteBody": "Delete \"{{filename}}\" ({{count}} movements)? This cannot be undone.",
+    "needsMapping": "We could not detect the columns automatically. Configure them in the next step to see the rows.",
     "pendingReconcile": "Incomplete import: pending reconciliation (step 4)",
     "reconcileTitle": "Reconcile import"
   },
@@ -123,7 +124,8 @@
     "helperSelectAccount": "Select an account to continue",
     "helperMismatch": "Resolve currency mismatch first",
     "helperError": "Resolve the error first",
-    "uploading": "Uploading…"
+    "uploading": "Uploading…",
+    "resumeAccountHint": "Account selected during import (cannot be changed)"
   },
   "results": {
     "title": "Results",

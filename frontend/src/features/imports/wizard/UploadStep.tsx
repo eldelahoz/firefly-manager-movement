@@ -154,8 +154,6 @@ export function UploadStep({
       <WizardFooter
         onCancel={onCancel}
         cancelLabel={t('common.cancel')}
-        onBack={() => {}}
-        backDisabled
         backLabel={t('common.back')}
         primaryLabel={t('common.next')}
         primaryDisabled
