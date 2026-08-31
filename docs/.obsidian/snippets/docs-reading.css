@@ -1,0 +1,4 @@
+/* docs/ vault reading polish (applied over the Minimal theme) */
+body {
+  --line-width: 44rem; /* ~704px readable measure */
+}

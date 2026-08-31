@@ -286,3 +286,13 @@ pnpm lint && pnpm test && pnpm build
 - **No comments unless necessary** — code should be self-documenting.
 - **Diesel migrations**: one migration per logical change, always include `up.sql` and `down.sql`.
 - **New repository?** Add it to `backend/infrastructure/src/persistence/repositories/mod.rs` and implement the corresponding port trait from `backend/application/src/ports/`.
+
+## Reading the Docs (Obsidian Vault)
+
+`docs/` doubles as an [Obsidian](https://obsidian.md) vault: *Open folder as vault* → select `docs/`.
+It ships a curated, committed configuration — Minimal theme (vendored, MIT © Steph Ango),
+reading view by default, readable line length (~704px).
+
+- **Committed (curated):** `docs/.obsidian/app.json`, `appearance.json`, `core-plugins.json`, `snippets/docs-reading.css`, `themes/Minimal/` (`theme.css`, `manifest.json`, `LICENSE`).
+- **Gitignored (volatile/personal):** everything else under `docs/.obsidian/` — `workspace.json`, `workspace-mobile.json`, plugins, caches, and any themes/snippets you add locally.
+- The docs remain plain Markdown: GitHub/VSCode rendering is unaffected, and agents (AGENTS.md) do not depend on Obsidian.
