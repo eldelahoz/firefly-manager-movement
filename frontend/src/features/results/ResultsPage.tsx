@@ -42,7 +42,7 @@ export function ResultsPage() {
   const headerTitle = useMemo(
     () => (
       <span className="truncate">
-        {t('results.title')} — {detail.data?.batch.filename ?? `#${id}`}
+        {t('results.title')} - {detail.data?.batch.filename ?? `#${id}`}
       </span>
     ),
     [t, id, detail.data?.batch.filename],
