@@ -1,4 +1,4 @@
-//! ffm-presentation — HTTP layer (axum + utoipa/Scalar).
+//! ffm-presentation - HTTP layer (axum + utoipa/Scalar).
 
 use axum::extract::State;
 use axum::response::Html;

@@ -1,6 +1,6 @@
 //! Application layer DTOs: creation types (inputs to the
 //! repositories) and Firefly III client DTOs (outputs of the
-//! `FireflyClient` port, external API shape — no local IDs).
+//! `FireflyClient` port, external API shape - no local IDs).
 //! One file per bounded context, re-exported here so the public path
 //! stays `ffm_application::dtos::*`.
 
