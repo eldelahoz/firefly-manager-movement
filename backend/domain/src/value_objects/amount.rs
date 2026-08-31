@@ -3,7 +3,7 @@ use std::str::FromStr;
 /// Monetary amount in signed cents.
 /// - Positive value = credit (deposit).
 /// - Negative value = debit (withdrawal).
-///   (TRD D2: signed BIGINT, sense derived from the sign — no Direction enum, no floats.)
+///   (TRD D2: signed BIGINT, sense derived from the sign - no Direction enum, no floats.)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AmountCents(i64);
 
@@ -35,7 +35,7 @@ impl AmountCents {
     /// Parses an FF3 API amount string (machine format) into signed cents.
     ///
     /// FF3 returns amounts with arbitrary decimal precision (e.g.
-    /// `"1000.000000000000"`), unlike CSV files — do not use [`FromStr`] here,
+    /// `"1000.000000000000"`), unlike CSV files - do not use [`FromStr`] here,
     /// its separator heuristics reject >3 decimal digits.
     ///
     /// Accepts: optional `-` sign, digits, optional `.` followed by any number

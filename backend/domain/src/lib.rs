@@ -1,4 +1,4 @@
-//! ffm-domain — domain entities and value objects.
+//! ffm-domain - domain entities and value objects.
 //! Only allowed external dependency: `chrono` (data type for dates).
 //! (Dependency Rule: no frameworks/serde/diesel enter here.)
 
