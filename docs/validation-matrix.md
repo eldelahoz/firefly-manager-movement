@@ -14,7 +14,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-01  CSV upload (max 10 MB); XLSX → CSV by user
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `upload_import.rs::upload_import_parses_valid_csv` | Valid CSV → batch + movements created |
 | **App** | `upload_import.rs::upload_import_keeps_invalid_lines` | Invalid lines reported, valid kept (also RF-03) |
 | **App** | `upload_import.rs::upload_import_computes_file_hash` | SHA-256 hash computed for dedup |
@@ -32,7 +32,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-02  CSV parsing with manual mapping; memorize by header signature
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `upload_import.rs::upload_import_no_mapping_returns_headers_only` | Unknown headers → batch created, 0 movements, headers returned |
 | **App** | `upload_import.rs::upload_import_uses_provided_mapping` | Explicit `ColumnMapping` used |
 | **App** | `upload_import.rs::upload_import_uses_saved_mapping_by_signature` | Header signature lookup → auto-apply saved mapping |
@@ -49,7 +49,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-03  Detect and report invalid lines without blocking; keep valid
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `upload_import.rs::upload_import_keeps_invalid_lines` | Bad date / bad amount → `invalid_count=2`, reasons contain "date"/"amount", valid lines still inserted |
 | **App** | `csv.rs` | Line-level error collection, partial success |
 | **Infra** | `csv_decoder.rs` | Row-level parse with error accumulation |
@@ -59,7 +59,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-04  List FF3 asset accounts; select target at import; pre-select at reconcile
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `get_account_transactions.rs` | `Ff3AccountRepository.all_asset()` returns cached accounts |
 | **Infra** | `ff3_account_repo.rs` | `Ff3AccountRepository` upsert + query |
 | **Infra** | `firefly_client.rs` | `asset_accounts()` calls `GET /api/v1/accounts?type=asset` |
@@ -73,7 +73,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-05  Fetch target account transactions via FF3 API over date window
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `reconcile_batch.rs::fixture_eur` + all tests | `FireflyClient.account_transactions(ff3_id, start, end)` called with window |
 | **App** | `get_account_transactions.rs` | `GetAccountTransactions` use case with pagination |
 | **Infra** | `firefly_client.rs` | Exhaustive pagination over `GET /api/v1/accounts/{id}/transactions` |
@@ -85,7 +85,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-06  Reconciliation engine with configurable date tolerance
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **Domain** | `matching_engine.rs::exact_match_one_to_one` | Tolerance 0 → exact date match |
 | **Domain** | `matching_engine.rs::tolerance_plus_one_two_three` | Tolerance ±1, ±2, ±3 boundaries |
 | **Domain** | `matching_engine.rs::chronological_pairing_does_not_cross` | 1-to-1 chronological within window |
@@ -100,7 +100,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-07  Results in 3 groups (matched / missing / extras) with visual gap highlighting
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **Domain** | `matching_engine.rs` (all) | Engine returns `matches`, `missing`, `extra`, `duplicates` |
 | **App** | `reconcile_batch.rs::reconcile_persists_run_and_updates_statuses` | Counts: matched/missing/extra/duplicate persisted |
 | **App** | `get_results.rs` | `GetResults` use case returns 3 groups + ignored |
@@ -116,7 +116,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-08  Batch-create missing; edit description/category/budget/tags/attachment/notes
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `apply_missing.rs::apply_creates_missing_with_origin_tag_and_confirms_matched` | Creates in FF3 with origin tag `ffm:filename:batchId`, category, notes |
 | **App** | `apply_missing.rs::apply_partial_failure_continues_batch` | Per-movement report, batch continues on failure |
 | **App** | `apply_missing.rs::apply_retry_creates_nothing_nfr05` | Idempotency: `creations` table UNIQUE prevents double creation (NFR-05) |
@@ -132,7 +132,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-09  Each import batch immutable and viewable a posteriori (history)
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `imports_listing.rs` | `ListImports` returns all batches with status |
 | **App** | `upload_import.rs` (batch created with `status=Parsed`) | Batch persisted with all metadata |
 | **Infra** | `batch_repo.rs` | `BatchRepository` CRUD + `find_by_filename` |
@@ -144,7 +144,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-10  Manual ignore / un-ignore; dedicated section in results
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `ignore_movement.rs` | `IgnoreMovement` use case toggles `status=Ignored` |
 | **App** | `reconcile_batch.rs::reconcile_persists_run_and_updates_statuses` | Ignored movements excluded from matching, status untouched |
 | **Pres** | `reconcile_endpoints.rs` | Ignore endpoint (if exists) |
@@ -156,7 +156,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-11  Created transactions carry origin trace (tag/note: file + batch)
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `apply_missing.rs::apply_creates_missing_with_origin_tag_and_confirms_matched` | Tags = `["ffm:stmt.csv:1"]` (filename + batchId) |
 | **App** | `apply_missing.rs::apply_retry_creates_nothing_nfr05` | Origin tag consistent on retry |
 
@@ -165,7 +165,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-12  Multiple currencies: statement currency from FF3 account; blocking warning on mismatch
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `reconcile_batch.rs::reconcile_currency_mismatch_is_blocked` | Batch `currency` (derived from FF3 account) ≠ account currency → `InvalidState` |
 | **App** | `upload_import.rs` | Currency passed from frontend (derived from selected account) |
 | **FE** | `ImportWizard.test.tsx` | Account selector shows currency; frontend sends account currency |
@@ -177,7 +177,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-13  Re-run reconciliation on existing batch
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `reconcile_batch.rs::reconcile_rerun_creates_new_reconciliation` | Second run creates new `Reconciliation` row, updates movement statuses |
 | **App** | `get_results.rs` | Can fetch latest or specific run |
 | **Pres** | `reconcile_endpoints.rs` | `POST /api/imports/{id}/reconcile` idempotent (creates new run) |
@@ -188,7 +188,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-14  Browse FF3 account transactions by period (min/max date)
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `get_account_transactions.rs` | `GetAccountTransactions` use case with start/end |
 | **Infra** | `firefly_client.rs` | Pagination with `start`/`end` query params |
 | **Pres** | `firefly_endpoints.rs` | `QUERY /api/firefly/accounts/{id}/transactions` with body |
@@ -199,7 +199,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-15  Flag duplicates; delete with double confirmation + audit snapshot
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **Domain** | `matching_engine.rs::duplicate_ff3_within_window` | Multiple FF3 within window → 1 match + duplicates flagged |
 | **Domain** | `matching_engine.rs::duplicate_of_already_matched_movement` | 3 FF3 for 2 movements → 2 matches + 1 duplicate |
 | **App** | `reconcile_batch.rs::reconcile_persists_run_and_updates_statuses` | `is_duplicate=true` on cached FF3 transactions |
@@ -214,7 +214,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-16  Refuse duplicate filename upload (409 before storage)
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `upload_import.rs::upload_import_rejects_duplicate_filename` | Second upload same filename → `Conflict` error, 0 new batches |
 | **App** | `imports_listing.rs` | `find_by_filename` used for check |
 | **Infra** | `batch_repo.rs` | `BatchRepository.find_by_filename` (case-insensitive via MySQL collation) |
@@ -226,7 +226,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-17  Delete `parsed` batch after explicit confirmation (file name + count); irreversible; refused for `reconciled`/`applied`
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `delete_import.rs::delete_import_removes_parsed_batch_and_movements` | `BatchStatus::Parsed` → batch + movements deleted |
 | **App** | `delete_import.rs::delete_import_rejects_non_parsed_batch` | `Reconciled`/`Applied` → `InvalidState`, nothing deleted |
 | **App** | `delete_import.rs::delete_import_missing_batch_is_not_found` | Non-existent → `NotFound` |
@@ -238,7 +238,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-18  Resume incomplete import: wizard reopens at first pending step (reconcile); free back/forward navigation
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | `imports_listing.rs` | Batches with status `Parsed` listed as resumable |
 | **FE** | `ImportWizard.test.tsx::resumeBatchId initializes wizard at reconcile-config step` | `resumeBatchId` prop skips to step 2 (reconcile config) |
 | **FE** | `ImportWizard.test.tsx` (multiple) | Back/Next buttons work between steps |
@@ -250,7 +250,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## RF-19  App settings: configure FF3 connection (URL + token), verify connectivity, save; replaces env vars
 
 | Layer | Test | What it validates |
-|-------|------|-------------------|
+| --- | --- | --- |
 | **App** | (settings use case not yet extracted) | — |
 | **Infra** | `firefly_client.rs` | `about()` health probe used for verification |
 | **Pres** | `health.rs` | `GET /health` with `FF3_HEALTH_PROBE=true` calls FF3 `/about` |
@@ -264,7 +264,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ## Cross-cutting Validations
 
 | Concern | Tests |
-|---------|-------|
+| --- | --- |
 | **Idempotency (NFR-05)** | `apply_missing.rs::apply_retry_creates_nothing_nfr05` (creation UNIQUE), `upload_import.rs::upload_import_rejects_duplicate_filename` |
 | **Amounts as cents (NFR-06)** | `matching_engine.rs` (all use `AmountCents::new(cents)`), `value_objects.rs` |
 | **No auto create/delete (O4, O5)** | `apply_missing.rs` requires explicit selection; `delete_firefly_transaction.rs` requires double confirm |
@@ -300,26 +300,26 @@ cd ../frontend && pnpm lint && pnpm test && pnpm build
 ## Coverage Summary (as of 2026-08-30)
 
 | RF | Domain | App | Infra | Pres | FE |
-|----|:------:|:---:|:-----:|:----:|:--:|
-| 01 |   —   | ✅  |  ✅  |  ✅ | ✅ |
-| 02 |   —   | ✅  |  ✅  |  ✅ | ✅ |
-| 03 |   —   | ✅  |  ✅  |   — |  — |
-| 04 |   —   | ✅  |  ✅  |  ✅ | ✅ |
-| 05 |   —   | ✅  |  ✅  |  ✅ |  ✅ |
-| 06 |  ✅   | ✅  |   —  |  — |  — |
-| 07 |  ✅   | ✅  |  ✅  |  ✅ | ✅ |
-| 08 |   —   | ✅  |   —  |  ✅ | ✅ |
-| 09 |   —   | ✅  |  ✅  |  ✅ | ✅ |
-| 10 |   —   | ✅  |   —  |  — | ✅ |
-| 11 |   —   | ✅  |   —  |   — |  — |
-| 12 |   —   | ✅  |   —  |   — |  ✅ |
-| 13 |   —   | ✅  |   —  |  ✅ |  ✅ |
-| 14 |   —   | ✅  |  ✅  |  ✅ |  ✅ |
-| 15 |  ✅   | ✅  |  ✅  |  ✅ | ✅ |
-| 16 |   —   | ✅  |  ✅  |  ✅ | ✅ |
-| 17 |   —   | ✅  |   —  |  ✅ | ✅ |
-| 18 |   —   |  ✅ |   —  |   — | ✅ |
-| 19 |   —   |  —  |  ✅  |  ✅ | ✅ |
+| --- | :---: | :---: | :---: | :---: | :---: |
+| 01 | — | ✅ | ✅ | ✅ | ✅ |
+| 02 | — | ✅ | ✅ | ✅ | ✅ |
+| 03 | — | ✅ | ✅ | — | — |
+| 04 | — | ✅ | ✅ | ✅ | ✅ |
+| 05 | — | ✅ | ✅ | ✅ | ✅ |
+| 06 | ✅ | ✅ | — | — | — |
+| 07 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 08 | — | ✅ | — | ✅ | ✅ |
+| 09 | — | ✅ | ✅ | ✅ | ✅ |
+| 10 | — | ✅ | — | — | ✅ |
+| 11 | — | ✅ | — | — | — |
+| 12 | — | ✅ | — | — | ✅ |
+| 13 | — | ✅ | — | ✅ | ✅ |
+| 14 | — | ✅ | ✅ | ✅ | ✅ |
+| 15 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 16 | — | ✅ | ✅ | ✅ | ✅ |
+| 17 | — | ✅ | — | ✅ | ✅ |
+| 18 | — | ✅ | — | — | ✅ |
+| 19 | — | — | ✅ | ✅ | ✅ |
 
 **✅ = covered; — = not applicable / not yet implemented**
 
