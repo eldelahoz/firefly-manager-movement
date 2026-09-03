@@ -344,7 +344,7 @@ impl FireflyClient for ReqwestFireflyClient {
             .header("Authorization", format!("Bearer {}", self.token))
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
-            .json(&json!({ "data": { "attributes": attrs } }))
+            .json(&json!({ "data": { "attributes": { "transactions": [attrs] } } }))
             .send()
             .await
             .map_err(|e| ApplicationError::FireflyClient(e.to_string()))?;

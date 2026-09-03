@@ -327,3 +327,51 @@ async fn create_transaction_ok() {
     let id = client.create_transaction(creation).await.unwrap();
     assert_eq!(id, 77);
 }
+
+#[tokio::test]
+async fn create_transaction_wraps_in_transactions_array() {
+    let server = MockServer::start().await;
+    let _mock = Mock::given(method("POST"))
+        .and(path("/api/v1/transactions"))
+        .and(header("Authorization", "Bearer test-token"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": { "id": "1" }
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let creation = ffm_application::dtos::NewFf3TransactionCreation {
+        transaction_type: "deposit".into(),
+        amount: AmountCents::from_str("50.00").unwrap(),
+        date: NaiveDate::from_ymd_opt(2026, 9, 3).unwrap(),
+        description: "salary".into(),
+        source_ff3_id: 10,
+        destination_ff3_id: 20,
+        category: Some("Income".into()),
+        budget: None,
+        notes: Some("monthly".into()),
+        tags: vec!["tag1".into()],
+    };
+    let id = client.create_transaction(creation).await.unwrap();
+    assert_eq!(id, 1);
+
+    // Verify the request body has transactions array structure
+    let requests = server.received_requests().await.unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+    let attrs = &body["data"]["attributes"];
+    assert!(
+        attrs.get("transactions").is_some(),
+        "Expected data.attributes.transactions array, got: {attrs}"
+    );
+    let tx = &attrs["transactions"][0];
+    assert_eq!(tx["type"], "deposit");
+    assert_eq!(tx["amount"], "50.00");
+    assert_eq!(tx["description"], "salary");
+    assert_eq!(tx["source_id"], "10");
+    assert_eq!(tx["destination_id"], "20");
+    assert_eq!(tx["category_name"], "Income");
+    assert_eq!(tx["notes"], "monthly");
+    assert_eq!(tx["tags"], serde_json::json!(["tag1"]));
+}
