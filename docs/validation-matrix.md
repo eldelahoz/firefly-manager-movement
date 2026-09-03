@@ -141,12 +141,15 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-08  Batch-create missing; edit description/category/budget/tags/attachment/notes
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** partial (spec v0.8) · **Last verified:** 2026-09-03
+
+> **v0.8 amendment delta (2026-09-03)**: (a) movement classification by amount sign — negative = expense (`withdrawal`), positive = income (`deposit`), transfers never generated — already implemented, covered by the two tests below; (b) the counterparty account is now **optional** — **pending implementation** (backend validation, FF3 payload and frontend editor/confirmation currently enforce it as required).
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
+| **App** | `apply_missing.rs::applies_per_movement_customization` | Sign-based type: negative → `withdrawal` (source = batch account), positive → `deposit` (source = counterparty); per-movement description, category, budget, tags, notes override |
+| **Infra** | `firefly_client.rs::create_transaction_sends_absolute_amount` | FF3 amount always positive; direction via type + accounts |
 | **App** | `apply_missing.rs::apply_creates_with_origin_tag_and_confirms_matched` | Creates in FF3 with origin tag, category, notes |
-| **App** | `apply_missing.rs::applies_per_movement_customization` | Per-movement description, category, budget, tags, notes override |
 | **App** | `apply_missing.rs::origin_tag_appended_in_addition_to_user_tags` | Origin tag merged with user-selected tags |
 | **App** | `apply_missing.rs::origin_tag_appended_when_user_tags_empty` | Origin tag applied when no user tags |
 | **App** | `apply_missing.rs::origin_tag_not_duplicated_when_user_includes_it` | No duplicate origin tag |

@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Project | firefly-manager-movement |
-| Version | 0.7 |
+| Version | 0.8 |
 | Created | 2026-08-14 |
-| Last modified | 2026-09-02 |
+| Last modified | 2026-09-03 |
 | Author | A. Delahoz |
 | Status | Draft in progress |
 
@@ -168,9 +168,10 @@ Special cases:
   - **Personalize transactions**: inline editing for one movement, or a **bulk panel** for a multi-selection where only the filled fields are applied (empty fields leave each movement's values untouched).
   - **Create in Firefly III**: opens a **confirmation modal** summarizing what will be created (per movement: description, amount, personalizations, tags); creation runs after confirmation.
 - The user may create the movements as-is or personalize them first; both paths end with the confirmation modal.
-- Required fields before creation: counterparty account (expense/income account or asset account depending on direction), picked from the Firefly III accounts listed by direction.
+- Required fields: description, date and amount (all from the statement, validated pre-creation) and the transaction kind (derived from the sign, see below). The reconciled target account is always the opposite side - the **source** for an expense, the **destination** for an income. The **counterparty account is optional**: when set, it is picked from the Firefly III accounts listed by direction; when omitted, the field is simply not sent and Firefly III applies its default handling for the movement.
 - Editable fields before creation: **description** (pre-filled from the statement, editable), category, budget, **tags** (pre-filled with the default creation tag from settings, the user's selection replaces it), **attachment (file upload)**, notes.
 - The system lists existing Firefly III categories, budgets and tags for selection.
+- Movement classification: the amount's sign determines the kind of transaction created - a **negative amount is an expense** (money leaves the account), a **positive amount is an income** (money enters the account). The reconciler only creates expenses and incomes, never internal transfers: a bank statement movement is always money in or out of the reconciled account.
 - Creation calls the Firefly III API (`POST /api/v1/transactions`) with: type, amount, date, description (from the statement), source/destination account, the user's tags (or the default tag), and the origin trace tag/notes (file name + batch id) applied in addition.
 - After creation, the movement moves to `created` and an incremental re-reconciliation confirms the match.
 - **No creation happens without explicit action.** No automatic mode in v1.
@@ -223,6 +224,11 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 > - Bulk personalization applies only the filled fields; empty fields leave each movement's values untouched (RF-08).
 > - The tags field is pre-filled with a default creation tag configured in settings - a dropdown of the existing Firefly III tags; the user's selection replaces it. The origin trace tag (`ffm:...`) is always applied in addition and never replaced (RF-08, RF-11, RF-19).
 > - The CSV mapping gains an optional origin-account column; when its values match a single Firefly III asset account (IBAN, account number or name), that account is pre-selected automatically in the wizard - otherwise manual selection with a non-blocking warning listing the distinct values (RF-02, RF-04).
+
+> **Amendment (v0.8, 2026-09-03) — movement classification and creation field requirements**:
+> - The kind of transaction created from an imported movement is derived from the amount's sign: a **negative amount is an expense**, a **positive amount is an income** (RF-08).
+> - The reconciler never creates internal transfers: a bank statement movement is always money entering or leaving the reconciled account. Internal transfers visible on one side only are handled by ignoring the movement (RF-10).
+> - The counterparty account is **no longer required** for creation (RF-08): the required fields are description, date and amount (from the statement); the reconciled target account is the opposite side (source for an expense, destination for an income); the counterparty is optional and Firefly III applies its default handling when omitted.
 
 ## 6. Non-functional requirements
 
