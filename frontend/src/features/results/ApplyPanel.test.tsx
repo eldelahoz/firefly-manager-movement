@@ -45,7 +45,12 @@ test('apply mixed outcomes: toast recap and onDone', async () => {
   await waitFor(() => expect(btn).toBeEnabled());
   await userEvent.click(btn);
   await waitFor(() => expect(done).toBe(true));
-  expect(body).toMatchObject({ movement_ids: [12, 13], counterparty_ff3_id: 1 });
+  expect(body).toMatchObject({
+    movements: [
+      { movement_id: 12, counterparty_ff3_id: 1 },
+      { movement_id: 13, counterparty_ff3_id: 1 },
+    ],
+  });
 });
 
 test('apply failure shows error toast and keeps panel open', async () => {

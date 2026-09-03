@@ -40,8 +40,8 @@ export function ReconcileConfigStep({
     queryFn: () => getImport(batchId!),
     enabled: batchId !== null,
   });
-  const [accountId, setAccountId] = useState(
-    initialAccountId ?? detail.data?.batch.account_id ?? '',
+  const [accountId, setAccountId] = useState<string>(
+    initialAccountId ?? String(detail.data?.batch.account_id ?? ''),
   );
   const [tolerance, setTolerance] = useState(0);
   const [rangeOverride, setRangeOverride] = useState<{ start: string; end: string } | null>(null);

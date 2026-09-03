@@ -1,6 +1,6 @@
 import { api, uploadCsv } from './client';
 import type {
-  ApplyRequest,
+  ApplyRequestV2,
   ApplyResponse,
   BatchSummary,
   Ff3Account,
@@ -10,7 +10,10 @@ import type {
   ReconcileRequest,
   ReconcileResponse,
   ResultsResponse,
+  SettingsPutRequest,
+  SettingsResponse,
   UploadResponse,
+  VerifyResponse,
 } from './dto';
 
 export const getHealth = () => api.get<HealthResponse>('/health');
@@ -32,14 +35,24 @@ export const postIgnore = (batchId: number, movementId: number) =>
   api.post<{ movement_id: number; status: 'ignored' }>(
     `/api/imports/${batchId}/movements/${movementId}/ignore`,
   );
-export const postApply = (batchId: number, body: ApplyRequest) =>
+export const postApply = (batchId: number, body: ApplyRequestV2) =>
   api.post<ApplyResponse>(`/api/imports/${batchId}/apply`, body);
 export const deleteImport = (id: number) =>
   api.del<{ id: number; status: 'deleted' }>(`/api/imports/${id}`);
 export const getAccounts = () => api.get<Ff3Account[]>('/api/firefly/accounts');
+export const getAccountsByType = (type: 'asset' | 'expense' | 'revenue') =>
+  api.get<Ff3Account[]>(`/api/firefly/accounts?type=${type}`);
 export const postAccountTransactions = (id: string, start: string, end: string) =>
   api.post<Ff3TxDTO[]>(`/api/firefly/accounts/${id}/transactions`, { start, end });
 export const deleteTransaction = (id: number) =>
   api.del<{ ff3_id: number; status: 'deleted' }>(`/api/firefly/transactions/${id}`);
+export const getSettings = () => api.get<SettingsResponse>('/api/settings');
+export const putSettings = (body: SettingsPutRequest) =>
+  api.put<SettingsResponse>('/api/settings', body);
+export const postVerifySettings = (body: { ff3_url: string; ff3_token: string }) =>
+  api.post<VerifyResponse>('/api/settings/verify', body);
+export const getTags = () => api.get<string[]>('/api/firefly/tags');
+export const getCategories = () => api.get<string[]>('/api/firefly/categories');
+export const getBudgets = () => api.get<string[]>('/api/firefly/budgets');
 export { uploadCsv };
 export type { UploadResponse };

@@ -35,11 +35,13 @@ export function ApplyPanel({
   const apply = useMutation({
     mutationFn: () =>
       postApply(batchId, {
-        movement_ids: selected,
-        counterparty_ff3_id: Number(counterparty),
-        category: category || undefined,
-        budget: budget || undefined,
-        notes: notes || undefined,
+        movements: selected.map((id) => ({
+          movement_id: id,
+          counterparty_ff3_id: Number(counterparty),
+          category: category || undefined,
+          budget: budget || undefined,
+          notes: notes || undefined,
+        })),
       }),
     onSuccess: (res) => {
       toast.success(

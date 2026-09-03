@@ -71,6 +71,7 @@ export function ImportWizard({
       valid_count: batch.movements_count,
       invalid_count: 0,
       mapping_used: null,
+      origin_account_values: [],
       valid: movements.map((m) => ({
         line_no: m.line_no,
         date: m.date,

@@ -22,6 +22,7 @@ const probe: UploadResponse = {
   valid_count: 0,
   invalid_count: 0,
   mapping_used: null,
+  origin_account_values: [],
   valid: [],
   invalid: [],
 };

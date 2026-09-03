@@ -9,7 +9,18 @@
     "appearance": "Apariencia",
     "themeLight": "Claro",
     "themeDark": "Oscuro",
-    "language": "Idioma"
+    "language": "Idioma",
+    "connection": "Conexión con Firefly III",
+    "ff3Url": "URL de Firefly III",
+    "ff3Token": "Token de API",
+    "ff3TokenKeep": "Dejar vacío para conservar el token actual",
+    "testConnection": "Probar conexión",
+    "connectionOk": "Conexión OK (Firefly III {{version}})",
+    "save": "Guardar",
+    "saved": "Ajustes guardados",
+    "defaultTag": "Etiqueta de creación por defecto",
+    "defaultTagNone": "Sin etiqueta por defecto",
+    "defaultTagHint": "Se pre-rellena al crear transacciones; tu selección la reemplaza"
   },
   "common": {
     "retry": "Reintentar",
@@ -125,7 +136,10 @@
     "helperMismatch": "Resuelve el mismatch de moneda primero",
     "helperError": "Corrige el error antes de continuar",
     "uploading": "Subiendo…",
-    "resumeAccountHint": "Cuenta seleccionada durante la importación (no se puede cambiar)"
+    "resumeAccountHint": "Cuenta seleccionada durante la importación (no se puede cambiar)",
+    "originColumn": "Cuenta de origen (opcional)",
+    "originAutoSelected": "Cuenta seleccionada automáticamente desde la columna de origen: {{account}}",
+    "originWarning": "Valores de la columna de origen: {{values}}. Selecciona la cuenta manualmente."
   },
   "results": {
     "title": "Resultados",
@@ -141,7 +155,22 @@
     "applyRecap": "Creados {{created}} · ya creados {{already}} · fallidos {{failed}}",
     "ignore": "Ignorar",
     "noReconciliation": "Este lote aún no tiene conciliación",
-    "startImport": "Iniciar una importación"
+    "startImport": "Iniciar una importación",
+    "personalize": "Personalizar",
+    "edit": "Editar",
+    "bulkTitle": "Personalizar {{count}} movimientos",
+    "bulkHint": "Solo se aplican los campos con contenido; los campos vacíos dejan cada movimiento intacto",
+    "applyToSelection": "Aplicar",
+    "descriptionField": "Descripción",
+    "tags": "Etiquetas",
+    "attachment": "Adjunto",
+    "noAttachment": "Sin archivo seleccionado",
+    "confirmTitle": "Crear en Firefly III",
+    "confirmCount": "{{count}} transacciones serán creadas",
+    "confirm": "Crear",
+    "missingCounterparty": "Cuenta de contrapartida faltante",
+    "originTagNote": "Cada transacción creada lleva la etiqueta de origen {{tag}}",
+    "attachmentWarning": "Creado, pero el adjunto falló: {{reason}}"
   },
   "status": {
     "imported": "Importado",
