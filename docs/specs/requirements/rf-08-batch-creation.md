@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | v0.7 (integrates v0.6 + v0.7 amendments) |
 | Priority | P0 |
 | Use cases | CU-5 |
 | Depends on | RF-07 (missing group available), RF-11 (origin trace) |

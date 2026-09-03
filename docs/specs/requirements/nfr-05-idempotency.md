@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | Original (2026-08-14) — unamended |
 | Category | Reliability |
 | Related | RF-08, RF-11, TRD section 2 (`creations`) |
 

@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | Original (2026-08-14) — unamended |
 | Priority | P1 |
 | Use cases | CU-3 |
 | Depends on | RF-06 (engine), RF-09 (batch persists) |

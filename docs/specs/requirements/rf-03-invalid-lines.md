@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | Original (2026-08-14) — unamended |
 | Priority | P0 |
 | Use cases | CU-1 |
 | Depends on | RF-01 (file uploaded), RF-02 (mapping applied or pending) |

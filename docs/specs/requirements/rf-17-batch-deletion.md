@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | Original (2026-08-14) — unamended |
 | Priority | P1 |
 | Use cases | CU-10 |
 | Depends on | RF-09 (batch lifecycle) |

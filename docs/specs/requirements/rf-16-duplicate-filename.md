@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | Original (2026-08-14) — unamended |
 | Priority | P1 |
 | Use cases | CU-1 |
 | Depends on | RF-01 (upload), RF-09 (existing batches) |

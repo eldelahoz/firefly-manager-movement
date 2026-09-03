@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | v0.7 (integrates v0.5 + v0.7 amendments) |
 | Priority | P0 |
 | Use cases | CU-2 |
 | Depends on | RF-01 (file uploaded) |

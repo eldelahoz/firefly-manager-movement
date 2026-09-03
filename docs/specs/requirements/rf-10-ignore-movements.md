@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | v0.6 (integrates v0.6 amendment) |
 | Priority | P1 |
 | Use cases | CU-4 |
 | Depends on | RF-07 (results view) |

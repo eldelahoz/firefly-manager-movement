@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | Original (2026-08-14) — unamended |
 | Priority | P0 |
 | Use cases | CU-4 |
 | Depends on | RF-06 (a reconciliation run exists) |
