@@ -178,7 +178,7 @@ Notes:
 | Accounts | `GET /api/v1/accounts?type=asset` |
 | Tags / categories / budgets | `GET /api/v1/tags`, `GET /api/v1/categories`, `GET /api/v1/budgets` — feed the pickers and the default creation tag (RF-08, RF-19) |
 | Transactions | `GET /api/v1/accounts/{id}/transactions?start=..&end=..` (exhaustive pagination) — called by the backend by translating our internal `QUERY` |
-| Creation | `POST /api/v1/transactions` — body wraps in `{ "data": { "attributes": { "transactions": [...] } } }` (FF3 v1 `TransactionStore` schema) |
+| Creation | `POST /api/v1/transactions` — body is `{ "transactions": [...] }` at top level (FF3 v1 `TransactionStore` schema; unlike other endpoints, the transactions store request does NOT use the JSON-API `data`/`attributes` wrapper) |
 | Deletion | `DELETE /api/v1/transactions/{id}` |
 | Health | `GET /api/v1/about` |
 

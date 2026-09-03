@@ -357,15 +357,15 @@ async fn create_transaction_wraps_in_transactions_array() {
     let id = client.create_transaction(creation).await.unwrap();
     assert_eq!(id, 1);
 
-    // Verify the request body has transactions array structure
+    // Verify the request body has transactions array at TOP LEVEL
+    // (FF3 does not use the JSON-API data/attributes wrapper on requests)
     let requests = server.received_requests().await.unwrap();
     let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
-    let attrs = &body["data"]["attributes"];
     assert!(
-        attrs.get("transactions").is_some(),
-        "Expected data.attributes.transactions array, got: {attrs}"
+        body.get("transactions").is_some(),
+        "Expected top-level transactions array, got: {body}"
     );
-    let tx = &attrs["transactions"][0];
+    let tx = &body["transactions"][0];
     assert_eq!(tx["type"], "deposit");
     assert_eq!(tx["amount"], "50.00");
     assert_eq!(tx["description"], "salary");

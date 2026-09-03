@@ -337,7 +337,9 @@ impl FireflyClient for ReqwestFireflyClient {
             obj.insert("tags".into(), json!(creation.tags));
         }
 
-        let payload = json!({ "data": { "attributes": { "transactions": [attrs] } } });
+        // FF3 transactions endpoint does NOT use the JSON-API data/attributes
+        // wrapper on requests: TransactionStore has `transactions` at top level.
+        let payload = json!({ "transactions": [attrs] });
         eprintln!("[FF3 create_transaction] payload: {payload}");
         let url = format!("{}/api/v1/transactions", self.base_url);
         let resp = self
