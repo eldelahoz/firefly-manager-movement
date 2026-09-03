@@ -4,16 +4,19 @@ import type { UploadResponse } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { WizardFooter } from './WizardShell';
+import type { OriginNotice } from './state';
 
 export function PreviewStep({
   probe,
   currency,
+  originNotice,
   onNext,
   onBack,
   onClose,
 }: {
   probe: UploadResponse;
   currency: string;
+  originNotice?: OriginNotice;
   onNext: () => void;
   onBack: () => void;
   onClose: () => void;
@@ -34,6 +37,19 @@ export function PreviewStep({
         </span>
       </div>
       {probe.mapping_used && <p className="text-xs text-text-3">{t('wizard.autoApplied')}</p>}
+      {originNotice?.kind === 'auto' && (
+        <p role="status" className="mt-2 text-sm text-status-matched-txt">
+          {t('wizard.originAutoSelected', { account: originNotice.accountName })}
+        </p>
+      )}
+      {originNotice?.kind === 'warn' && (
+        <div
+          role="alert"
+          className="mt-2 rounded-lg bg-status-extra-bg/50 p-3 text-sm text-status-extra-txt"
+        >
+          {t('wizard.originWarning', { values: originNotice.values.join(', ') })}
+        </div>
+      )}
       {!probe.mapping_used && probe.valid_count === 0 && probe.invalid_count === 0 && (
         <p className="mt-3 text-sm text-text-2">{t('imports.needsMapping')}</p>
       )}

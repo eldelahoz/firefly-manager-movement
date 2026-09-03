@@ -121,6 +121,7 @@
     "fieldDate": "Date",
     "fieldAmount": "Montant",
     "fieldDescription": "Description",
+    "fieldOrigin": "Colonne d'origine",
     "sourceColumn": "Colonne source",
     "account": "Compte Firefly III",
     "tolerance": "Tolérance",

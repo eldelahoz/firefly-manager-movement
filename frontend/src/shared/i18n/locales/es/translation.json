@@ -121,6 +121,7 @@
     "fieldDate": "Fecha",
     "fieldAmount": "Importe",
     "fieldDescription": "Descripción",
+    "fieldOrigin": "Columna de origen",
     "sourceColumn": "Columna de origen",
     "account": "Cuenta de Firefly III",
     "tolerance": "Tolerancia",

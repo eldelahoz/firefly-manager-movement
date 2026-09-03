@@ -263,3 +263,44 @@ test('resume: back from reconcile-config with null mapping_used navigates to pre
   expect(await screen.findByText('1 valid rows')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
 });
+
+test('origin auto-selects account and shows status banner', async () => {
+  const probeWithOrigin: UploadResponse = {
+    ...knownMapping,
+    origin_account_values: ['DE44 5001 0517 5407 3249 31'],
+  };
+  server.use(
+    http.get('/api/imports', () => HttpResponse.json([])),
+    http.post('/api/imports', () => HttpResponse.json(probeWithOrigin)),
+  );
+  renderWithProviders(<ImportWizard open onClose={() => {}} />);
+  await upload(makeCsv());
+  expect(await screen.findByRole('status')).toHaveTextContent(/Checking/);
+});
+
+test('origin warning banner with multiple distinct values', async () => {
+  const probeWarn: UploadResponse = {
+    ...knownMapping,
+    origin_account_values: ['X', 'Y'],
+  };
+  server.use(
+    http.get('/api/imports', () => HttpResponse.json([])),
+    http.post('/api/imports', () => HttpResponse.json(probeWarn)),
+  );
+  renderWithProviders(<ImportWizard open onClose={() => {}} />);
+  await upload(makeCsv());
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('X, Y');
+});
+
+test('no origin values: neither banner nor auto-select', async () => {
+  server.use(
+    http.get('/api/imports', () => HttpResponse.json([])),
+    http.post('/api/imports', () => HttpResponse.json(probeBatch)),
+  );
+  renderWithProviders(<ImportWizard open onClose={() => {}} />);
+  await upload(makeCsv());
+  expect(await screen.findByText(/could not detect the columns automatically/)).toBeInTheDocument();
+  expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
