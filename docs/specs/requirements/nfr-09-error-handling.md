@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | Original (2026-08-14) — unamended |
 | Category | UX / Reliability |
 | Related | RF-01, RF-04, RF-05, RF-08, RF-14, RF-15, RF-19 |
 

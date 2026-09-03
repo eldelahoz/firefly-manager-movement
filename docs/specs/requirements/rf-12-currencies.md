@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | v0.4 (integrates v0.4 amendment) |
 | Priority | P1 |
 | Use cases | CU-1, CU-3 |
 | Depends on | RF-04 (account selection) |

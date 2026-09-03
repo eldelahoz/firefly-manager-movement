@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | v0.6 (integrates v0.5 + v0.6 amendments) |
 | Priority | P1 |
 | Use cases | CU-9 |
 | Depends on | RF-09 (history), RF-16 (unique filenames make resume unambiguous) |

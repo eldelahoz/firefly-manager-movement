@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | Original (2026-08-14) — unamended |
 | Category | Internationalization |
 | Related | RF-19 (settings host the language switch) |
 

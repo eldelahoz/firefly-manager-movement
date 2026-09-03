@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | Original (2026-08-14) — unamended |
 | Priority | P0 |
 | Use cases | CU-3 |
 | Depends on | RF-04 (target account), RF-19 (FF3 connection) |

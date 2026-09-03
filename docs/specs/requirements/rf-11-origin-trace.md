@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | v0.7 (integrates v0.7 amendment) |
 | Priority | P1 |
 | Use cases | CU-5 |
 | Depends on | RF-08 (creation flow) |

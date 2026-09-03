@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | Original (2026-08-14) — unamended |
 | Category | Compatibility |
 | Related | Frontend build configuration |
 

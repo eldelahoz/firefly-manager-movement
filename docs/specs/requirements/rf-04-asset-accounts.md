@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | v0.7 (integrates v0.6 + v0.7 amendments) |
 | Priority | P0 |
 | Use cases | CU-1, CU-3, CU-7 |
 | Depends on | RF-19 (FF3 connection) |

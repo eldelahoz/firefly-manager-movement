@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | v0.6 (integrates v0.6 amendment: connection moved from env vars to app settings) |
 | Category | Security |
 | Related | RF-19, TRD section 4 |
 

@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | Original (2026-08-14) — unamended |
 | Category | Data integrity |
 | Related | RF-06, TRD section 2 |
 

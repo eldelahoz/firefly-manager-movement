@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | v0.7 (integrates v0.6 + v0.7 amendments) |
 | Priority | P1 |
 | Use cases | CU-11 |
 | Depends on | - (prerequisite for every FF3-touching requirement) |

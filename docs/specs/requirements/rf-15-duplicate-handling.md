@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | Original (2026-08-14) — unamended |
 | Priority | P0 |
 | Use cases | CU-8 |
 | Depends on | RF-06 (flagging during matching), RF-07 (extras group) |

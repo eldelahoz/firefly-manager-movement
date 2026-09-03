@@ -2,6 +2,7 @@
 
 | Field | Value |
 | --- | --- |
+| Version | Original (2026-08-14) — unamended |
 | Category | Data management |
 | Related | RF-09, RF-15, RF-17 |
 
