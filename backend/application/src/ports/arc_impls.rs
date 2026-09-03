@@ -7,7 +7,8 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 
 use ffm_domain::entities::{
-    Batch, Creation, CsvMapping, Ff3Account, Ff3Transaction, Match, Movement, Reconciliation,
+    AppSettings, Batch, Creation, CsvMapping, Ff3Account, Ff3Transaction, Match, Movement,
+    Reconciliation,
 };
 use ffm_domain::ids::{
     BatchId, CreationId, CsvMappingId, Ff3AccountId, MovementId, ReconciliationId,
@@ -15,18 +16,19 @@ use ffm_domain::ids::{
 use ffm_domain::value_objects::{BatchStatus, HeaderSignature, MovementStatus};
 
 use crate::dtos::{
-    About, Ff3AccountDto, Ff3TransactionDto, NewBatch, NewCreation, NewCsvMapping, NewDeletedAudit,
-    NewFf3Account, NewFf3Transaction, NewFf3TransactionCreation, NewMatch, NewMovement,
-    NewReconciliation, ReconciliationRun,
+    About, Ff3AccountDto, Ff3TransactionDto, NewAppSettings, NewBatch, NewCreation, NewCsvMapping,
+    NewDeletedAudit, NewFf3Account, NewFf3Transaction, NewFf3TransactionCreation, NewMatch,
+    NewMovement, NewReconciliation, ReconciliationRun,
 };
 use crate::error::ApplicationError;
 
 use ffm_domain::ids::DeletedAuditId;
 
 use super::{
-    BatchRepository, CreationRepository, CsvDecoder, CsvMappingRepository, DeletedAuditRepository,
-    Ff3AccountRepository, Ff3TransactionRepository, FireflyClient, MatchRepository,
-    MovementRepository, ReconciliationRepository,
+    AppSettingsRepository, BatchRepository, CreationRepository, CsvDecoder, CsvMappingRepository,
+    DeletedAuditRepository, Ff3AccountRepository, Ff3TransactionRepository, FireflyClient,
+    FireflyClientFactory, FireflyConnectionManager, MatchRepository, MovementRepository,
+    ReconciliationRepository,
 };
 
 #[async_trait]
@@ -233,5 +235,28 @@ impl<T: CreationRepository + ?Sized> CreationRepository for Arc<T> {
 impl<T: DeletedAuditRepository + ?Sized> DeletedAuditRepository for Arc<T> {
     async fn insert(&self, audit: NewDeletedAudit) -> Result<DeletedAuditId, ApplicationError> {
         self.as_ref().insert(audit).await
+    }
+}
+
+#[async_trait]
+impl<T: AppSettingsRepository + ?Sized> AppSettingsRepository for Arc<T> {
+    async fn get(&self) -> Result<Option<AppSettings>, ApplicationError> {
+        self.as_ref().get().await
+    }
+    async fn save(&self, settings: NewAppSettings) -> Result<AppSettings, ApplicationError> {
+        self.as_ref().save(settings).await
+    }
+}
+
+#[async_trait]
+impl<T: FireflyConnectionManager + ?Sized> FireflyConnectionManager for Arc<T> {
+    async fn reconfigure(&self, ff3_url: &str, ff3_token: &str) -> Result<(), ApplicationError> {
+        self.as_ref().reconfigure(ff3_url, ff3_token).await
+    }
+}
+
+impl<T: FireflyClientFactory + ?Sized> FireflyClientFactory for Arc<T> {
+    fn build(&self, ff3_url: &str, ff3_token: &str) -> Arc<dyn FireflyClient> {
+        self.as_ref().build(ff3_url, ff3_token)
     }
 }

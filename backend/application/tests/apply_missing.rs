@@ -497,6 +497,8 @@ impl Ff3AccountRepository for StaticAccounts {
                 name: "Checking".into(),
                 account_type: "asset".into(),
                 currency: "EUR".into(),
+                iban: None,
+                account_number: None,
                 synced_at: epoch(),
             }))
         } else {

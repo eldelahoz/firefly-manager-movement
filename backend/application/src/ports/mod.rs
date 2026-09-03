@@ -13,6 +13,7 @@ mod clock;
 mod firefly;
 mod imports;
 mod reconciliation;
+mod settings;
 
 pub use audit::DeletedAuditRepository;
 pub use clock::Clock;
@@ -21,3 +22,4 @@ pub use imports::{BatchRepository, CsvDecoder, CsvMappingRepository, MovementRep
 pub use reconciliation::{
     CreationRepository, Ff3TransactionRepository, MatchRepository, ReconciliationRepository,
 };
+pub use settings::{AppSettingsRepository, FireflyClientFactory, FireflyConnectionManager};

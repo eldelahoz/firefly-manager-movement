@@ -14,6 +14,17 @@ use crate::error::ApplicationError;
 pub trait FireflyClient: Send + Sync {
     async fn about(&self) -> Result<About, ApplicationError>;
     async fn asset_accounts(&self) -> Result<Vec<Ff3AccountDto>, ApplicationError>;
+    async fn accounts_by_type(
+        &self,
+        account_type: &str,
+    ) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
+        // Default: filter asset_accounts (fakes only serve asset fixtures).
+        let accounts = self.asset_accounts().await?;
+        Ok(accounts
+            .into_iter()
+            .filter(|a| a.account_type == account_type)
+            .collect())
+    }
     async fn account_transactions(
         &self,
         account_ff3_id: i64,
@@ -25,6 +36,31 @@ pub trait FireflyClient: Send + Sync {
         creation: NewFf3TransactionCreation,
     ) -> Result<i64, ApplicationError>;
     async fn delete_transaction(&self, ff3_id: i64) -> Result<(), ApplicationError>;
+    async fn tags(&self) -> Result<Vec<String>, ApplicationError> {
+        Err(ApplicationError::FireflyClient(
+            "tags unsupported by this client".into(),
+        ))
+    }
+    async fn categories(&self) -> Result<Vec<String>, ApplicationError> {
+        Err(ApplicationError::FireflyClient(
+            "categories unsupported by this client".into(),
+        ))
+    }
+    async fn budgets(&self) -> Result<Vec<String>, ApplicationError> {
+        Err(ApplicationError::FireflyClient(
+            "budgets unsupported by this client".into(),
+        ))
+    }
+    async fn attach_to_transaction(
+        &self,
+        _journal_ff3_id: i64,
+        _filename: &str,
+        _content_base64: &str,
+    ) -> Result<(), ApplicationError> {
+        Err(ApplicationError::FireflyClient(
+            "attachments unsupported by this client".into(),
+        ))
+    }
 }
 
 #[async_trait]

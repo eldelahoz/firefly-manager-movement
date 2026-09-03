@@ -8,6 +8,7 @@ mod audit;
 mod firefly;
 mod imports;
 mod reconciliation;
+mod settings;
 
 pub use audit::NewDeletedAudit;
 pub use firefly::{
@@ -19,3 +20,4 @@ pub use reconciliation::{
     NewCreation, NewFf3Transaction, NewMatch, NewReconciliation, ReconciliationRun,
     RunFf3Transaction, RunMatch,
 };
+pub use settings::{NewAppSettings, SettingsView};

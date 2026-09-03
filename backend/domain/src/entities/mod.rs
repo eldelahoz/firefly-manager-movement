@@ -3,6 +3,7 @@
 //! One file per aggregate, re-exported here so the public path stays
 //! `ffm_domain::entities::*`.
 
+mod app_settings;
 mod batch;
 mod creation;
 mod csv_mapping;
@@ -13,6 +14,7 @@ mod match_entity;
 mod movement;
 mod reconciliation;
 
+pub use app_settings::AppSettings;
 pub use batch::Batch;
 pub use creation::Creation;
 pub use csv_mapping::CsvMapping;

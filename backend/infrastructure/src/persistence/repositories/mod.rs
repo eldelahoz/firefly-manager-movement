@@ -1,3 +1,4 @@
+pub mod app_settings;
 pub mod batch;
 pub mod creation;
 pub mod csv_mapping;

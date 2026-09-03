@@ -100,6 +100,8 @@ where
                         name: a.name.clone(),
                         account_type: a.account_type.clone(),
                         currency: a.currency.clone(),
+                        iban: a.iban.clone(),
+                        account_number: a.account_number.clone(),
                     })
                     .collect(),
             )

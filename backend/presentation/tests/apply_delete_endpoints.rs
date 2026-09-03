@@ -61,6 +61,8 @@ impl FireflyClient for FakeFirefly {
             name: "Checking".into(),
             account_type: "asset".into(),
             currency: "EUR".into(),
+            iban: None,
+            account_number: None,
         }])
     }
     async fn account_transactions(
@@ -334,6 +336,8 @@ async fn test_app(fail_amounts: Vec<i64>) -> TestApp {
                 name: "Checking".into(),
                 account_type: "asset".into(),
                 currency: "EUR".into(),
+                iban: None,
+                account_number: None,
                 synced_at: epoch(),
             }]),
         }),
@@ -347,6 +351,9 @@ async fn test_app(fail_amounts: Vec<i64>) -> TestApp {
         creations: creations.clone(),
         deleted_audits: audits.clone(),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(common::FakeFireflyClient::ok())),
     };
 
     TestApp {

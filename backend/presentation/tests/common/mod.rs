@@ -2,6 +2,7 @@
 //! Shared test fakes for presentation E2E tests.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::{NaiveDate, NaiveDateTime};
@@ -12,11 +13,12 @@ use ffm_application::dtos::{
 use ffm_application::dtos::{NewFf3Transaction, NewMatch, NewReconciliation, ReconciliationRun};
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::{
-    BatchRepository, CsvDecoder, CsvMappingRepository, Ff3AccountRepository,
-    Ff3TransactionRepository, FireflyClient, MatchRepository, MovementRepository,
-    ReconciliationRepository,
+    AppSettingsRepository, BatchRepository, CsvDecoder, CsvMappingRepository, Ff3AccountRepository,
+    Ff3TransactionRepository, FireflyClient, FireflyClientFactory, FireflyConnectionManager,
+    MatchRepository, MovementRepository, ReconciliationRepository,
 };
-use ffm_domain::entities::Ff3Account;
+use ffm_application::dtos::NewAppSettings;
+use ffm_domain::entities::{AppSettings, Ff3Account};
 use ffm_domain::entities::{Batch, CsvMapping, Ff3Transaction, Match, Movement, Reconciliation};
 use ffm_domain::ids::{BatchId, CsvMappingId, MovementId, ReconciliationId};
 use ffm_domain::value_objects::{BatchStatus, HeaderSignature, MovementStatus};
@@ -25,6 +27,7 @@ use ffm_application::dtos::{NewBatch, NewCsvMapping, NewMovement};
 
 // ── FakeFireflyClient ──────────────────────────────────────────────────
 
+#[derive(Clone)]
 pub struct FakeFireflyClient {
     pub fail: bool,
     pub accounts: Vec<Ff3AccountDto>,
@@ -487,5 +490,86 @@ impl MatchRepository for FakeReconciliationStore {
             .filter_map(|m| local_to_ff3.get(&m.ff3_transaction_id.as_i64()).copied())
             .filter(|ff3_id| wanted.contains(ff3_id))
             .collect())
+    }
+}
+
+// ── FakeAppSettingsRepository ──────────────────────────────────────────
+
+pub struct FakeAppSettingsRepository {
+    settings: std::sync::Mutex<Option<AppSettings>>,
+}
+
+impl FakeAppSettingsRepository {
+    pub fn new() -> Self {
+        Self {
+            settings: std::sync::Mutex::new(None),
+        }
+    }
+
+    pub fn with_settings(s: AppSettings) -> Self {
+        Self {
+            settings: std::sync::Mutex::new(Some(s)),
+        }
+    }
+}
+
+impl Default for FakeAppSettingsRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl AppSettingsRepository for FakeAppSettingsRepository {
+    async fn get(&self) -> Result<Option<AppSettings>, ApplicationError> {
+        Ok(self.settings.lock().unwrap().clone())
+    }
+
+    async fn save(&self, s: NewAppSettings) -> Result<AppSettings, ApplicationError> {
+        let row = AppSettings {
+            ff3_url: s.ff3_url,
+            ff3_token: s.ff3_token,
+            default_creation_tag: s.default_creation_tag,
+            updated_at: chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
+        };
+        *self.settings.lock().unwrap() = Some(row.clone());
+        Ok(row)
+    }
+}
+
+// ── FakeFireflyConnectionManager ───────────────────────────────────────
+
+#[derive(Default, Clone)]
+pub struct FakeFireflyConnectionManager {
+    pub calls: std::sync::Arc<std::sync::Mutex<Vec<(String, String)>>>,
+}
+
+#[async_trait]
+impl FireflyConnectionManager for FakeFireflyConnectionManager {
+    async fn reconfigure(&self, ff3_url: &str, ff3_token: &str) -> Result<(), ApplicationError> {
+        self.calls.lock().unwrap().push((ff3_url.to_string(), ff3_token.to_string()));
+        Ok(())
+    }
+}
+
+// ── FakeFireflyClientFactory ───────────────────────────────────────────
+
+pub struct FakeFireflyClientFactory {
+    pub client: FakeFireflyClient,
+}
+
+impl FakeFireflyClientFactory {
+    pub fn new(client: FakeFireflyClient) -> Self {
+        Self { client }
+    }
+}
+
+impl FireflyClientFactory for FakeFireflyClientFactory {
+    fn build(&self, _ff3_url: &str, _ff3_token: &str) -> Arc<dyn FireflyClient> {
+        Arc::new(FakeFireflyClient {
+            fail: self.client.fail,
+            accounts: self.client.accounts.clone(),
+            transactions: self.client.transactions.clone(),
+        })
     }
 }

@@ -15,6 +15,8 @@ pub struct Ff3AccountModel {
     pub name: String,
     pub type_: String,
     pub currency: String,
+    pub iban: Option<String>,
+    pub account_number: Option<String>,
     pub synced_at: NaiveDateTime,
 }
 
@@ -26,6 +28,8 @@ impl From<Ff3AccountModel> for Ff3Account {
             name: m.name,
             account_type: m.type_,
             currency: m.currency,
+            iban: m.iban,
+            account_number: m.account_number,
             synced_at: m.synced_at,
         }
     }
@@ -38,6 +42,8 @@ pub struct NewFf3AccountModel {
     pub name: String,
     pub type_: String,
     pub currency: String,
+    pub iban: Option<String>,
+    pub account_number: Option<String>,
 }
 
 impl From<NewFf3Account> for NewFf3AccountModel {
@@ -47,6 +53,8 @@ impl From<NewFf3Account> for NewFf3AccountModel {
             name: d.name,
             type_: d.account_type,
             currency: d.currency,
+            iban: d.iban,
+            account_number: d.account_number,
         }
     }
 }

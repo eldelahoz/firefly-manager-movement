@@ -78,6 +78,44 @@ async fn asset_accounts_single_page() {
 }
 
 #[tokio::test]
+async fn asset_accounts_maps_iban_and_account_number() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/accounts"))
+        .and(query_param("type", "asset"))
+        .and(query_param("page", "1"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [
+                {
+                    "id": "1",
+                    "attributes": {
+                        "name": "Main Bank",
+                        "type": "asset",
+                        "currency_code": "EUR",
+                        "iban": "DE44 5001 0517 5407 3249 31",
+                        "account_number": "1001"
+                    }
+                },
+                {
+                    "id": "2",
+                    "attributes": { "name": "Savings", "type": "asset", "currency_code": "USD" }
+                }
+            ],
+            "meta": { "pagination": { "current_page": 1, "total_pages": 1 } }
+        })))
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let accounts = client.asset_accounts().await.unwrap();
+    assert_eq!(accounts[0].iban.as_deref(), Some("DE44 5001 0517 5407 3249 31"));
+    assert_eq!(accounts[0].account_number.as_deref(), Some("1001"));
+    // absent attributes map to None (serde defaults)
+    assert_eq!(accounts[1].iban, None);
+    assert_eq!(accounts[1].account_number, None);
+}
+
+#[tokio::test]
 async fn asset_accounts_paginates() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))

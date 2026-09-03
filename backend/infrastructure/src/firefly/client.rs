@@ -40,6 +40,10 @@ struct AccountAttributes {
     account_type: String,
     #[serde(rename = "currency_code")]
     currency: String,
+    #[serde(default)]
+    iban: Option<String>,
+    #[serde(default)]
+    account_number: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -85,6 +89,35 @@ struct CreationResponse {
 
 #[derive(Deserialize)]
 struct CreationData {
+    id: String,
+}
+
+#[derive(Deserialize)]
+struct NamesResponse {
+    data: Vec<NamedData>,
+    meta: PaginationMeta,
+}
+
+#[derive(Deserialize)]
+struct NamedData {
+    attributes: NamedAttributes,
+}
+
+#[derive(Deserialize)]
+struct NamedAttributes {
+    #[serde(default)]
+    tag: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct AttachmentCreateResponse {
+    data: AttachmentCreateData,
+}
+
+#[derive(Deserialize)]
+struct AttachmentCreateData {
     id: String,
 }
 
@@ -139,6 +172,63 @@ impl ReqwestFireflyClient {
         let abs = cents.unsigned_abs();
         format!("{}{}.{:02}", sign, abs / 100, abs % 100)
     }
+
+    async fn paged_accounts(&self, query: &str) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
+        let mut all = Vec::new();
+        let mut page: u32 = 1;
+        loop {
+            let resp: AccountsResponse = self
+                .get_json(&format!("/api/v1/accounts?{query}&page={page}"))
+                .await?;
+            let total_pages = resp.meta.pagination.total_pages;
+            for acc in resp.data {
+                all.push(Ff3AccountDto {
+                    ff3_id: acc.id.parse::<i64>().map_err(|e| {
+                        ApplicationError::Parse(format!("invalid FF3 account id: {e}"))
+                    })?,
+                    name: acc.attributes.name,
+                    account_type: acc.attributes.account_type,
+                    currency: acc.attributes.currency,
+                    iban: acc.attributes.iban,
+                    account_number: acc.attributes.account_number,
+                });
+            }
+            if page >= total_pages {
+                break;
+            }
+            page += 1;
+        }
+        Ok(all)
+    }
+
+    async fn paged_names(
+        &self,
+        path: &str,
+        extract: impl Fn(&NamedAttributes) -> Option<String> + Send,
+    ) -> Result<Vec<String>, ApplicationError> {
+        let mut all = Vec::new();
+        let mut page: u32 = 1;
+        loop {
+            let resp: NamesResponse = self
+                .get_json(&format!("{path}?page={page}"))
+                .await?;
+            let total_pages = resp.meta.pagination.total_pages;
+            for item in resp.data {
+                if let Some(name) = extract(&item.attributes) {
+                    if !name.trim().is_empty() {
+                        all.push(name);
+                    }
+                }
+            }
+            if page >= total_pages {
+                break;
+            }
+            page += 1;
+        }
+        all.sort();
+        all.dedup();
+        Ok(all)
+    }
 }
 
 #[async_trait]
@@ -151,29 +241,20 @@ impl FireflyClient for ReqwestFireflyClient {
     }
 
     async fn asset_accounts(&self) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
-        let mut all = Vec::new();
-        let mut page: u32 = 1;
-        loop {
-            let resp: AccountsResponse = self
-                .get_json(&format!("/api/v1/accounts?type=asset&page={page}"))
-                .await?;
-            let total_pages = resp.meta.pagination.total_pages;
-            for acc in resp.data {
-                all.push(Ff3AccountDto {
-                    ff3_id: acc.id.parse::<i64>().map_err(|e| {
-                        ApplicationError::Parse(format!("invalid FF3 account id: {e}"))
-                    })?,
-                    name: acc.attributes.name,
-                    account_type: acc.attributes.account_type,
-                    currency: acc.attributes.currency,
-                });
-            }
-            if page >= total_pages {
-                break;
-            }
-            page += 1;
+        self.paged_accounts("type=asset").await
+    }
+
+    async fn accounts_by_type(
+        &self,
+        account_type: &str,
+    ) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
+        let valid = matches!(account_type, "asset" | "expense" | "revenue" | "liability");
+        if !valid {
+            return Err(ApplicationError::Parse(format!(
+                "invalid account_type: {account_type}"
+            )));
         }
-        Ok(all)
+        self.paged_accounts(&format!("type={account_type}")).await
     }
 
     async fn account_transactions(
@@ -302,6 +383,83 @@ impl FireflyClient for ReqwestFireflyClient {
             let text = resp.text().await.unwrap_or_else(|_| "<no body>".into());
             Err(ApplicationError::FireflyClient(format!(
                 "FF3 returned {status}: {text}"
+            )))
+        }
+    }
+
+    async fn tags(&self) -> Result<Vec<String>, ApplicationError> {
+        self.paged_names("/api/v1/tags", |a| a.tag.clone()).await
+    }
+
+    async fn categories(&self) -> Result<Vec<String>, ApplicationError> {
+        self.paged_names("/api/v1/categories", |a| a.name.clone())
+            .await
+    }
+
+    async fn budgets(&self) -> Result<Vec<String>, ApplicationError> {
+        self.paged_names("/api/v1/budgets", |a| a.name.clone())
+            .await
+    }
+
+    async fn attach_to_transaction(
+        &self,
+        journal_ff3_id: i64,
+        filename: &str,
+        content_base64: &str,
+    ) -> Result<(), ApplicationError> {
+        use base64::Engine as _;
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(content_base64)
+            .map_err(|e| ApplicationError::Parse(format!("invalid attachment base64: {e}")))?;
+
+        // Step 1: create attachment metadata.
+        let url = format!("{}/api/v1/attachments", self.base_url);
+        let resp = self
+            .http
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .header("Accept", "application/json")
+            .header("Content-Type", "application/json")
+            .json(&serde_json::json!({
+                "filename": filename,
+                "attachable_type": "TransactionJournal",
+                "attachable_id": journal_ff3_id.to_string(),
+            }))
+            .send()
+            .await
+            .map_err(|e| ApplicationError::FireflyClient(e.to_string()))?;
+        let status = resp.status();
+        if !status.is_success() {
+            let text = resp.text().await.unwrap_or_else(|_| "<no body>".into());
+            return Err(ApplicationError::FireflyClient(format!(
+                "FF3 returned {status}: {text}"
+            )));
+        }
+        let created: AttachmentCreateResponse = resp
+            .json()
+            .await
+            .map_err(|e| ApplicationError::FireflyClient(e.to_string()))?;
+        let attachment_id = created.data.id;
+
+        // Step 2: upload file content.
+        let url = format!("{}/api/v1/attachments/{attachment_id}/upload", self.base_url);
+        let resp = self
+            .http
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .header("Content-Type", "application/octet-stream")
+            .body(bytes)
+            .send()
+            .await
+            .map_err(|e| ApplicationError::FireflyClient(e.to_string()))?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_else(|_| "<no body>".into());
+            Err(ApplicationError::FireflyClient(format!(
+                "FF3 returned {}: {}",
+                status, text
             )))
         }
     }

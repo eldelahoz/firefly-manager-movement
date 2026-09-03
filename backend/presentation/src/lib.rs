@@ -14,8 +14,10 @@ use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::trace::TraceLayer;
 
 use crate::handlers::firefly::{
-    __path_delete_transaction, __path_list_accounts, account_transactions,
-    account_transactions_fallback, delete_transaction, list_accounts,
+    __path_delete_transaction, __path_list_accounts, __path_list_budgets,
+    __path_list_categories, __path_list_tags, account_transactions,
+    account_transactions_fallback, delete_transaction, list_accounts, list_budgets,
+    list_categories, list_tags,
 };
 use crate::handlers::imports::__path_delete_import;
 use crate::handlers::imports::{__path_get_import, __path_list_imports, __path_save_mapping};
@@ -24,6 +26,10 @@ use crate::handlers::imports::{delete_import, get_import, list_imports, save_map
 use crate::handlers::reconcile::{__path_apply, __path_get_results, __path_ignore_movement};
 use crate::handlers::reconcile::{__path_reconcile, apply};
 use crate::handlers::reconcile::{get_results, ignore_movement, reconcile};
+use crate::handlers::settings::{
+    __path_get_settings, __path_save_settings, __path_verify_settings, get_settings,
+    save_settings, verify_settings,
+};
 
 mod error;
 mod handlers;
@@ -89,6 +95,9 @@ pub fn app(state: AppState) -> axum::Router {
     let (router, openapi) = OpenApiRouter::new()
         .routes(routes!(health))
         .routes(routes!(list_accounts))
+        .routes(routes!(list_tags))
+        .routes(routes!(list_categories))
+        .routes(routes!(list_budgets))
         .routes(routes!(upload_import))
         .routes(routes!(list_imports))
         .routes(routes!(get_import))
@@ -99,6 +108,9 @@ pub fn app(state: AppState) -> axum::Router {
         .routes(routes!(ignore_movement))
         .routes(routes!(apply))
         .routes(routes!(delete_transaction))
+        .routes(routes!(get_settings))
+        .routes(routes!(save_settings))
+        .routes(routes!(verify_settings))
         .route("/api/firefly/accounts/{id}/transactions", tx_method_router)
         .with_state(state)
         .split_for_parts();

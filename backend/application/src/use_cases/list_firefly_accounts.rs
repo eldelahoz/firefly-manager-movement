@@ -1,5 +1,5 @@
 //! ListFireflyAccounts use case.
-//! Fetches asset accounts from Firefly III and syncs them to the local cache.
+//! Fetches accounts from Firefly III by type and syncs them to the local cache.
 
 use crate::dtos::{Ff3AccountDto, NewFf3Account};
 use crate::error::ApplicationError;
@@ -17,8 +17,8 @@ impl<C, R> ListFireflyAccounts<C, R> {
 }
 
 impl<C: FireflyClient, R: Ff3AccountRepository> ListFireflyAccounts<C, R> {
-    pub async fn execute(&self) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
-        let dtos = self.client.asset_accounts().await?;
+    pub async fn execute(&self, account_type: &str) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
+        let dtos = self.client.accounts_by_type(account_type).await?;
         let new_accounts: Vec<NewFf3Account> = dtos
             .iter()
             .map(|d| NewFf3Account {
@@ -26,6 +26,8 @@ impl<C: FireflyClient, R: Ff3AccountRepository> ListFireflyAccounts<C, R> {
                 name: d.name.clone(),
                 account_type: d.account_type.clone(),
                 currency: d.currency.clone(),
+                iban: d.iban.clone(),
+                account_number: d.account_number.clone(),
             })
             .collect();
         self.accounts.upsert_batch(new_accounts).await?;

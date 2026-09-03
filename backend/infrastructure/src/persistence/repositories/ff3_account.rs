@@ -35,14 +35,20 @@ impl Ff3AccountRepository for MysqlFf3AccountRepository {
             .map_err(|e| ApplicationError::Database(e.to_string()))?;
         for account in accounts {
             diesel::sql_query(
-                "INSERT INTO ff3_accounts (ff3_id, name, type, currency) VALUES (?, ?, ?, ?) \
+                "INSERT INTO ff3_accounts (ff3_id, name, type, currency, iban, account_number) \
+                 VALUES (?, ?, ?, ?, ?, ?) \
                  ON DUPLICATE KEY UPDATE name = VALUES(name), type = VALUES(type), \
-                 currency = VALUES(currency), synced_at = CURRENT_TIMESTAMP",
+                 currency = VALUES(currency), iban = VALUES(iban), \
+                 account_number = VALUES(account_number), synced_at = CURRENT_TIMESTAMP",
             )
             .bind::<diesel::sql_types::Integer, _>(account.ff3_id as i32)
             .bind::<diesel::sql_types::Varchar, _>(&account.name)
             .bind::<diesel::sql_types::Varchar, _>(&account.account_type)
             .bind::<diesel::sql_types::Varchar, _>(&account.currency)
+            .bind::<diesel::sql_types::Nullable<diesel::sql_types::Varchar>, _>(&account.iban)
+            .bind::<diesel::sql_types::Nullable<diesel::sql_types::Varchar>, _>(
+                &account.account_number,
+            )
             .execute(&mut conn)
             .await
             .map_err(|e| ApplicationError::Database(e.to_string()))?;
