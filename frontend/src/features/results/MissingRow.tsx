@@ -1,70 +1,87 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
-import type { MovementDTO } from '@/shared/api/dto';
-import { postIgnore } from '@/shared/api/endpoints';
+import type { Ff3Account, MovementDTO } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
-import { queryKeys } from '@/shared/lib/keys';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { Button } from '@/shared/ui/button';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { StatusPill } from '@/shared/ui/StatusPill';
+import type { Customization } from './customization';
+import { PersonalizeEditor } from './PersonalizeEditor';
 
 export function MissingRow({
   movement,
   currency,
-  batchId,
   selected,
   onToggle,
   report,
+  editing,
+  onEdit,
+  accounts,
+  tags,
+  categories,
+  budgets,
+  defaultTag,
+  onSave,
+  onCancel,
 }: {
   movement: MovementDTO;
   currency: string;
-  batchId: number;
   selected?: boolean;
   onToggle?: (id: number) => void;
   report?: { outcome: 'created' | 'already_created' | 'failed'; reason?: string };
+  editing?: boolean;
+  onEdit?: () => void;
+  accounts: Ff3Account[];
+  tags: string[];
+  categories: string[];
+  budgets: string[];
+  defaultTag: string | null;
+  onSave: (c: Customization) => void;
+  onCancel: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  const qc = useQueryClient();
-  const ignore = useMutation({
-    mutationFn: () => postIgnore(batchId, movement.id),
-    onSuccess: () => {
-      toast.success(t('status.ignored'));
-      void qc.invalidateQueries({ queryKey: queryKeys.results(batchId) });
-      void qc.invalidateQueries({ queryKey: queryKeys.import(batchId) });
-    },
-  });
+  const direction: 'withdrawal' | 'deposit' = movement.amount_cents < 0 ? 'withdrawal' : 'deposit';
   return (
-    <div className="flex items-center gap-3 border-b border-border-subtle py-3 text-sm">
-      <Checkbox
-        aria-label={movement.description}
-        checked={selected ?? false}
-        onCheckedChange={() => onToggle?.(movement.id)}
-      />
-      <div className="min-w-0 flex-1">
-        <p className="truncate">{movement.description}</p>
-        <p className="text-xs text-text-3">
-          #{movement.line_no} · {formatDate(movement.date, i18n.language)}
-        </p>
+    <div className="border-b border-border-subtle py-3 text-sm">
+      <div className="flex items-center gap-3">
+        <Checkbox
+          aria-label={movement.description}
+          checked={selected ?? false}
+          onCheckedChange={() => onToggle?.(movement.id)}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate">{movement.description}</p>
+          <p className="text-xs text-text-3">
+            #{movement.line_no} · {formatDate(movement.date, i18n.language)}
+          </p>
+        </div>
+        <MoneyText cents={movement.amount_cents} currency={currency} />
+        {movement.status === 'ignored' ? (
+          <StatusPill status="ignored" />
+        ) : (
+          <Button variant="ghost" size="sm" onClick={() => onEdit?.()} disabled={editing}>
+            {t('results.edit')}
+          </Button>
+        )}
+        {report && (
+          <span title={report.reason ?? ''}>
+            <StatusPill status={report.outcome} />
+          </span>
+        )}
       </div>
-      <MoneyText cents={movement.amount_cents} currency={currency} />
-      {movement.status === 'ignored' ? (
-        <StatusPill status="ignored" />
-      ) : (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => ignore.mutate()}
-          disabled={ignore.isPending}
-        >
-          {t('results.ignore')}
-        </Button>
-      )}
-      {report && (
-        <span title={report.reason ?? ''}>
-          <StatusPill status={report.outcome} />
-        </span>
+      {editing && (
+        <PersonalizeEditor
+          initial={{}}
+          defaultTag={defaultTag}
+          direction={direction}
+          accounts={accounts}
+          tags={tags}
+          categories={categories}
+          budgets={budgets}
+          onSave={onSave}
+          onCancel={onCancel}
+          submitLabel={t('results.confirm')}
+        />
       )}
     </div>
   );

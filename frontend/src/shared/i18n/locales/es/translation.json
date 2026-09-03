@@ -166,6 +166,7 @@
     "tags": "Etiquetas",
     "attachment": "Adjunto",
     "noAttachment": "Sin archivo seleccionado",
+    "noTags": "No hay etiquetas disponibles",
     "confirmTitle": "Crear en Firefly III",
     "confirmCount": "{{count}} transacciones serán creadas",
     "confirm": "Crear",

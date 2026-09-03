@@ -166,6 +166,7 @@
     "tags": "Tags",
     "attachment": "Attachment",
     "noAttachment": "No file chosen",
+    "noTags": "No tags available",
     "confirmTitle": "Create in Firefly III",
     "confirmCount": "{{count}} transactions will be created",
     "confirm": "Create",

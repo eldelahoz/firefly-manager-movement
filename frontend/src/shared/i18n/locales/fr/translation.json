@@ -166,6 +166,7 @@
     "tags": "Tags",
     "attachment": "Pièce jointe",
     "noAttachment": "Aucun fichier choisi",
+    "noTags": "Aucun tag disponible",
     "confirmTitle": "Créer dans Firefly III",
     "confirmCount": "{{count}} transactions seront créées",
     "confirm": "Créer",

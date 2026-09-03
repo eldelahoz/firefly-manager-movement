@@ -25,6 +25,7 @@ fn account(ff3_id: i64, name: &str, account_type: &str) -> NewFf3Account {
     }
 }
 
+#[allow(clippy::await_holding_lock)]
 #[tokio::test]
 async fn upsert_stores_iban_and_account_number() {
     let _guard = db_lock();
@@ -65,6 +66,7 @@ async fn upsert_stores_iban_and_account_number() {
     common::clean(&pool).await;
 }
 
+#[allow(clippy::await_holding_lock)]
 #[tokio::test]
 async fn upsert_by_ff3_id_and_all_asset() {
     let _guard = db_lock();
