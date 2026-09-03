@@ -9,9 +9,18 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 > - **Pres** → `backend/presentation/tests/*.rs` (axum HTTP handlers)
 > - **FE** → `frontend/src/**/*.test.tsx` (React + Vitest + MSW)
 
+> **Status** reflects the real implementation state against the *current* spec (including amendments), not just test existence:
+> - `implemented` — matches the current spec
+> - `partial (spec v0.X)` — base works; the listed amendment deltas are pending
+> - `pending (spec v0.X)` — the amended functionality is not implemented
+>
+> Spec versions are declared in the `Version` field of each requirement doc (`docs/specs/requirements/`): `v0.X (integrates ...)` for amended requirements, `Original (2026-08-14) — unamended` otherwise.
+
 ---
 
 ## RF-01  CSV upload (max 10 MB); XLSX → CSV by user
+
+**Status:** implemented · **Last verified:** 2026-09-03
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -31,6 +40,9 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-02  CSV parsing with manual mapping; memorize by header signature
 
+**Status:** partial (spec v0.7) · **Last verified:** 2026-09-03
+**Pending (v0.7):** optional origin-account column in the mapping and parser (feeds RF-04 auto-suggestion). The v0.5 deltas (explanatory message on manual mapping, automatic probe deletion) are implemented and tested.
+
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `upload_import.rs::upload_import_no_mapping_returns_headers_only` | Unknown headers → batch created, 0 movements, headers returned |
@@ -48,6 +60,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-03  Detect and report invalid lines without blocking; keep valid
 
+**Status:** implemented · **Last verified:** 2026-09-03
+
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `upload_import.rs::upload_import_keeps_invalid_lines` | Bad date / bad amount → `invalid_count=2`, reasons contain "date"/"amount", valid lines still inserted |
@@ -57,6 +71,9 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ---
 
 ## RF-04  List FF3 asset accounts; select target at import; pre-select at reconcile
+
+**Status:** partial (spec v0.7) · **Last verified:** 2026-09-03
+**Pending (v0.7):** account auto-suggestion from the origin-account column (match by IBAN, account number or name; unique match pre-selects, no/multiple match keeps manual selection with a non-blocking warning listing distinct values). The v0.6 deltas (select at import, pre-select at reconcile) are implemented and tested.
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -72,6 +89,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-05  Fetch target account transactions via FF3 API over date window
 
+**Status:** implemented · **Last verified:** 2026-09-03
+
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `reconcile_batch.rs::fixture_eur` + all tests | `FireflyClient.account_transactions(ff3_id, start, end)` called with window |
@@ -83,6 +102,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ---
 
 ## RF-06  Reconciliation engine with configurable date tolerance
+
+**Status:** implemented · **Last verified:** 2026-09-03
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -98,6 +119,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ---
 
 ## RF-07  Results in 3 groups (matched / missing / extras) with visual gap highlighting
+
+**Status:** implemented · **Last verified:** 2026-09-03
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -115,6 +138,10 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-08  Batch-create missing; edit description/category/budget/tags/attachment/notes
 
+**Status:** partial (spec v0.7) · **Last verified:** 2026-09-03
+**Pending (v0.6):** per-movement inline edit UI (description, category, budget, tags, notes, attachment) and FF3-sourced pickers (categories, budgets, tags) — current ApplyPanel only offers batch-level free-text inputs, no tags picker, no attachment.
+**Pending (v0.7):** two-action flow (personalize / create), bulk personalization panel with fill-only semantics, confirmation modal summarizing what will be created, tags pre-filled with the default creation tag (RF-19).
+
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `apply_missing.rs::apply_creates_missing_with_origin_tag_and_confirms_matched` | Creates in FF3 with origin tag `ffm:filename:batchId`, category, notes |
@@ -123,13 +150,15 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `apply_missing.rs::apply_rejects_movement_not_in_missing_state` | Only `Missing` movements accepted |
 | **Infra** | `deleted_audit_repo.rs` | Not directly related (deletion audit) |
 | **Pres** | `apply_delete_endpoints.rs` | `POST /api/imports/{id}/apply` with selection body |
-| **FE** | `ApplyPanel.test.tsx` | Selection UI, counterparty account picker, category/budget/tag selects |
-| **FE** | `MissingRow.test.tsx` | Inline edit of description, category, budget, tags, notes, attachment |
+| **FE** | `ApplyPanel.test.tsx` | Apply flow: selection, counterparty FF3 account picker, batch-level free-text category/budget/notes, mixed-outcome toast recap |
+| **FE** | `MissingRow.test.tsx` | Row rendering (description, amount), ignore action, failure/already-created pills — **inline edit NOT implemented/tested (v0.6 gap)** |
 | **FE** | `ResultsPage.test.tsx` | "Select all" + apply flow |
 
 ---
 
 ## RF-09  Each import batch immutable and viewable a posteriori (history)
+
+**Status:** implemented · **Last verified:** 2026-09-03
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -143,6 +172,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-10  Manual ignore / un-ignore; dedicated section in results
 
+**Status:** implemented · **Last verified:** 2026-09-03
+
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `ignore_movement.rs` | `IgnoreMovement` use case toggles `status=Ignored` |
@@ -155,14 +186,19 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-11  Created transactions carry origin trace (tag/note: file + batch)
 
+**Status:** partial (spec v0.7) · **Last verified:** 2026-09-03
+**Pending (v0.7):** origin tag applied *in addition to* user-selected or default tags, never replaced — the apply use case currently hardcodes `tags: vec![origin_tag]` (`apply_missing.rs:205`); no user-tags input or merge logic exists yet.
+
 | Layer | Test | What it validates |
 | --- | --- | --- |
-| **App** | `apply_missing.rs::apply_creates_missing_with_origin_tag_and_confirms_matched` | Tags = `["ffm:stmt.csv:1"]` (filename + batchId) |
+| **App** | `apply_missing.rs::apply_creates_missing_with_origin_tag_and_confirms_matched` | Tags = `["ffm:stmt.csv:1"]` (origin tag only — merge with user/default tags not covered) |
 | **App** | `apply_missing.rs::apply_retry_creates_nothing_nfr05` | Origin tag consistent on retry |
 
 ---
 
 ## RF-12  Multiple currencies: statement currency from FF3 account; blocking warning on mismatch
+
+**Status:** implemented · **Last verified:** 2026-09-03
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -176,6 +212,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-13  Re-run reconciliation on existing batch
 
+**Status:** implemented · **Last verified:** 2026-09-03
+
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `reconcile_batch.rs::reconcile_rerun_creates_new_reconciliation` | Second run creates new `Reconciliation` row, updates movement statuses |
@@ -187,6 +225,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-14  Browse FF3 account transactions by period (min/max date)
 
+**Status:** implemented · **Last verified:** 2026-09-03
+
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `get_account_transactions.rs` | `GetAccountTransactions` use case with start/end |
@@ -197,6 +237,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ---
 
 ## RF-15  Flag duplicates; delete with double confirmation + audit snapshot
+
+**Status:** implemented · **Last verified:** 2026-09-03
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -213,6 +255,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-16  Refuse duplicate filename upload (409 before storage)
 
+**Status:** implemented · **Last verified:** 2026-09-03
+
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `upload_import.rs::upload_import_rejects_duplicate_filename` | Second upload same filename → `Conflict` error, 0 new batches |
@@ -225,9 +269,11 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-17  Delete `parsed` batch after explicit confirmation (file name + count); irreversible; refused for `reconciled`/`applied`
 
+**Status:** implemented · **Last verified:** 2026-09-03
+
 | Layer | Test | What it validates |
 | --- | --- | --- |
-| **App** | `delete_import.rs::delete_import_removes_parsed_batch_and_movements` | `BatchStatus::Parsed` → batch + movements deleted |
+| **App** | `delete_import.rs::delete_import_removes_parsed_batch_and_movements` | Batch in `Parsed` status → batch + movements deleted |
 | **App** | `delete_import.rs::delete_import_rejects_non_parsed_batch` | `Reconciled`/`Applied` → `InvalidState`, nothing deleted |
 | **App** | `delete_import.rs::delete_import_missing_batch_is_not_found` | Non-existent → `NotFound` |
 | **Pres** | `import_endpoints.rs` | `DELETE /api/imports/{id}` returns 409 if not `Parsed` |
@@ -236,6 +282,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 ---
 
 ## RF-18  Resume incomplete import: wizard reopens at first pending step (reconcile); free back/forward navigation
+
+**Status:** implemented · **Last verified:** 2026-09-03
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -249,13 +297,17 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-19  App settings: configure FF3 connection (URL + token), verify connectivity, save; replaces env vars
 
+**Status:** pending (spec v0.7) · **Last verified:** 2026-09-03
+**Pending (v0.6):** FF3 connection form in settings (URL + token + "Test connection"), `app_settings` storage (write-only token), settings use case + API endpoints, backend reading the connection from DB instead of env vars (`main.rs:37-38` still reads `FF3_URL`/`FF3_TOKEN`).
+**Pending (v0.7):** default creation tag (optional, FF3-sourced dropdown), applied by RF-08.
+
 | Layer | Test | What it validates |
 | --- | --- | --- |
-| **App** | (settings use case not yet extracted) | — |
-| **Infra** | `firefly_client.rs` | `about()` health probe used for verification |
-| **Pres** | `health.rs` | `GET /health` with `FF3_HEALTH_PROBE=true` calls FF3 `/about` |
-| **FE** | `SettingsPage.test.tsx` | Form with URL + token, "Test connection" button, save persists |
-| **FE** | `SettingsPage.tsx` | Token never exposed to frontend after save (backend-only) |
+| **App** | (no settings use case exists) | — |
+| **Infra** | `firefly_client.rs` | `about()` health probe — env-var config only, not settings-based verification |
+| **Pres** | `health.rs` | `GET /health` with `FF3_HEALTH_PROBE=true` calls FF3 `/about` — env-var config only |
+| **FE** | `SettingsPage.test.tsx` | Appearance/language sections only — **FF3 connection form NOT implemented** |
+| **FE** | — | Token-not-exposed guarantee untestable until the connection form exists |
 
 > **Amendment v0.6**: Settings replace `FF3_URL`/`FF3_TOKEN` env vars. Backend reads from DB at startup.
 
@@ -268,7 +320,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Idempotency (NFR-05)** | `apply_missing.rs::apply_retry_creates_nothing_nfr05` (creation UNIQUE), `upload_import.rs::upload_import_rejects_duplicate_filename` |
 | **Amounts as cents (NFR-06)** | `matching_engine.rs` (all use `AmountCents::new(cents)`), `value_objects.rs` |
 | **No auto create/delete (O4, O5)** | `apply_missing.rs` requires explicit selection; `delete_firefly_transaction.rs` requires double confirm |
-| **Security (NFR-02)** | `SettingsPage.test.tsx` token not returned; `firefly_client.rs` token from backend config only |
+| **Security (NFR-02)** | `firefly_client.rs` token from backend env config only; token-not-returned test pending with RF-19 settings |
 | **Batch immutability** | `delete_import.rs` rejects non-`Parsed`; `apply_missing.rs` requires `Reconciled` batch |
 
 ---
@@ -297,32 +349,35 @@ cd ../frontend && pnpm lint && pnpm test && pnpm build
 
 ---
 
-## Coverage Summary (as of 2026-08-30)
+## Coverage Summary (as of 2026-09-03)
 
-| RF | Domain | App | Infra | Pres | FE |
-| --- | :---: | :---: | :---: | :---: | :---: |
-| 01 | — | ✅ | ✅ | ✅ | ✅ |
-| 02 | — | ✅ | ✅ | ✅ | ✅ |
-| 03 | — | ✅ | ✅ | — | — |
-| 04 | — | ✅ | ✅ | ✅ | ✅ |
-| 05 | — | ✅ | ✅ | ✅ | ✅ |
-| 06 | ✅ | ✅ | — | — | — |
-| 07 | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 08 | — | ✅ | — | ✅ | ✅ |
-| 09 | — | ✅ | ✅ | ✅ | ✅ |
-| 10 | — | ✅ | — | — | ✅ |
-| 11 | — | ✅ | — | — | — |
-| 12 | — | ✅ | — | — | ✅ |
-| 13 | — | ✅ | — | ✅ | ✅ |
-| 14 | — | ✅ | ✅ | ✅ | ✅ |
-| 15 | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 16 | — | ✅ | ✅ | ✅ | ✅ |
-| 17 | — | ✅ | — | ✅ | ✅ |
-| 18 | — | ✅ | — | — | ✅ |
-| 19 | — | — | ✅ | ✅ | ✅ |
+The per-layer columns reflect **test existence** for the original (pre-amendment) scope; the **Status** column reflects the *amended* spec (see per-RF sections for pending deltas).
 
-**✅ = covered; — = not applicable / not yet implemented**
+| RF | Domain | App | Infra | Pres | FE | Status |
+| --- | :---: | :---: | :---: | :---: | :---: | --- |
+| 01 | — | ✅ | ✅ | ✅ | ✅ | implemented |
+| 02 | — | ✅ | ✅ | ✅ | ✅ | partial (v0.7) |
+| 03 | — | ✅ | ✅ | — | — | implemented |
+| 04 | — | ✅ | ✅ | ✅ | ✅ | partial (v0.7) |
+| 05 | — | ✅ | ✅ | ✅ | ✅ | implemented |
+| 06 | ✅ | ✅ | — | — | — | implemented |
+| 07 | ✅ | ✅ | ✅ | ✅ | ✅ | implemented |
+| 08 | — | ✅ | — | ✅ | ⚠️ | partial (v0.7) |
+| 09 | — | ✅ | ✅ | ✅ | ✅ | implemented |
+| 10 | — | ✅ | — | — | ✅ | implemented |
+| 11 | — | ✅ | — | — | — | partial (v0.7) |
+| 12 | — | ✅ | — | — | ✅ | implemented |
+| 13 | — | ✅ | — | ✅ | ✅ | implemented |
+| 14 | — | ✅ | ✅ | ✅ | ✅ | implemented |
+| 15 | ✅ | ✅ | ✅ | ✅ | ✅ | implemented |
+| 16 | — | ✅ | ✅ | ✅ | ✅ | implemented |
+| 17 | — | ✅ | — | ✅ | ✅ | implemented |
+| 18 | — | ✅ | — | — | ✅ | implemented |
+| 19 | — | — | ✅* | ✅* | ⚠️ | pending (v0.7) |
+
+**✅ = covered; — = not applicable; ⚠️ = tests exist but do not cover the amended scope**
+**\* RF-19 Infra/Pres ✅ = health probe via env-var config only — not the amended settings requirement**
 
 ---
 
-*Generated from PRD v0.6 / TRD v0.4 and current test suite.*
+*Generated from PRD v0.7 / TRD v0.5 and the current test suite. Status audited 2026-09-03.*
