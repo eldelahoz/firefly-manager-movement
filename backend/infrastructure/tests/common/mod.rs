@@ -6,8 +6,8 @@ use diesel_async::AsyncMysqlConnection;
 use diesel_async::RunQueryDsl;
 
 use ffm_infrastructure::schema::{
-    batches, creations, csv_mappings, deleted_audit, ff3_accounts, ff3_transactions, matches,
-    movements, reconciliations,
+    app_settings, batches, creations, csv_mappings, deleted_audit, ff3_accounts, ff3_transactions,
+    matches, movements, reconciliations,
 };
 
 pub type DbPool = Pool<AsyncMysqlConnection>;
@@ -47,6 +47,7 @@ pub async fn clean(db: &DbPool) {
         csv_mappings::table,
         deleted_audit::table,
         ff3_accounts::table,
+        app_settings::table,
     );
     diesel::sql_query("SET FOREIGN_KEY_CHECKS = 1")
         .execute(&mut conn)

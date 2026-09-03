@@ -37,6 +37,8 @@ pub struct UploadImportResult {
     pub valid: Vec<ParsedMovement>,
     /// Preview of invalid rows (capped).
     pub invalid: Vec<InvalidLine>,
+    /// Distinct origin-account values extracted from the CSV (sorted, deduplicated).
+    pub origin_account_values: Vec<String>,
 }
 
 const PREVIEW_LIMIT: usize = 50;
@@ -151,6 +153,7 @@ where
                     .into_iter()
                     .take(PREVIEW_LIMIT)
                     .collect(),
+                origin_account_values: parse_result.origin_account_values,
             });
         }
 
@@ -168,6 +171,7 @@ where
             mapping_used: None,
             valid: Vec::new(),
             invalid: Vec::new(),
+            origin_account_values: Vec::new(),
         })
     }
 }

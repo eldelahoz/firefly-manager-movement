@@ -91,6 +91,8 @@ impl Ff3AccountRepository for FakeFf3AccountRepo {
                     name: a.name,
                     account_type: a.account_type,
                     currency: a.currency,
+                    iban: None,
+                    account_number: None,
                     synced_at: epoch(),
                 });
             }
@@ -411,6 +413,8 @@ impl Fixture {
                 name: "Checking".into(),
                 account_type: "asset".into(),
                 currency: "EUR".into(),
+                iban: None,
+                account_number: None,
             }],
             transactions: self.firefly_transactions.lock().unwrap().clone(),
         })

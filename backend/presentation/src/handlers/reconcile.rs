@@ -6,9 +6,8 @@ use chrono::{NaiveDate, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use ffm_application::use_cases::apply_missing::{
-    ApplyMissing, ApplyMissingInput, ApplyOutcome, RunPorts,
-};
+use ffm_application::dtos::{ApplyMissingInput, AttachmentPayload, MovementApply};
+use ffm_application::use_cases::apply_missing::{ApplyMissing, ApplyOutcome, RunPorts};
 use ffm_application::use_cases::get_results::GetResults;
 use ffm_application::use_cases::ignore_movement::IgnoreMovement;
 use ffm_application::use_cases::reconcile_batch::{ReconcileBatch, ReconcileBatchInput};
@@ -227,14 +226,34 @@ pub async fn ignore_movement(
 }
 
 #[derive(Deserialize, ToSchema)]
-pub struct ApplyRequest {
-    /// Missing movements to create (ids).
-    pub movement_ids: Vec<i64>,
-    /// Counterparty account (external FF3 id): expense/revenue side.
+pub struct AttachmentRequest {
+    pub filename: String,
+    pub content_base64: String,
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct ApplyMovementBody {
+    pub movement_id: i64,
+    /// Counterparty account (external FF3 id), required per movement.
     pub counterparty_ff3_id: i64,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
     pub category: Option<String>,
+    #[serde(default)]
     pub budget: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
     pub notes: Option<String>,
+    #[serde(default)]
+    pub attachment: Option<AttachmentRequest>,
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct ApplyRequest {
+    /// Selected movements with their resolved customization (v0.7).
+    pub movements: Vec<ApplyMovementBody>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -293,15 +312,23 @@ pub async fn apply(
     let result = uc
         .execute(ApplyMissingInput {
             batch_id: BatchId::new(id),
-            movement_ids: body
-                .movement_ids
-                .iter()
-                .map(|i| MovementId::new(*i))
+            movements: body
+                .movements
+                .into_iter()
+                .map(|m| MovementApply {
+                    movement_id: MovementId::new(m.movement_id),
+                    counterparty_ff3_id: m.counterparty_ff3_id,
+                    description: m.description,
+                    category: m.category,
+                    budget: m.budget,
+                    tags: m.tags,
+                    notes: m.notes,
+                    attachment: m.attachment.map(|a| AttachmentPayload {
+                        filename: a.filename,
+                        content_base64: a.content_base64,
+                    }),
+                })
                 .collect(),
-            counterparty_ff3_id: body.counterparty_ff3_id,
-            category: body.category,
-            budget: body.budget,
-            notes: body.notes,
         })
         .await
         .map_err(ApiError)?;

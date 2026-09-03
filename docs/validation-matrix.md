@@ -40,21 +40,23 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-02  CSV parsing with manual mapping; memorize by header signature
 
-**Status:** partial (spec v0.7) · **Last verified:** 2026-09-03
-**Pending (v0.7):** optional origin-account column in the mapping and parser (feeds RF-04 auto-suggestion). The v0.5 deltas (explanatory message on manual mapping, automatic probe deletion) are implemented and tested.
+**Status:** implemented · **Last verified:** 2026-09-03
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `upload_import.rs::upload_import_no_mapping_returns_headers_only` | Unknown headers → batch created, 0 movements, headers returned |
 | **App** | `upload_import.rs::upload_import_uses_provided_mapping` | Explicit `ColumnMapping` used |
 | **App** | `upload_import.rs::upload_import_uses_saved_mapping_by_signature` | Header signature lookup → auto-apply saved mapping |
+| **App** | `upload_import.rs::upload_import_extracts_origin_account_values` | Origin-account column values parsed into movements |
+| **App** | `upload_import.rs::upload_import_empty_origin_account_values_when_no_column` | No origin column → `origin_account` is `None` |
+| **App** | `upload_import.rs::upload_import_auto_detects_spanish_headers_valor` | Known header layouts auto-detected |
 | **App** | `save_csv_mapping.rs` | `PUT /mapping` persists mapping by signature |
-| **App** | `csv.rs` | Auto-detection for known Spanish headers (`Fecha;Valor` etc.) |
 | **Infra** | `csv_mapping_repo.rs` | `CsvMappingRepository` CRUD + `by_signature` |
 | **FE** | `ImportWizard.test.tsx::unknown mapping: preview then mapping step` | Wizard shows mapping UI when `mapping_used=null` |
 | **FE** | `ImportWizard.test.tsx::known mapping: preview then straight to reconcile config` | Auto-applied mapping skips mapping step |
-| **FE** | `MappingStep.test.tsx` | Column select UI, validation |
+| **FE** | `MappingStep.test.tsx` | Column select UI, validation, origin-account mapping |
 | **FE** | `ImportWizard.test.tsx::mapping confirm deletes probe batch before re-upload` | Probe (0 movements) deleted, file re-uploaded with confirmed mapping |
+| **FE** | `originSuggest.test.ts` | Origin auto-detect by known Spanish headers (`Fecha;Valor`) |
 
 ---
 
@@ -72,18 +74,19 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-04  List FF3 asset accounts; select target at import; pre-select at reconcile
 
-**Status:** partial (spec v0.7) · **Last verified:** 2026-09-03
-**Pending (v0.7):** account auto-suggestion from the origin-account column (match by IBAN, account number or name; unique match pre-selects, no/multiple match keeps manual selection with a non-blocking warning listing distinct values). The v0.6 deltas (select at import, pre-select at reconcile) are implemented and tested.
+**Status:** implemented · **Last verified:** 2026-09-03
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `get_account_transactions.rs` | `Ff3AccountRepository.all_asset()` returns cached accounts |
-| **Infra** | `ff3_account_repo.rs` | `Ff3AccountRepository` upsert + query |
+| **Infra** | `ff3_account_repo.rs` | `Ff3AccountRepository` upsert + query (includes IBAN/number) |
 | **Infra** | `firefly_client.rs` | `asset_accounts()` calls `GET /api/v1/accounts?type=asset` |
 | **Pres** | `firefly_endpoints.rs` | `GET /api/firefly/accounts` returns cached asset accounts |
 | **FE** | `ImportWizard.test.tsx` (multiple) | Account selector in step 1, pre-selected in reconcile step |
 | **FE** | `ReconcileConfigStep.test.tsx` | Account pre-selected, editable |
 | **FE** | `BrowseWidget.test.tsx` | Account picker for period browse (RF-14) |
+| **FE** | `originSuggest.test.ts` | Origin-account auto-suggestion: unique match pre-selects, no/multiple shows warning |
+| **FE** | `ImportWizard.test.tsx::origin account pre-selects matching asset` | Origin column value auto-selects matching asset account |
 
 ---
 
@@ -138,21 +141,30 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-08  Batch-create missing; edit description/category/budget/tags/attachment/notes
 
-**Status:** partial (spec v0.7) · **Last verified:** 2026-09-03
-**Pending (v0.6):** per-movement inline edit UI (description, category, budget, tags, notes, attachment) and FF3-sourced pickers (categories, budgets, tags) — current ApplyPanel only offers batch-level free-text inputs, no tags picker, no attachment.
-**Pending (v0.7):** two-action flow (personalize / create), bulk personalization panel with fill-only semantics, confirmation modal summarizing what will be created, tags pre-filled with the default creation tag (RF-19).
+**Status:** implemented · **Last verified:** 2026-09-03
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
-| **App** | `apply_missing.rs::apply_creates_missing_with_origin_tag_and_confirms_matched` | Creates in FF3 with origin tag `ffm:filename:batchId`, category, notes |
+| **App** | `apply_missing.rs::apply_creates_with_origin_tag_and_confirms_matched` | Creates in FF3 with origin tag, category, notes |
+| **App** | `apply_missing.rs::applies_per_movement_customization` | Per-movement description, category, budget, tags, notes override |
+| **App** | `apply_missing.rs::origin_tag_appended_in_addition_to_user_tags` | Origin tag merged with user-selected tags |
+| **App** | `apply_missing.rs::origin_tag_appended_when_user_tags_empty` | Origin tag applied when no user tags |
+| **App** | `apply_missing.rs::origin_tag_not_duplicated_when_user_includes_it` | No duplicate origin tag |
+| **App** | `apply_missing.rs::zero_amount_movement_fails_without_ff3_call` | Zero-amount validation before FF3 call |
+| **App** | `apply_missing.rs::attachment_uploaded_after_creation` | Attachment uploaded after transaction creation |
+| **App** | `apply_missing.rs::attachment_failure_does_not_fail_creation` | Attachment failure doesn't block creation |
 | **App** | `apply_missing.rs::apply_partial_failure_continues_batch` | Per-movement report, batch continues on failure |
 | **App** | `apply_missing.rs::apply_retry_creates_nothing_nfr05` | Idempotency: `creations` table UNIQUE prevents double creation (NFR-05) |
 | **App** | `apply_missing.rs::apply_rejects_movement_not_in_missing_state` | Only `Missing` movements accepted |
-| **Infra** | `deleted_audit_repo.rs` | Not directly related (deletion audit) |
-| **Pres** | `apply_delete_endpoints.rs` | `POST /api/imports/{id}/apply` with selection body |
-| **FE** | `ApplyPanel.test.tsx` | Apply flow: selection, counterparty FF3 account picker, batch-level free-text category/budget/notes, mixed-outcome toast recap |
-| **FE** | `MissingRow.test.tsx` | Row rendering (description, amount), ignore action, failure/already-created pills — **inline edit NOT implemented/tested (v0.6 gap)** |
-| **FE** | `ResultsPage.test.tsx` | "Select all" + apply flow |
+| **Pres** | `apply_delete_endpoints.rs::apply_endpoint_creates_and_reports` | `POST /api/imports/{id}/apply` with selection body |
+| **Pres** | `apply_delete_endpoints.rs::apply_partial_failure_continues_and_reports_reason` | Partial failure reporting |
+| **Pres** | `apply_delete_endpoints.rs::apply_retry_endpoint_is_idempotent` | Retry returns same results |
+| **FE** | `ResultsPage.test.tsx` | Two-action flow (Personalize + Apply), selection, confirm modal |
+| **FE** | `MissingRow.test.tsx` | Row rendering, inline edit (PersonalizeEditor), failure/already-created pills |
+| **FE** | `PersonalizeEditor.test.tsx` | Per-movement fields: counterparty, description, tags, category, budget, notes |
+| **FE** | `BulkPersonalizeSheet.test.tsx` | Bulk fill-only panel for shared fields |
+| **FE** | `ConfirmCreateDialog.test.tsx` | Confirmation dialog with per-movement summary |
+| **FE** | `customization.test.ts` | `applyBulkFillOnly()` pure logic |
 
 ---
 
@@ -186,13 +198,16 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-11  Created transactions carry origin trace (tag/note: file + batch)
 
-**Status:** partial (spec v0.7) · **Last verified:** 2026-09-03
-**Pending (v0.7):** origin tag applied *in addition to* user-selected or default tags, never replaced — the apply use case currently hardcodes `tags: vec![origin_tag]` (`apply_missing.rs:205`); no user-tags input or merge logic exists yet.
+**Status:** implemented · **Last verified:** 2026-09-03
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
-| **App** | `apply_missing.rs::apply_creates_missing_with_origin_tag_and_confirms_matched` | Tags = `["ffm:stmt.csv:1"]` (origin tag only — merge with user/default tags not covered) |
+| **App** | `apply_missing.rs::apply_creates_with_origin_tag_and_confirms_matched` | Tags = `["ffm:stmt.csv:1"]` (origin tag) |
+| **App** | `apply_missing.rs::origin_tag_appended_in_addition_to_user_tags` | Origin tag merged with user tags, not replaced |
+| **App** | `apply_missing.rs::origin_tag_appended_when_user_tags_empty` | Origin tag applied even with empty user tags |
+| **App** | `apply_missing.rs::origin_tag_not_duplicated_when_user_includes_it` | No duplicate when user includes origin tag |
 | **App** | `apply_missing.rs::apply_retry_creates_nothing_nfr05` | Origin tag consistent on retry |
+| **FE** | `ConfirmCreateDialog.test.tsx` | Shows origin tag format `ffm:{filename}:{batchId}` in summary |
 
 ---
 
@@ -297,19 +312,33 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-19  App settings: configure FF3 connection (URL + token), verify connectivity, save; replaces env vars
 
-**Status:** pending (spec v0.7) · **Last verified:** 2026-09-03
-**Pending (v0.6):** FF3 connection form in settings (URL + token + "Test connection"), `app_settings` storage (write-only token), settings use case + API endpoints, backend reading the connection from DB instead of env vars (`main.rs:37-38` still reads `FF3_URL`/`FF3_TOKEN`).
-**Pending (v0.7):** default creation tag (optional, FF3-sourced dropdown), applied by RF-08.
+**Status:** implemented · **Last verified:** 2026-09-03
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
-| **App** | (no settings use case exists) | — |
-| **Infra** | `firefly_client.rs` | `about()` health probe — env-var config only, not settings-based verification |
-| **Pres** | `health.rs` | `GET /health` with `FF3_HEALTH_PROBE=true` calls FF3 `/about` — env-var config only |
-| **FE** | `SettingsPage.test.tsx` | Appearance/language sections only — **FF3 connection form NOT implemented** |
-| **FE** | — | Token-not-exposed guarantee untestable until the connection form exists |
-
-> **Amendment v0.6**: Settings replace `FF3_URL`/`FF3_TOKEN` env vars. Backend reads from DB at startup.
+| **App** | `app_settings.rs::get_returns_empty_view_when_no_row` | Empty state before first save |
+| **App** | `app_settings.rs::get_masks_token_but_reports_presence` | Token masked in GET response |
+| **App** | `app_settings.rs::save_persists_reconfigures_and_keeps_token_when_omitted` | Save persists, reconfigure FF3 client, keep token when blank |
+| **App** | `app_settings.rs::save_replaces_token_when_provided_and_clears_tag` | Token replacement, tag cleared |
+| **App** | `app_settings.rs::save_rejects_blank_url` | Blank URL → `Validation` error |
+| **App** | `app_settings.rs::save_rejects_non_http_url` | Non-HTTP URL → `Validation` error |
+| **App** | `app_settings.rs::save_without_any_token_is_rejected` | No token → `Validation` error |
+| **App** | `app_settings.rs::verify_probes_via_factory` | Verify connectivity via factory |
+| **App** | `app_settings.rs::verify_rejects_invalid_url` | Invalid URL → `Validation` error |
+| **App** | `app_settings.rs::verify_rejects_blank_token` | Blank token → `Validation` error |
+| **Infra** | `app_settings_repo.rs` | Repository CRUD + reversible migration |
+| **Pres** | `settings_endpoints.rs::get_settings_returns_url_and_has_token` | GET returns URL + token presence |
+| **Pres** | `settings_endpoints.rs::put_settings_saves_and_reconfigures` | PUT saves and reconfigures |
+| **Pres** | `settings_endpoints.rs::put_settings_keeps_existing_token_when_omitted` | Token kept when not provided |
+| **Pres** | `settings_endpoints.rs::put_settings_blank_url_returns_400` | Blank URL → 400 |
+| **Pres** | `settings_endpoints.rs::verify_ok_returns_version` | Verify → FF3 version |
+| **Pres** | `settings_endpoints.rs::verify_bad_url_returns_400` | Invalid URL → 400 |
+| **Pres** | `settings_endpoints.rs::verify_unreachable_returns_502` | Unreachable → 502 |
+| **Pres** | `settings_endpoints.rs::get_settings_empty_when_no_row` | Empty state |
+| **FE** | `SettingsPage.test.tsx::shows connection status after save` | Connection form with URL input, save, status display |
+| **FE** | `SettingsPage.test.tsx::verify connectivity button probes FF3` | Test connection button |
+| **FE** | `SettingsPage.test.tsx::default creation tag dropdown shows tags from FF3` | Tag dropdown from FF3 API |
+| **FE** | `SettingsPage.test.tsx::saves settings with default creation tag` | Settings save with tag |
 
 ---
 
@@ -356,16 +385,16 @@ The per-layer columns reflect **test existence** for the original (pre-amendment
 | RF | Domain | App | Infra | Pres | FE | Status |
 | --- | :---: | :---: | :---: | :---: | :---: | --- |
 | 01 | — | ✅ | ✅ | ✅ | ✅ | implemented |
-| 02 | — | ✅ | ✅ | ✅ | ✅ | partial (v0.7) |
+| 02 | — | ✅ | ✅ | ✅ | ✅ | implemented |
 | 03 | — | ✅ | ✅ | — | — | implemented |
-| 04 | — | ✅ | ✅ | ✅ | ✅ | partial (v0.7) |
+| 04 | — | ✅ | ✅ | ✅ | ✅ | implemented |
 | 05 | — | ✅ | ✅ | ✅ | ✅ | implemented |
 | 06 | ✅ | ✅ | — | — | — | implemented |
 | 07 | ✅ | ✅ | ✅ | ✅ | ✅ | implemented |
-| 08 | — | ✅ | — | ✅ | ⚠️ | partial (v0.7) |
+| 08 | — | ✅ | — | ✅ | ✅ | implemented |
 | 09 | — | ✅ | ✅ | ✅ | ✅ | implemented |
 | 10 | — | ✅ | — | — | ✅ | implemented |
-| 11 | — | ✅ | — | — | — | partial (v0.7) |
+| 11 | — | ✅ | — | — | ✅ | implemented |
 | 12 | — | ✅ | — | — | ✅ | implemented |
 | 13 | — | ✅ | — | ✅ | ✅ | implemented |
 | 14 | — | ✅ | ✅ | ✅ | ✅ | implemented |
@@ -373,10 +402,9 @@ The per-layer columns reflect **test existence** for the original (pre-amendment
 | 16 | — | ✅ | ✅ | ✅ | ✅ | implemented |
 | 17 | — | ✅ | — | ✅ | ✅ | implemented |
 | 18 | — | ✅ | — | — | ✅ | implemented |
-| 19 | — | — | ✅* | ✅* | ⚠️ | pending (v0.7) |
+| 19 | — | ✅ | ✅ | ✅ | ✅ | implemented |
 
-**✅ = covered; — = not applicable; ⚠️ = tests exist but do not cover the amended scope**
-**\* RF-19 Infra/Pres ✅ = health probe via env-var config only — not the amended settings requirement**
+**✅ = covered; — = not applicable**
 
 ---
 

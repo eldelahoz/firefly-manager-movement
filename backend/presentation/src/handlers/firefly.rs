@@ -1,6 +1,8 @@
 //! Firefly III proxy handlers.
 
-use axum::extract::{Path, Request, State};
+use std::collections::HashMap;
+
+use axum::extract::{Path, Query, Request, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
@@ -51,20 +53,31 @@ pub struct FireflyTransactionResponse {
 
 // ── GET /api/firefly/accounts ───────────────────────────────────────────
 
+const VALID_ACCOUNT_TYPES: &[&str] = &["asset", "expense", "revenue", "liability"];
+
 #[utoipa::path(
     get,
     path = "/api/firefly/accounts",
+    params(("type" = Option<String>, Query, description = "Account type filter (asset|expense|revenue|liability, default: asset)")),
     responses(
-        (status = 200, description = "List of FF3 asset accounts (synced to local cache)", body = [FireflyAccountResponse]),
+        (status = 200, description = "List of FF3 accounts (synced to local cache)", body = [FireflyAccountResponse]),
+        (status = 400, description = "Invalid account type"),
         (status = 502, description = "Firefly III unreachable"),
     ),
     tag = "firefly",
 )]
 pub async fn list_accounts(
     State(state): State<AppState>,
+    Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<Vec<FireflyAccountResponse>>, ApiError> {
+    let account_type = params.get("type").map(|s| s.as_str()).unwrap_or("asset");
+    if !VALID_ACCOUNT_TYPES.contains(&account_type) {
+        return Err(ApiError(ApplicationError::Parse(format!(
+            "invalid account type: {account_type}"
+        ))));
+    }
     let uc = ListFireflyAccounts::new(state.firefly.clone(), state.ff3_accounts.clone());
-    let accounts = uc.execute().await.map_err(ApiError)?;
+    let accounts = uc.execute(account_type).await.map_err(ApiError)?;
     Ok(Json(
         accounts
             .into_iter()
@@ -76,6 +89,54 @@ pub async fn list_accounts(
             })
             .collect(),
     ))
+}
+
+// ── GET /api/firefly/tags ──────────────────────────────────────────────
+
+#[utoipa::path(
+    get,
+    path = "/api/firefly/tags",
+    responses(
+        (status = 200, description = "Tag names", body = [String]),
+        (status = 502, description = "Firefly III unreachable"),
+    ),
+    tag = "firefly",
+)]
+pub async fn list_tags(State(state): State<AppState>) -> Result<Json<Vec<String>>, ApiError> {
+    let tags = state.firefly.tags().await.map_err(ApiError)?;
+    Ok(Json(tags))
+}
+
+// ── GET /api/firefly/categories ────────────────────────────────────────
+
+#[utoipa::path(
+    get,
+    path = "/api/firefly/categories",
+    responses(
+        (status = 200, description = "Category names", body = [String]),
+        (status = 502, description = "Firefly III unreachable"),
+    ),
+    tag = "firefly",
+)]
+pub async fn list_categories(State(state): State<AppState>) -> Result<Json<Vec<String>>, ApiError> {
+    let categories = state.firefly.categories().await.map_err(ApiError)?;
+    Ok(Json(categories))
+}
+
+// ── GET /api/firefly/budgets ───────────────────────────────────────────
+
+#[utoipa::path(
+    get,
+    path = "/api/firefly/budgets",
+    responses(
+        (status = 200, description = "Budget names", body = [String]),
+        (status = 502, description = "Firefly III unreachable"),
+    ),
+    tag = "firefly",
+)]
+pub async fn list_budgets(State(state): State<AppState>) -> Result<Json<Vec<String>>, ApiError> {
+    let budgets = state.firefly.budgets().await.map_err(ApiError)?;
+    Ok(Json(budgets))
 }
 
 // ── QUERY / POST /api/firefly/accounts/{id}/transactions ────────────────

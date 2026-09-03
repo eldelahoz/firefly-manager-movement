@@ -1,6 +1,19 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    app_settings (id) {
+        id -> Integer,
+        #[max_length = 255]
+        ff3_url -> Varchar,
+        #[max_length = 255]
+        ff3_token -> Varchar,
+        #[max_length = 255]
+        default_creation_tag -> Nullable<Varchar>,
+        updated_at -> Datetime,
+    }
+}
+
+diesel::table! {
     batches (id) {
         id -> Bigint,
         #[max_length = 255]
@@ -57,6 +70,10 @@ diesel::table! {
         type_ -> Varchar,
         #[max_length = 3]
         currency -> Char,
+        #[max_length = 64]
+        iban -> Nullable<Varchar>,
+        #[max_length = 255]
+        account_number -> Nullable<Varchar>,
         synced_at -> Datetime,
     }
 }
@@ -123,6 +140,7 @@ diesel::joinable!(movements -> batches (batch_id));
 diesel::joinable!(reconciliations -> batches (batch_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    app_settings,
     batches,
     creations,
     csv_mappings,

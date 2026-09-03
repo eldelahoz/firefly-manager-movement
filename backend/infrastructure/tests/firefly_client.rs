@@ -78,6 +78,47 @@ async fn asset_accounts_single_page() {
 }
 
 #[tokio::test]
+async fn asset_accounts_maps_iban_and_account_number() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/accounts"))
+        .and(query_param("type", "asset"))
+        .and(query_param("page", "1"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [
+                {
+                    "id": "1",
+                    "attributes": {
+                        "name": "Main Bank",
+                        "type": "asset",
+                        "currency_code": "EUR",
+                        "iban": "DE44 5001 0517 5407 3249 31",
+                        "account_number": "1001"
+                    }
+                },
+                {
+                    "id": "2",
+                    "attributes": { "name": "Savings", "type": "asset", "currency_code": "USD" }
+                }
+            ],
+            "meta": { "pagination": { "current_page": 1, "total_pages": 1 } }
+        })))
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let accounts = client.asset_accounts().await.unwrap();
+    assert_eq!(
+        accounts[0].iban.as_deref(),
+        Some("DE44 5001 0517 5407 3249 31")
+    );
+    assert_eq!(accounts[0].account_number.as_deref(), Some("1001"));
+    // absent attributes map to None (serde defaults)
+    assert_eq!(accounts[1].iban, None);
+    assert_eq!(accounts[1].account_number, None);
+}
+
+#[tokio::test]
 async fn asset_accounts_paginates() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
@@ -285,4 +326,94 @@ async fn create_transaction_ok() {
     };
     let id = client.create_transaction(creation).await.unwrap();
     assert_eq!(id, 77);
+}
+
+#[tokio::test]
+async fn create_transaction_wraps_in_transactions_array() {
+    let server = MockServer::start().await;
+    let _mock = Mock::given(method("POST"))
+        .and(path("/api/v1/transactions"))
+        .and(header("Authorization", "Bearer test-token"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": { "id": "1" }
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let creation = ffm_application::dtos::NewFf3TransactionCreation {
+        transaction_type: "deposit".into(),
+        amount: AmountCents::from_str("50.00").unwrap(),
+        date: NaiveDate::from_ymd_opt(2026, 9, 3).unwrap(),
+        description: "salary".into(),
+        source_ff3_id: 10,
+        destination_ff3_id: 20,
+        category: Some("Income".into()),
+        budget: None,
+        notes: Some("monthly".into()),
+        tags: vec!["tag1".into()],
+    };
+    let id = client.create_transaction(creation).await.unwrap();
+    assert_eq!(id, 1);
+
+    // Verify the request body has transactions array at TOP LEVEL
+    // (FF3 does not use the JSON-API data/attributes wrapper on requests)
+    let requests = server.received_requests().await.unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+    assert!(
+        body.get("transactions").is_some(),
+        "Expected top-level transactions array, got: {body}"
+    );
+    let tx = &body["transactions"][0];
+    assert_eq!(tx["type"], "deposit");
+    assert_eq!(tx["amount"], "50.00");
+    assert_eq!(tx["description"], "salary");
+    assert_eq!(tx["source_id"], "10");
+    assert_eq!(tx["destination_id"], "20");
+    assert_eq!(tx["category_name"], "Income");
+    assert_eq!(tx["notes"], "monthly");
+    assert_eq!(tx["tags"], serde_json::json!(["tag1"]));
+    // Verify date-time format per FF3 spec
+    let date_str = tx["date"].as_str().unwrap();
+    assert!(
+        date_str.contains('T'),
+        "Expected date-time format with 'T', got: {date_str}"
+    );
+}
+
+#[tokio::test]
+async fn create_transaction_sends_absolute_amount() {
+    let server = MockServer::start().await;
+    let _mock = Mock::given(method("POST"))
+        .and(path("/api/v1/transactions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": { "id": "7" }
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let creation = ffm_application::dtos::NewFf3TransactionCreation {
+        transaction_type: "withdrawal".into(),
+        amount: AmountCents::from_str("-42.00").unwrap(),
+        date: NaiveDate::from_ymd_opt(2026, 8, 3).unwrap(),
+        description: "groceries".into(),
+        source_ff3_id: 1,
+        destination_ff3_id: 2,
+        category: None,
+        budget: None,
+        notes: None,
+        tags: vec![],
+    };
+    client.create_transaction(creation).await.unwrap();
+
+    // FF3 requires a positive amount; the sign is conveyed by
+    // type + source/destination, never by the amount itself.
+    let requests = server.received_requests().await.unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+    let tx = &body["transactions"][0];
+    assert_eq!(tx["type"], "withdrawal");
+    assert_eq!(tx["amount"], "42.00");
 }

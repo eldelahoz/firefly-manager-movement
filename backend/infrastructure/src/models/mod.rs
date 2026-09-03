@@ -5,6 +5,7 @@
 //! One file per aggregate (mirrors `domain::entities`), re-exported here so
 //! the public path stays `ffm_infrastructure::models::*`.
 
+mod app_settings;
 mod batch;
 mod creation;
 mod csv_mapping;
@@ -15,6 +16,7 @@ mod match_model;
 mod movement;
 mod reconciliation;
 
+pub use app_settings::{AppSettingsModel, NewAppSettingsModel};
 pub use batch::{BatchModel, NewBatchModel};
 pub use creation::{CreationModel, NewCreationModel};
 pub use csv_mapping::{CsvMappingModel, NewCsvMappingModel};

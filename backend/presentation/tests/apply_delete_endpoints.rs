@@ -61,6 +61,8 @@ impl FireflyClient for FakeFirefly {
             name: "Checking".into(),
             account_type: "asset".into(),
             currency: "EUR".into(),
+            iban: None,
+            account_number: None,
         }])
     }
     async fn account_transactions(
@@ -334,6 +336,8 @@ async fn test_app(fail_amounts: Vec<i64>) -> TestApp {
                 name: "Checking".into(),
                 account_type: "asset".into(),
                 currency: "EUR".into(),
+                iban: None,
+                account_number: None,
                 synced_at: epoch(),
             }]),
         }),
@@ -347,6 +351,11 @@ async fn test_app(fail_amounts: Vec<i64>) -> TestApp {
         creations: creations.clone(),
         deleted_audits: audits.clone(),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
 
     TestApp {
@@ -383,9 +392,10 @@ async fn read_json(response: axum::response::Response) -> serde_json::Value {
 async fn apply_endpoint_creates_and_reports() {
     let t = test_app(vec![]).await;
     let body = json!({
-        "movement_ids": [1, 2],
-        "counterparty_ff3_id": 42,
-        "category": "Groceries"
+        "movements": [
+            { "movement_id": 1, "counterparty_ff3_id": 42, "category": "Groceries" },
+            { "movement_id": 2, "counterparty_ff3_id": 42, "category": "Groceries" }
+        ]
     });
 
     let response = t
@@ -414,7 +424,12 @@ async fn apply_endpoint_creates_and_reports() {
 #[tokio::test]
 async fn apply_retry_endpoint_is_idempotent() {
     let t = test_app(vec![]).await;
-    let body = json!({ "movement_ids": [1, 2], "counterparty_ff3_id": 42 });
+    let body = json!({
+        "movements": [
+            { "movement_id": 1, "counterparty_ff3_id": 42 },
+            { "movement_id": 2, "counterparty_ff3_id": 42 }
+        ]
+    });
 
     let r1 = t
         .app()
@@ -439,7 +454,12 @@ async fn apply_retry_endpoint_is_idempotent() {
 #[tokio::test]
 async fn apply_partial_failure_continues_and_reports_reason() {
     let t = test_app(vec![3000]).await; // credit (+3000) fails
-    let body = json!({ "movement_ids": [1, 2], "counterparty_ff3_id": 42 });
+    let body = json!({
+        "movements": [
+            { "movement_id": 1, "counterparty_ff3_id": 42 },
+            { "movement_id": 2, "counterparty_ff3_id": 42 }
+        ]
+    });
 
     let response = t
         .app()
@@ -467,7 +487,11 @@ async fn apply_partial_failure_continues_and_reports_reason() {
 #[tokio::test]
 async fn apply_not_missing_is_400() {
     let t = test_app(vec![]).await;
-    let body = json!({ "movement_ids": [999], "counterparty_ff3_id": 42 });
+    let body = json!({
+        "movements": [
+            { "movement_id": 999, "counterparty_ff3_id": 42 }
+        ]
+    });
     let response = t
         .app()
         .oneshot(post_json("/api/imports/1/apply", body))

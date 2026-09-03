@@ -1,3 +1,4 @@
+pub mod app_settings;
 pub mod apply_missing;
 pub mod delete_firefly_transaction;
 pub mod delete_import;

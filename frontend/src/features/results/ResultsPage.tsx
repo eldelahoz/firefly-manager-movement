@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { getImport, getResults } from '@/shared/api/endpoints';
+import { toast } from 'sonner';
+import { getAccounts, getImport, getResults, getSettings, postApply } from '@/shared/api/endpoints';
+import type { ApplyReport } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -12,22 +14,40 @@ import { MoneyText } from '@/shared/ui/MoneyText';
 import { usePageHeader } from '@/shared/ui/PageHeader';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
-import type { ApplyReport } from '@/shared/api/dto';
 import { useRerun } from '@/app/reconcileContext';
+import type { BulkFields, Customization } from './customization';
+import { applyBulkFillOnly } from './customization';
 import { VirtualList } from './VirtualList';
 import { MissingRow } from './MissingRow';
 import { ExtraRow } from './ExtraRow';
-import { ApplyPanel } from './ApplyPanel';
+import { BulkPersonalizeSheet } from './BulkPersonalizeSheet';
+import { ConfirmCreateDialog } from './ConfirmCreateDialog';
 
 type Tab = 'matched' | 'missing' | 'extra';
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.replace(/^data:.*?;base64,/, ''));
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 export function ResultsPage() {
   const { batchId } = useParams();
   const id = Number(batchId);
   const { t, i18n } = useTranslation();
+  const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>('matched');
   const [selected, setSelected] = useState<number[]>([]);
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [customizations, setCustomizations] = useState<Record<number, Customization>>({});
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [reports, setReports] = useState<{ batchId: number; items: ApplyReport[] }>({
     batchId: NaN,
     items: [],
@@ -39,6 +59,89 @@ export function ResultsPage() {
     queryFn: () => getResults(id),
     retry: false,
   });
+  const settings = useQuery({ queryKey: queryKeys.settings, queryFn: getSettings });
+  const accounts = useQuery({
+    queryKey: queryKeys.accounts,
+    queryFn: getAccounts,
+    staleTime: 300_000,
+  });
+  const tags = useQuery({
+    queryKey: queryKeys.tags,
+    queryFn: () => import('@/shared/api/endpoints').then((m) => m.getTags()),
+    staleTime: 300_000,
+  });
+  const categories = useQuery({
+    queryKey: queryKeys.categories,
+    queryFn: () => import('@/shared/api/endpoints').then((m) => m.getCategories()),
+    staleTime: 300_000,
+  });
+  const budgets = useQuery({
+    queryKey: queryKeys.budgets,
+    queryFn: () => import('@/shared/api/endpoints').then((m) => m.getBudgets()),
+    staleTime: 300_000,
+  });
+  const defaultTag = settings.data?.default_creation_tag ?? null;
+
+  const apply = useMutation({
+    mutationFn: async () => {
+      const missing = results.data?.missing ?? [];
+      const movements = await Promise.all(
+        selected
+          .filter((sid) => missing.some((m) => m.id === sid))
+          .map(async (sid) => {
+            const c = customizations[sid] ?? {};
+            const payload: {
+              movement_id: number;
+              counterparty_ff3_id: number;
+              description?: string;
+              category?: string;
+              budget?: string;
+              tags?: string[];
+              notes?: string;
+              attachment?: { filename: string; content_base64: string };
+            } = {
+              movement_id: sid,
+              counterparty_ff3_id: c.counterpartyId ?? 0,
+            };
+            if (c.description) payload.description = c.description;
+            if (c.category) payload.category = c.category;
+            if (c.budget) payload.budget = c.budget;
+            if (c.tags) payload.tags = c.tags;
+            if (c.notes) payload.notes = c.notes;
+            if (c.attachment) {
+              payload.attachment = {
+                filename: c.attachment.filename,
+                content_base64: await fileToBase64(c.attachment.file),
+              };
+            }
+            return payload;
+          }),
+      );
+      return postApply(id, { movements });
+    },
+    onSuccess: (res) => {
+      toast.success(
+        t('results.applyRecap', {
+          created: res.created_count,
+          already: res.already_created_count,
+          failed: res.failed_count,
+        }),
+      );
+      const failed = res.reports.filter((r) => r.outcome === 'created' && r.reason);
+      if (failed.length > 0) {
+        toast.warning(t('results.attachmentWarning', { reason: failed[0].reason }));
+      }
+      void qc.invalidateQueries({ queryKey: queryKeys.results(id) });
+      void qc.invalidateQueries({ queryKey: queryKeys.import(id) });
+      void qc.invalidateQueries({ queryKey: queryKeys.imports });
+      setReports({ batchId: id, items: res.reports });
+      setSelected([]);
+      setCustomizations({});
+      setConfirmOpen(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const headerTitle = useMemo(
     () => (
       <span className="truncate">
@@ -89,6 +192,23 @@ export function ResultsPage() {
   const activeSelected = selected.filter((sid) => results.data.missing.some((m) => m.id === sid));
   const currency = detail.data?.batch.currency ?? 'EUR';
   const tabs: Tab[] = ['matched', 'missing', 'extra'];
+  const movementSummaries = selected
+    .filter((sid) => results.data.missing.some((m) => m.id === sid))
+    .map((sid) => {
+      const m = results.data.missing.find((x) => x.id === sid)!;
+      return {
+        id: sid,
+        description: m.description,
+        amountCents: m.amount_cents,
+        customization: customizations[sid] ?? {},
+      };
+    });
+
+  function handleBulkApply(fields: BulkFields) {
+    setCustomizations((prev) => applyBulkFillOnly(prev, activeSelected, fields));
+    setBulkOpen(false);
+  }
+
   return (
     <div className="space-y-4">
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">
@@ -152,30 +272,64 @@ export function ResultsPage() {
                   />
                   {t('results.selectAll')}
                 </label>
-                <Button onClick={() => setPanelOpen(true)} disabled={activeSelected.length === 0}>
-                  {t('results.apply')} ({activeSelected.length})
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={activeSelected.length === 0}
+                    onClick={() => {
+                      if (activeSelected.length === 1) {
+                        setEditingId(activeSelected[0]);
+                      } else {
+                        setBulkOpen(true);
+                      }
+                    }}
+                  >
+                    {t('results.personalize')} ({activeSelected.length})
+                  </Button>
+                  <Button
+                    disabled={activeSelected.length === 0}
+                    onClick={() => setConfirmOpen(true)}
+                  >
+                    {t('results.apply')} ({activeSelected.length})
+                  </Button>
+                </div>
               </div>
               <VirtualList
                 count={counts.missing}
-                renderItem={(i) => (
-                  <MissingRow
-                    movement={results.data.missing[i]}
-                    currency={currency}
-                    batchId={id}
-                    selected={activeSelected.includes(results.data.missing[i].id)}
-                    report={
-                      reports.batchId === id
-                        ? reports.items.find((r) => r.movement_id === results.data.missing[i].id)
-                        : undefined
-                    }
-                    onToggle={(mid) =>
-                      setSelected((s) =>
-                        s.includes(mid) ? s.filter((x) => x !== mid) : [...s, mid],
-                      )
-                    }
-                  />
-                )}
+                renderItem={(i) => {
+                  const m = results.data.missing[i];
+                  return (
+                    <>
+                      <MissingRow
+                        movement={m}
+                        currency={currency}
+                        selected={activeSelected.includes(m.id)}
+                        report={
+                          reports.batchId === id
+                            ? reports.items.find((r) => r.movement_id === m.id)
+                            : undefined
+                        }
+                        onToggle={(mid) =>
+                          setSelected((s) =>
+                            s.includes(mid) ? s.filter((x) => x !== mid) : [...s, mid],
+                          )
+                        }
+                        editing={editingId === m.id}
+                        onEdit={() => setEditingId(editingId === m.id ? null : m.id)}
+                        accounts={accounts.data ?? []}
+                        tags={tags.data ?? []}
+                        categories={categories.data ?? []}
+                        budgets={budgets.data ?? []}
+                        defaultTag={defaultTag}
+                        onSave={(c) => {
+                          setCustomizations((prev) => ({ ...prev, [m.id]: c }));
+                          setEditingId(null);
+                        }}
+                        onCancel={() => setEditingId(null)}
+                      />
+                    </>
+                  );
+                }}
               />
             </>
           )}
@@ -191,16 +345,23 @@ export function ResultsPage() {
           )}
         </TabsContent>
       </Tabs>
-      {panelOpen && tab === 'missing' && (
-        <ApplyPanel
+      {bulkOpen && tab === 'missing' && (
+        <BulkPersonalizeSheet
+          count={activeSelected.length}
+          defaultTag={defaultTag}
+          onApply={handleBulkApply}
+          onClose={() => setBulkOpen(false)}
+        />
+      )}
+      {confirmOpen && tab === 'missing' && (
+        <ConfirmCreateDialog
+          open={confirmOpen}
           batchId={id}
-          selected={activeSelected}
-          onClose={() => setPanelOpen(false)}
-          onDone={(rs) => {
-            setReports({ batchId: id, items: rs });
-            setSelected([]);
-            setPanelOpen(false);
-          }}
+          filename={detail.data?.batch.filename ?? ''}
+          movements={movementSummaries}
+          accounts={accounts.data ?? []}
+          onConfirm={() => apply.mutate()}
+          onClose={() => setConfirmOpen(false)}
         />
       )}
     </div>

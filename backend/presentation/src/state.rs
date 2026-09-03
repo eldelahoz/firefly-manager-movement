@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use ffm_application::ports::{
-    BatchRepository, CreationRepository, CsvDecoder, CsvMappingRepository, DeletedAuditRepository,
-    Ff3AccountRepository, Ff3TransactionRepository, FireflyClient, MatchRepository,
-    MovementRepository, ReconciliationRepository,
+    AppSettingsRepository, BatchRepository, CreationRepository, CsvDecoder, CsvMappingRepository,
+    DeletedAuditRepository, Ff3AccountRepository, Ff3TransactionRepository, FireflyClient,
+    FireflyClientFactory, FireflyConnectionManager, MatchRepository, MovementRepository,
+    ReconciliationRepository,
 };
 
 #[derive(Clone)]
@@ -20,4 +21,7 @@ pub struct AppState {
     pub creations: Arc<dyn CreationRepository>,
     pub deleted_audits: Arc<dyn DeletedAuditRepository>,
     pub ff3_health_probe: bool,
+    pub app_settings: Arc<dyn AppSettingsRepository>,
+    pub firefly_manager: Arc<dyn FireflyConnectionManager>,
+    pub firefly_factory: Arc<dyn FireflyClientFactory>,
 }

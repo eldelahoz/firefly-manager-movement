@@ -26,12 +26,16 @@ async fn get_firefly_accounts_returns_accounts_and_syncs() {
             name: "Main".into(),
             account_type: "asset".into(),
             currency: "EUR".into(),
+            iban: None,
+            account_number: None,
         },
         Ff3AccountDto {
             ff3_id: 2,
             name: "Savings".into(),
             account_type: "asset".into(),
             currency: "USD".into(),
+            iban: None,
+            account_number: None,
         },
     ];
     let repo = Arc::new(FakeFf3AccountRepository::new());
@@ -48,6 +52,11 @@ async fn get_firefly_accounts_returns_accounts_and_syncs() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
     let router = app(state);
 
@@ -86,6 +95,11 @@ async fn get_firefly_accounts_ff3_error_returns_502() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
     let router = app(state);
 
@@ -123,6 +137,11 @@ async fn post_account_transactions_ok() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
     let router = app(state);
 
@@ -170,6 +189,11 @@ async fn query_account_transactions_ok() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
     let router = app(state);
 
@@ -256,6 +280,11 @@ async fn post_account_transactions_enriches_status_from_cache() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
     let router = app(state);
 
@@ -305,6 +334,11 @@ async fn get_on_transactions_returns_405() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
     let router = app(state);
 
@@ -337,6 +371,11 @@ async fn transactions_start_after_end_returns_400() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
     let router = app(state);
 

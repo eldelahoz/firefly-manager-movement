@@ -5,7 +5,10 @@ use axum::http::{Request, StatusCode};
 use ffm_presentation::{app, AppState};
 use tower::ServiceExt;
 
-use crate::common::FakeFireflyClient;
+use crate::common::{
+    FakeAppSettingsRepository, FakeFireflyClient, FakeFireflyClientFactory,
+    FakeFireflyConnectionManager,
+};
 
 mod common;
 
@@ -24,6 +27,9 @@ async fn health_returns_ok_json() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(FakeFireflyClientFactory::new(FakeFireflyClient::ok())),
     };
     let router = app(state);
 
@@ -58,6 +64,9 @@ async fn health_with_probe_ok() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: true,
+        app_settings: Arc::new(FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(FakeFireflyClientFactory::new(FakeFireflyClient::ok())),
     };
     let router = app(state);
 
@@ -94,6 +103,9 @@ async fn health_with_probe_degraded() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: true,
+        app_settings: Arc::new(FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(FakeFireflyClientFactory::new(FakeFireflyClient::ok())),
     };
     let router = app(state);
 
@@ -129,6 +141,9 @@ async fn openapi_json_is_served() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(FakeFireflyClientFactory::new(FakeFireflyClient::ok())),
     };
     let router = app(state);
 

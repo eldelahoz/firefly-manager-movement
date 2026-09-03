@@ -236,6 +236,11 @@ async fn post_imports_parses_and_persists_movements() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
     let router = app(state);
 
@@ -297,6 +302,11 @@ async fn get_imports_lists_batches() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
     let router = app(state);
 
@@ -361,6 +371,11 @@ async fn get_import_returns_batch_and_movements() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
     let router = app(state);
 
@@ -435,6 +450,11 @@ async fn post_imports_same_filename_twice_returns_409() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
     let router = app(state);
 
@@ -490,6 +510,11 @@ async fn delete_import_removes_parsed_batch() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
     let router = app(state);
 
@@ -562,6 +587,11 @@ async fn delete_import_rejects_reconciled_batch() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
     let router = app(state);
 
@@ -620,6 +650,11 @@ async fn put_import_mapping_saves_mapping() {
         creations: Arc::new(common::FakeCreationRepository),
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
     let router = app(state);
 

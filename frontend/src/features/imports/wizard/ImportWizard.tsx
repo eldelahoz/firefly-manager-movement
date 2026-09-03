@@ -9,16 +9,25 @@ import {
   uploadCsv,
   deleteImport,
 } from '@/shared/api/endpoints';
-import type { UploadResponse } from '@/shared/api/dto';
+import type { UploadResponse, Ff3Account } from '@/shared/api/dto';
 import { queryKeys } from '@/shared/lib/keys';
 import { Dialog } from '@/shared/ui/dialog';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { WizardShell } from './WizardShell';
-import { initialWizardState, wizardReducer, type WizardState } from './state';
+import { initialWizardState, wizardReducer, type WizardState, type OriginNotice } from './state';
+import { suggestAccount } from './originSuggest';
 import { UploadStep } from './UploadStep';
 import { PreviewStep } from './PreviewStep';
 import { MappingStep } from './MappingStep';
 import { ReconcileConfigStep } from './ReconcileConfigStep';
+
+function computeNotice(res: UploadResponse, accounts: Ff3Account[] | undefined): OriginNotice {
+  const values = res.origin_account_values ?? [];
+  if (values.length === 0) return null;
+  const s = suggestAccount(values, accounts ?? []);
+  if (s.account) return { kind: 'auto', accountName: s.account.name };
+  return { kind: 'warn', values: s.values };
+}
 
 const STEP_ORDER = ['upload', 'preview', 'mapping', 'reconcile'] as const;
 
@@ -71,6 +80,7 @@ export function ImportWizard({
       valid_count: batch.movements_count,
       invalid_count: 0,
       mapping_used: null,
+      origin_account_values: [],
       valid: movements.map((m) => ({
         line_no: m.line_no,
         date: m.date,
@@ -91,7 +101,13 @@ export function ImportWizard({
     mutationFn: (args: { file: File; currency: string; columns?: Record<string, string> }) =>
       uploadCsv(args.file, { currency: args.currency, ...args.columns }),
     onSuccess: (res) => {
-      dispatch({ type: 'UPLOAD_SUCCESS', probe: res as UploadResponse });
+      const notice = computeNotice(res as UploadResponse, accounts.data);
+      if (notice?.kind === 'auto') {
+        const acct = accounts.data?.find((a) => a.name === notice.accountName);
+        if (acct)
+          dispatch({ type: 'SET_ACCOUNT', accountId: String(acct.id), currency: acct.currency });
+      }
+      dispatch({ type: 'UPLOAD_SUCCESS', probe: res as UploadResponse, originNotice: notice });
       void qc.invalidateQueries({ queryKey: queryKeys.imports });
     },
     onError: (e: { message: string }) => dispatch({ type: 'UPLOAD_ERROR', message: e.message }),
@@ -212,6 +228,7 @@ export function ImportWizard({
           <PreviewStep
             probe={state.probe}
             currency={state.currency}
+            originNotice={state.originNotice}
             onNext={() => dispatch({ type: 'NEXT_FROM_PREVIEW' })}
             onBack={() => dispatch({ type: 'BACK_FROM_PREVIEW' })}
             onClose={onClose}
@@ -233,7 +250,21 @@ export function ImportWizard({
                 { file: state.file!, currency: state.currency, columns },
                 {
                   onSuccess: (res) => {
-                    dispatch({ type: 'MAPPING_SUCCESS', probe: res as UploadResponse });
+                    const notice = computeNotice(res as UploadResponse, accounts.data);
+                    if (notice?.kind === 'auto') {
+                      const acct = accounts.data?.find((a) => a.name === notice.accountName);
+                      if (acct)
+                        dispatch({
+                          type: 'SET_ACCOUNT',
+                          accountId: String(acct.id),
+                          currency: acct.currency,
+                        });
+                    }
+                    dispatch({
+                      type: 'MAPPING_SUCCESS',
+                      probe: res as UploadResponse,
+                      originNotice: notice,
+                    });
                     void qc.invalidateQueries({ queryKey: queryKeys.imports });
                   },
                 },

@@ -17,6 +17,8 @@ pub struct Ff3AccountDto {
     pub name: String,
     pub account_type: String,
     pub currency: String,
+    pub iban: Option<String>,
+    pub account_number: Option<String>,
 }
 
 /// Firefly III transaction as returned by the API (no local ID).
@@ -81,4 +83,6 @@ pub struct NewFf3Account {
     pub name: String,
     pub account_type: String,
     pub currency: String,
+    pub iban: Option<String>,
+    pub account_number: Option<String>,
 }

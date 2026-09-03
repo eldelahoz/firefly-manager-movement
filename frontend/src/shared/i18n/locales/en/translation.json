@@ -9,7 +9,18 @@
     "appearance": "Appearance",
     "themeLight": "Light",
     "themeDark": "Dark",
-    "language": "Language"
+    "language": "Language",
+    "connection": "Firefly III connection",
+    "ff3Url": "Firefly III URL",
+    "ff3Token": "API token",
+    "ff3TokenKeep": "Leave empty to keep the current token",
+    "testConnection": "Test connection",
+    "connectionOk": "Connection OK (Firefly III {{version}})",
+    "save": "Save",
+    "saved": "Settings saved",
+    "defaultTag": "Default creation tag",
+    "defaultTagNone": "No default tag",
+    "defaultTagHint": "Pre-filled on transaction creation; your selection replaces it"
   },
   "common": {
     "retry": "Retry",
@@ -110,6 +121,7 @@
     "fieldDate": "Date",
     "fieldAmount": "Amount",
     "fieldDescription": "Description",
+    "fieldOrigin": "Origin column",
     "sourceColumn": "Source column",
     "account": "Firefly III account",
     "tolerance": "Tolerance",
@@ -125,7 +137,10 @@
     "helperMismatch": "Resolve currency mismatch first",
     "helperError": "Resolve the error first",
     "uploading": "Uploading…",
-    "resumeAccountHint": "Account selected during import (cannot be changed)"
+    "resumeAccountHint": "Account selected during import (cannot be changed)",
+    "originColumn": "Origin account (optional)",
+    "originAutoSelected": "Account auto-selected from the origin column: {{account}}",
+    "originWarning": "Origin column values: {{values}}. Pick the account manually."
   },
   "results": {
     "title": "Results",
@@ -141,7 +156,23 @@
     "applyRecap": "Created {{created}} · already created {{already}} · failed {{failed}}",
     "ignore": "Ignore",
     "noReconciliation": "This batch has no reconciliation yet",
-    "startImport": "Start an import"
+    "startImport": "Start an import",
+    "personalize": "Personalize",
+    "edit": "Edit",
+    "bulkTitle": "Personalize {{count}} movements",
+    "bulkHint": "Only filled fields are applied; empty fields leave each movement untouched",
+    "applyToSelection": "Apply",
+    "descriptionField": "Description",
+    "tags": "Tags",
+    "attachment": "Attachment",
+    "noAttachment": "No file chosen",
+    "noTags": "No tags available",
+    "confirmTitle": "Create in Firefly III",
+    "confirmCount": "{{count}} transactions will be created",
+    "confirm": "Create",
+    "missingCounterparty": "Missing counterparty account",
+    "originTagNote": "Each created transaction carries the origin tag {{tag}}",
+    "attachmentWarning": "Created, but the attachment failed: {{reason}}"
   },
   "status": {
     "imported": "Imported",

@@ -1,10 +1,12 @@
 use std::env;
 use std::sync::Arc;
 
+use ffm_application::ports::AppSettingsRepository;
 use ffm_infrastructure::csv::EncodingCsvDecoder;
-use ffm_infrastructure::firefly::client::ReqwestFireflyClient;
+use ffm_infrastructure::firefly::dynamic::{DynamicFireflyClient, ReqwestFireflyClientFactory};
 use ffm_infrastructure::persistence::migrations::run_migrations;
 use ffm_infrastructure::persistence::pool::create_pool;
+use ffm_infrastructure::persistence::repositories::app_settings::MysqlAppSettingsRepository;
 use ffm_infrastructure::persistence::repositories::batch::MysqlBatchRepository;
 use ffm_infrastructure::persistence::repositories::creation::MysqlCreationRepository;
 use ffm_infrastructure::persistence::repositories::csv_mapping::MysqlCsvMappingRepository;
@@ -34,14 +36,32 @@ async fn main() {
         .expect("could not run migrations");
     tracing::info!("migrations applied");
 
-    let ff3_url = env::var("FF3_URL").unwrap_or_else(|_| "http://localhost:8080".into());
-    let ff3_token = env::var("FF3_TOKEN").expect("FF3_TOKEN must be set");
     let ff3_health_probe = env::var("FF3_HEALTH_PROBE")
         .ok()
         .map(|v| v == "true" || v == "1")
         .unwrap_or(false);
 
-    let firefly = Arc::new(ReqwestFireflyClient::new(&ff3_url, &ff3_token));
+    // Settings-driven connection (RF-19): read from DB, fall back to env vars.
+    let app_settings = Arc::new(MysqlAppSettingsRepository::new(pool.clone()));
+    let ff3_defaults = (
+        env::var("FF3_URL").unwrap_or_else(|_| "http://localhost:8080".into()),
+        env::var("FF3_TOKEN").unwrap_or_default(),
+    );
+    let firefly: Arc<DynamicFireflyClient> = Arc::new(
+        match app_settings
+            .get()
+            .await
+            .expect("could not read app settings")
+        {
+            Some(s) => DynamicFireflyClient::new(&s.ff3_url, &s.ff3_token),
+            None => DynamicFireflyClient::new(&ff3_defaults.0, &ff3_defaults.1),
+        },
+    );
+    let firefly_manager: Arc<dyn ffm_application::ports::FireflyConnectionManager> =
+        firefly.clone();
+    let firefly_factory: Arc<dyn ffm_application::ports::FireflyClientFactory> =
+        Arc::new(ReqwestFireflyClientFactory);
+
     let ff3_accounts = Arc::new(MysqlFf3AccountRepository::new(pool.clone()));
     let csv_decoder = Arc::new(EncodingCsvDecoder);
     let batches = Arc::new(MysqlBatchRepository::new(pool.clone()));
@@ -54,7 +74,7 @@ async fn main() {
     let deleted_audits = Arc::new(MysqlDeletedAuditRepository::new(pool.clone()));
 
     let state = AppState {
-        firefly,
+        firefly: firefly.clone(),
         ff3_accounts,
         csv_decoder,
         batches,
@@ -66,6 +86,9 @@ async fn main() {
         creations,
         deleted_audits,
         ff3_health_probe,
+        app_settings,
+        firefly_manager,
+        firefly_factory,
     };
 
     let app = app(state);

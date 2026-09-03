@@ -22,6 +22,7 @@ const probe: UploadResponse = {
   valid_count: 0,
   invalid_count: 0,
   mapping_used: null,
+  origin_account_values: [],
   valid: [],
   invalid: [],
 };
@@ -63,5 +64,37 @@ test('next disabled until all columns chosen; PUT mapping then onMapped', async 
     date_column: 'Date',
     amount_column: 'Montant',
     description_column: 'Libelle',
+  });
+});
+
+test('origin column optional: selecting it sends origin_account_column in PUT', async () => {
+  let putBody: unknown = null;
+  server.use(
+    http.put('/api/imports/1/mapping', async ({ request }) => {
+      putBody = await request.json();
+      return HttpResponse.json({ mapping_id: 6 });
+    }),
+  );
+  renderWithProviders(
+    <MappingStep probe={probe} onMapped={() => {}} onBack={() => {}} onCancel={() => {}} />,
+  );
+  // fill required fields
+  for (const [label, header] of [
+    ['Date column', 'Date'],
+    ['Amount column', 'Montant'],
+    ['Description column', 'Libelle'],
+  ] as const) {
+    await userEvent.click(screen.getByLabelText(label));
+    await userEvent.click(await screen.findByRole('option', { name: new RegExp(`^${header}$`) }));
+  }
+  // select origin column
+  await userEvent.click(screen.getByLabelText('Origin column'));
+  await userEvent.click(await screen.findByRole('option', { name: 'Date' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Next' }));
+  expect(putBody).toMatchObject({
+    date_column: 'Date',
+    amount_column: 'Montant',
+    description_column: 'Libelle',
+    origin_account_column: 'Date',
   });
 });

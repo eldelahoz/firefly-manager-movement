@@ -3,6 +3,9 @@ import type { UploadResponse } from '@/shared/api/dto';
 export type WizardStep =
   'upload' | 'preview' | 'mapping' | 'reconcile-config' | 'submitting' | 'done' | 'error';
 
+export type OriginNotice =
+  { kind: 'auto'; accountName: string } | { kind: 'warn'; values: string[] } | null;
+
 export interface WizardState {
   step: WizardStep;
   file: File | null;
@@ -11,6 +14,7 @@ export interface WizardState {
   probe: UploadResponse | null;
   finalBatchId: number | null;
   error: string | null;
+  originNotice: OriginNotice;
 }
 
 export const initialWizardState: WizardState = {
@@ -21,15 +25,16 @@ export const initialWizardState: WizardState = {
   probe: null,
   finalBatchId: null,
   error: null,
+  originNotice: null,
 };
 
 export type WizardAction =
   | { type: 'SET_ACCOUNT'; accountId: string; currency: string }
   | { type: 'UPLOAD_START'; file: File }
-  | { type: 'UPLOAD_SUCCESS'; probe: UploadResponse }
+  | { type: 'UPLOAD_SUCCESS'; probe: UploadResponse; originNotice?: OriginNotice }
   | { type: 'UPLOAD_ERROR'; message: string }
   | { type: 'NEXT_FROM_PREVIEW' }
-  | { type: 'MAPPING_SUCCESS'; probe: UploadResponse }
+  | { type: 'MAPPING_SUCCESS'; probe: UploadResponse; originNotice?: OriginNotice }
   | { type: 'BACK_FROM_MAPPING' }
   | { type: 'BACK_FROM_RECONCILE' }
   | { type: 'BACK_FROM_PREVIEW' }
@@ -52,13 +57,19 @@ export function wizardReducer(s: WizardState, a: WizardAction): WizardState {
     case 'UPLOAD_START':
       return { ...s, file: a.file, step: 'preview', probe: null, error: null };
     case 'UPLOAD_SUCCESS':
-      return { ...s, step: 'preview', probe: a.probe };
+      return { ...s, step: 'preview', probe: a.probe, originNotice: a.originNotice ?? null };
     case 'UPLOAD_ERROR':
-      return { ...s, step: 'upload', error: a.message };
+      return { ...s, step: 'upload', error: a.message, originNotice: null };
     case 'NEXT_FROM_PREVIEW':
       return { ...s, step: s.probe?.mapping_used ? 'reconcile-config' : 'mapping' };
     case 'MAPPING_SUCCESS':
-      return { ...s, probe: a.probe, finalBatchId: a.probe.batch_id, step: 'reconcile-config' };
+      return {
+        ...s,
+        probe: a.probe,
+        finalBatchId: a.probe.batch_id,
+        step: 'reconcile-config',
+        originNotice: a.originNotice ?? null,
+      };
     case 'BACK_FROM_MAPPING':
       return { ...s, step: 'preview', error: null };
     case 'BACK_FROM_PREVIEW':
@@ -69,6 +80,7 @@ export function wizardReducer(s: WizardState, a: WizardAction): WizardState {
         accountId: s.accountId,
         currency: s.currency,
         error: null,
+        originNotice: null,
       };
     case 'BACK_FROM_RECONCILE':
       return { ...s, step: s.file ? 'mapping' : 'preview', error: null };
