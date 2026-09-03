@@ -318,7 +318,7 @@ impl FireflyClient for ReqwestFireflyClient {
         let mut attrs = json!({
             "type": creation.transaction_type,
             "amount": Self::format_decimal(creation.amount),
-            "date": creation.date.format("%Y-%m-%d").to_string(),
+            "date": format!("{}T00:00:00+00:00", creation.date.format("%Y-%m-%d")),
             "description": creation.description,
             "source_id": creation.source_ff3_id.to_string(),
             "destination_id": creation.destination_ff3_id.to_string(),
@@ -337,6 +337,8 @@ impl FireflyClient for ReqwestFireflyClient {
             obj.insert("tags".into(), json!(creation.tags));
         }
 
+        let payload = json!({ "data": { "attributes": { "transactions": [attrs] } } });
+        eprintln!("[FF3 create_transaction] payload: {payload}");
         let url = format!("{}/api/v1/transactions", self.base_url);
         let resp = self
             .http
@@ -344,7 +346,7 @@ impl FireflyClient for ReqwestFireflyClient {
             .header("Authorization", format!("Bearer {}", self.token))
             .header("Accept", "application/json")
             .header("Content-Type", "application/json")
-            .json(&json!({ "data": { "attributes": { "transactions": [attrs] } } }))
+            .json(&payload)
             .send()
             .await
             .map_err(|e| ApplicationError::FireflyClient(e.to_string()))?;

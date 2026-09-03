@@ -374,4 +374,10 @@ async fn create_transaction_wraps_in_transactions_array() {
     assert_eq!(tx["category_name"], "Income");
     assert_eq!(tx["notes"], "monthly");
     assert_eq!(tx["tags"], serde_json::json!(["tag1"]));
+    // Verify date-time format per FF3 spec
+    let date_str = tx["date"].as_str().unwrap();
+    assert!(
+        date_str.contains('T'),
+        "Expected date-time format with 'T', got: {date_str}"
+    );
 }
