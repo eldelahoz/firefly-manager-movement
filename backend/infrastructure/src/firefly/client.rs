@@ -317,7 +317,9 @@ impl FireflyClient for ReqwestFireflyClient {
 
         let mut attrs = json!({
             "type": creation.transaction_type,
-            "amount": Self::format_decimal(creation.amount),
+            // FF3 requires a positive amount; direction is conveyed by
+            // type + source/destination accounts, never by the sign.
+            "amount": Self::format_decimal(AmountCents::new(creation.amount.as_i64().abs())),
             "date": format!("{}T00:00:00+00:00", creation.date.format("%Y-%m-%d")),
             "description": creation.description,
             "source_id": creation.source_ff3_id.to_string(),
