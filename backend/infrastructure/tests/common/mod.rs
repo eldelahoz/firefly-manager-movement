@@ -6,8 +6,8 @@ use diesel_async::AsyncMysqlConnection;
 use diesel_async::RunQueryDsl;
 
 use ffm_infrastructure::schema::{
-    app_settings, batches, creations, csv_mappings, deleted_audit, ff3_accounts,
-    ff3_transactions, matches, movements, reconciliations,
+    app_settings, batches, creations, csv_mappings, deleted_audit, ff3_accounts, ff3_transactions,
+    matches, movements, reconciliations,
 };
 
 pub type DbPool = Pool<AsyncMysqlConnection>;

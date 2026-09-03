@@ -1,6 +1,7 @@
 use std::env;
 use std::sync::Arc;
 
+use ffm_application::ports::AppSettingsRepository;
 use ffm_infrastructure::csv::EncodingCsvDecoder;
 use ffm_infrastructure::firefly::dynamic::{DynamicFireflyClient, ReqwestFireflyClientFactory};
 use ffm_infrastructure::persistence::migrations::run_migrations;
@@ -15,7 +16,6 @@ use ffm_infrastructure::persistence::repositories::ff3_transaction::MysqlFf3Tran
 use ffm_infrastructure::persistence::repositories::match_repo::MysqlMatchRepository;
 use ffm_infrastructure::persistence::repositories::movement::MysqlMovementRepository;
 use ffm_infrastructure::persistence::repositories::reconciliation::MysqlReconciliationRepository;
-use ffm_application::ports::AppSettingsRepository;
 use ffm_presentation::{app, AppState};
 
 #[tokio::main]
@@ -48,12 +48,17 @@ async fn main() {
         env::var("FF3_TOKEN").unwrap_or_default(),
     );
     let firefly: Arc<DynamicFireflyClient> = Arc::new(
-        match app_settings.get().await.expect("could not read app settings") {
+        match app_settings
+            .get()
+            .await
+            .expect("could not read app settings")
+        {
             Some(s) => DynamicFireflyClient::new(&s.ff3_url, &s.ff3_token),
             None => DynamicFireflyClient::new(&ff3_defaults.0, &ff3_defaults.1),
         },
     );
-    let firefly_manager: Arc<dyn ffm_application::ports::FireflyConnectionManager> = firefly.clone();
+    let firefly_manager: Arc<dyn ffm_application::ports::FireflyConnectionManager> =
+        firefly.clone();
     let firefly_factory: Arc<dyn ffm_application::ports::FireflyClientFactory> =
         Arc::new(ReqwestFireflyClientFactory);
 

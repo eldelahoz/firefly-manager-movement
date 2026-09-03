@@ -5,12 +5,10 @@ use std::sync::{Arc, RwLock};
 
 use async_trait::async_trait;
 
-use ffm_application::dtos::{
-    About, Ff3AccountDto, Ff3TransactionDto, NewFf3TransactionCreation,
-};
+use chrono::NaiveDate;
+use ffm_application::dtos::{About, Ff3AccountDto, Ff3TransactionDto, NewFf3TransactionCreation};
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::{FireflyClient, FireflyClientFactory, FireflyConnectionManager};
-use chrono::NaiveDate;
 
 use super::client::ReqwestFireflyClient;
 
@@ -28,7 +26,10 @@ impl DynamicFireflyClient {
     }
 
     fn current(&self) -> Arc<ReqwestFireflyClient> {
-        self.current.read().expect("dynamic client lock poisoned").clone()
+        self.current
+            .read()
+            .expect("dynamic client lock poisoned")
+            .clone()
     }
 }
 

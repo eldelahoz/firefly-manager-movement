@@ -26,6 +26,8 @@ pub struct ColumnMappingResponse {
     pub date_column: String,
     pub amount_column: String,
     pub description_column: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub origin_account_column: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -56,6 +58,7 @@ pub struct UploadImportResponse {
     pub mapping_used: Option<ColumnMappingResponse>,
     pub valid: Vec<ParsedMovementResponse>,
     pub invalid: Vec<InvalidLineResponse>,
+    pub origin_account_values: Vec<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -94,6 +97,8 @@ pub struct SaveMappingRequest {
     pub date_column: String,
     pub amount_column: String,
     pub description_column: String,
+    #[serde(default)]
+    pub origin_account_column: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -123,6 +128,7 @@ pub async fn upload_import(
     let mut date_column: Option<String> = None;
     let mut amount_column: Option<String> = None;
     let mut description_column: Option<String> = None;
+    let mut origin_account_column: Option<String> = None;
 
     while let Some(field) = multipart.next_field().await.map_err(|e| {
         ApiError(ffm_application::error::ApplicationError::Parse(
@@ -190,6 +196,21 @@ pub async fn upload_import(
                         .to_string(),
                 );
             }
+            "origin_account_column" => {
+                let text = field
+                    .text()
+                    .await
+                    .map_err(|e| {
+                        ApiError(ffm_application::error::ApplicationError::Parse(
+                            e.to_string(),
+                        ))
+                    })?
+                    .trim()
+                    .to_string();
+                if !text.is_empty() {
+                    origin_account_column = Some(text);
+                }
+            }
             _ => {
                 // ignore unknown fields
             }
@@ -209,6 +230,7 @@ pub async fn upload_import(
             date_column: d,
             amount_column: a,
             description_column: desc,
+            origin_account_column,
         }),
         _ => None,
     };
@@ -243,6 +265,7 @@ pub async fn upload_import(
             date_column: m.date_column,
             amount_column: m.amount_column,
             description_column: m.description_column,
+            origin_account_column: m.origin_account_column,
         }),
         valid: result
             .valid
@@ -263,6 +286,7 @@ pub async fn upload_import(
                 raw: l.raw,
             })
             .collect(),
+        origin_account_values: result.origin_account_values,
     }))
 }
 
@@ -427,6 +451,7 @@ pub async fn save_mapping(
                 date_column: body.date_column,
                 amount_column: body.amount_column,
                 description_column: body.description_column,
+                origin_account_column: body.origin_account_column,
             },
         )
         .await

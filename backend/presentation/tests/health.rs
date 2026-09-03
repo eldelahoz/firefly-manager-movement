@@ -5,7 +5,10 @@ use axum::http::{Request, StatusCode};
 use ffm_presentation::{app, AppState};
 use tower::ServiceExt;
 
-use crate::common::{FakeAppSettingsRepository, FakeFireflyClient, FakeFireflyClientFactory, FakeFireflyConnectionManager};
+use crate::common::{
+    FakeAppSettingsRepository, FakeFireflyClient, FakeFireflyClientFactory,
+    FakeFireflyConnectionManager,
+};
 
 mod common;
 

@@ -209,9 +209,7 @@ impl ReqwestFireflyClient {
         let mut all = Vec::new();
         let mut page: u32 = 1;
         loop {
-            let resp: NamesResponse = self
-                .get_json(&format!("{path}?page={page}"))
-                .await?;
+            let resp: NamesResponse = self.get_json(&format!("{path}?page={page}")).await?;
             let total_pages = resp.meta.pagination.total_pages;
             for item in resp.data {
                 if let Some(name) = extract(&item.attributes) {
@@ -442,7 +440,10 @@ impl FireflyClient for ReqwestFireflyClient {
         let attachment_id = created.data.id;
 
         // Step 2: upload file content.
-        let url = format!("{}/api/v1/attachments/{attachment_id}/upload", self.base_url);
+        let url = format!(
+            "{}/api/v1/attachments/{attachment_id}/upload",
+            self.base_url
+        );
         let resp = self
             .http
             .post(&url)

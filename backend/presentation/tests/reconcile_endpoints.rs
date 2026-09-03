@@ -322,7 +322,9 @@ fn test_app(transactions: Vec<Ff3TransactionDto>) -> TestApp {
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
-        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(common::FakeFireflyClient::ok())),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
     };
 
     TestApp {

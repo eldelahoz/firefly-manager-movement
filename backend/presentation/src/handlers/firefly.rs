@@ -102,9 +102,7 @@ pub async fn list_accounts(
     ),
     tag = "firefly",
 )]
-pub async fn list_tags(
-    State(state): State<AppState>,
-) -> Result<Json<Vec<String>>, ApiError> {
+pub async fn list_tags(State(state): State<AppState>) -> Result<Json<Vec<String>>, ApiError> {
     let tags = state.firefly.tags().await.map_err(ApiError)?;
     Ok(Json(tags))
 }
@@ -120,9 +118,7 @@ pub async fn list_tags(
     ),
     tag = "firefly",
 )]
-pub async fn list_categories(
-    State(state): State<AppState>,
-) -> Result<Json<Vec<String>>, ApiError> {
+pub async fn list_categories(State(state): State<AppState>) -> Result<Json<Vec<String>>, ApiError> {
     let categories = state.firefly.categories().await.map_err(ApiError)?;
     Ok(Json(categories))
 }
@@ -138,9 +134,7 @@ pub async fn list_categories(
     ),
     tag = "firefly",
 )]
-pub async fn list_budgets(
-    State(state): State<AppState>,
-) -> Result<Json<Vec<String>>, ApiError> {
+pub async fn list_budgets(State(state): State<AppState>) -> Result<Json<Vec<String>>, ApiError> {
     let budgets = state.firefly.budgets().await.map_err(ApiError)?;
     Ok(Json(budgets))
 }

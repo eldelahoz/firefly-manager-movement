@@ -77,6 +77,7 @@ fn parse_valid_csv_comma() {
         date_column: "Date".to_string(),
         amount_column: "Amount".to_string(),
         description_column: "Description".to_string(),
+        origin_account_column: None,
     };
     let result = parse_csv(csv, &mapping).unwrap();
     assert_eq!(result.headers, vec!["Date", "Amount", "Description"]);
@@ -106,6 +107,7 @@ fn parse_valid_csv_semicolon() {
         date_column: "Date".to_string(),
         amount_column: "Montant".to_string(),
         description_column: "Libellé".to_string(),
+        origin_account_column: None,
     };
     let result = parse_csv(csv, &mapping).unwrap();
     assert_eq!(result.detected_delimiter, ';');
@@ -121,6 +123,7 @@ fn parse_invalid_date_kept_in_invalid() {
         date_column: "Date".to_string(),
         amount_column: "Amount".to_string(),
         description_column: "Description".to_string(),
+        origin_account_column: None,
     };
     let result = parse_csv(csv, &mapping).unwrap();
     assert_eq!(result.valid.len(), 1);
@@ -136,6 +139,7 @@ fn parse_invalid_amount_kept_in_invalid() {
         date_column: "Date".to_string(),
         amount_column: "Amount".to_string(),
         description_column: "Description".to_string(),
+        origin_account_column: None,
     };
     let result = parse_csv(csv, &mapping).unwrap();
     assert_eq!(result.valid.len(), 0);
@@ -150,6 +154,7 @@ fn parse_european_date_format() {
         date_column: "Date".to_string(),
         amount_column: "Amount".to_string(),
         description_column: "Description".to_string(),
+        origin_account_column: None,
     };
     let result = parse_csv(csv, &mapping).unwrap();
     assert_eq!(result.valid.len(), 1);
@@ -166,6 +171,7 @@ fn parse_raw_json_contains_original_fields() {
         date_column: "Date".to_string(),
         amount_column: "Amount".to_string(),
         description_column: "Description".to_string(),
+        origin_account_column: None,
     };
     let result = parse_csv(csv, &mapping).unwrap();
     let raw: serde_json::Value = serde_json::from_str(&result.valid[0].raw_json).unwrap();
@@ -181,6 +187,7 @@ fn parse_empty_csv_returns_empty_result() {
         date_column: "Date".to_string(),
         amount_column: "Amount".to_string(),
         description_column: "Description".to_string(),
+        origin_account_column: None,
     };
     let result = parse_csv(csv, &mapping).unwrap();
     assert!(result.valid.is_empty());
@@ -195,8 +202,97 @@ fn parse_skips_empty_lines() {
         date_column: "Date".to_string(),
         amount_column: "Amount".to_string(),
         description_column: "Description".to_string(),
+        origin_account_column: None,
     };
     let result = parse_csv(csv, &mapping).unwrap();
     assert_eq!(result.valid.len(), 2);
     assert!(result.invalid.is_empty());
+}
+
+// ── Origin-account column ────────────────────────────────────────────────
+
+#[test]
+fn auto_detect_origin_account_column() {
+    let headers = vec![
+        "Date".to_string(),
+        "Amount".to_string(),
+        "Description".to_string(),
+        "Account".to_string(),
+    ];
+    let mapping = auto_detect_mapping(&headers).unwrap();
+    assert_eq!(mapping.origin_account_column.as_deref(), Some("Account"));
+}
+
+#[test]
+fn auto_detect_no_origin_account_column() {
+    let headers = vec![
+        "Date".to_string(),
+        "Amount".to_string(),
+        "Description".to_string(),
+    ];
+    let mapping = auto_detect_mapping(&headers).unwrap();
+    assert!(mapping.origin_account_column.is_none());
+}
+
+#[test]
+fn auto_detect_french_compte_origin() {
+    let headers = vec![
+        "Date".to_string(),
+        "Montant".to_string(),
+        "Libellé".to_string(),
+        "Compte".to_string(),
+    ];
+    let mapping = auto_detect_mapping(&headers).unwrap();
+    assert_eq!(mapping.origin_account_column.as_deref(), Some("Compte"));
+}
+
+#[test]
+fn parse_with_origin_account_column() {
+    let csv = "Date,Amount,Description,Account\n2026-01-05,100.00,Coffee,ACC-001\n2026-01-06,-50.00,Lunch,ACC-002\n2026-01-07,25.00,Tea,ACC-001";
+    let mapping = ColumnMapping {
+        date_column: "Date".to_string(),
+        amount_column: "Amount".to_string(),
+        description_column: "Description".to_string(),
+        origin_account_column: Some("Account".to_string()),
+    };
+    let result = parse_csv(csv, &mapping).unwrap();
+    assert_eq!(result.valid.len(), 3);
+    assert_eq!(result.valid[0].origin_account.as_deref(), Some("ACC-001"));
+    assert_eq!(result.valid[1].origin_account.as_deref(), Some("ACC-002"));
+    assert_eq!(result.valid[2].origin_account.as_deref(), Some("ACC-001"));
+    // Distinct values sorted
+    assert_eq!(result.origin_account_values, vec!["ACC-001", "ACC-002"]);
+}
+
+#[test]
+fn parse_with_origin_account_empty_values() {
+    let csv = "Date,Amount,Description,Account\n2026-01-05,100.00,Coffee,ACC-001\n2026-01-06,-50.00,Lunch,\n2026-01-07,25.00,Tea,ACC-001";
+    let mapping = ColumnMapping {
+        date_column: "Date".to_string(),
+        amount_column: "Amount".to_string(),
+        description_column: "Description".to_string(),
+        origin_account_column: Some("Account".to_string()),
+    };
+    let result = parse_csv(csv, &mapping).unwrap();
+    assert_eq!(result.valid.len(), 3);
+    assert_eq!(result.valid[0].origin_account.as_deref(), Some("ACC-001"));
+    assert!(result.valid[1].origin_account.is_none());
+    assert_eq!(result.valid[2].origin_account.as_deref(), Some("ACC-001"));
+    // Empty value not included in distinct set
+    assert_eq!(result.origin_account_values, vec!["ACC-001"]);
+}
+
+#[test]
+fn parse_without_origin_account_column() {
+    let csv = "Date,Amount,Description\n2026-01-05,100.00,Coffee";
+    let mapping = ColumnMapping {
+        date_column: "Date".to_string(),
+        amount_column: "Amount".to_string(),
+        description_column: "Description".to_string(),
+        origin_account_column: None,
+    };
+    let result = parse_csv(csv, &mapping).unwrap();
+    assert_eq!(result.valid.len(), 1);
+    assert!(result.valid[0].origin_account.is_none());
+    assert!(result.origin_account_values.is_empty());
 }

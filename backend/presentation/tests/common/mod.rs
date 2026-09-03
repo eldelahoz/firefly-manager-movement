@@ -7,6 +7,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{NaiveDate, NaiveDateTime};
 
+use ffm_application::dtos::NewAppSettings;
 use ffm_application::dtos::{
     About, Ff3AccountDto, Ff3TransactionDto, NewFf3Account, NewFf3TransactionCreation,
 };
@@ -17,7 +18,6 @@ use ffm_application::ports::{
     Ff3TransactionRepository, FireflyClient, FireflyClientFactory, FireflyConnectionManager,
     MatchRepository, MovementRepository, ReconciliationRepository,
 };
-use ffm_application::dtos::NewAppSettings;
 use ffm_domain::entities::{AppSettings, Ff3Account};
 use ffm_domain::entities::{Batch, CsvMapping, Ff3Transaction, Match, Movement, Reconciliation};
 use ffm_domain::ids::{BatchId, CsvMappingId, MovementId, ReconciliationId};
@@ -547,7 +547,10 @@ pub struct FakeFireflyConnectionManager {
 #[async_trait]
 impl FireflyConnectionManager for FakeFireflyConnectionManager {
     async fn reconfigure(&self, ff3_url: &str, ff3_token: &str) -> Result<(), ApplicationError> {
-        self.calls.lock().unwrap().push((ff3_url.to_string(), ff3_token.to_string()));
+        self.calls
+            .lock()
+            .unwrap()
+            .push((ff3_url.to_string(), ff3_token.to_string()));
         Ok(())
     }
 }

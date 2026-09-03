@@ -317,6 +317,7 @@ async fn upload_import_uses_provided_mapping() {
                 date_column: "D".into(),
                 amount_column: "M".into(),
                 description_column: "Desc".into(),
+                origin_account_column: None,
             }),
         })
         .await
@@ -548,4 +549,74 @@ async fn upload_import_auto_detects_spanish_headers_valor() {
     assert_eq!(result.valid.len(), 1);
     assert_eq!(result.valid[0].amount_cents.as_i64(), -1234);
     assert_eq!(result.valid[0].description, "Test");
+}
+
+#[tokio::test]
+async fn upload_import_extracts_origin_account_values() {
+    let csv = b"Date,Amount,Description,Account\n2026-01-05,100.00,Coffee,ACC-001\n2026-01-06,-50.00,Lunch,ACC-002\n2026-01-07,25.00,Tea,ACC-001".to_vec();
+    let decoder = FakeCsvDecoder;
+    let batch_repo = Arc::new(FakeBatchRepo::new());
+    let movement_repo = Arc::new(FakeMovementRepo::new());
+    let mapping_repo = Arc::new(FakeCsvMappingRepo::new());
+
+    let uc = UploadImport::new(
+        decoder,
+        batch_repo.clone(),
+        movement_repo.clone(),
+        mapping_repo.clone(),
+    );
+
+    let result = uc
+        .execute(UploadImportInput {
+            filename: "test.csv".into(),
+            bytes: csv,
+            currency: "EUR".into(),
+            mapping: Some(ColumnMapping {
+                date_column: "Date".into(),
+                amount_column: "Amount".into(),
+                description_column: "Description".into(),
+                origin_account_column: Some("Account".into()),
+            }),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(result.origin_account_values, vec!["ACC-001", "ACC-002"]);
+    assert_eq!(result.valid.len(), 3);
+    assert_eq!(result.valid[0].origin_account.as_deref(), Some("ACC-001"));
+    assert_eq!(result.valid[1].origin_account.as_deref(), Some("ACC-002"));
+}
+
+#[tokio::test]
+async fn upload_import_empty_origin_account_values_when_no_column() {
+    let csv = b"Date,Amount,Description\n2026-01-05,100.00,Coffee".to_vec();
+    let decoder = FakeCsvDecoder;
+    let batch_repo = Arc::new(FakeBatchRepo::new());
+    let movement_repo = Arc::new(FakeMovementRepo::new());
+    let mapping_repo = Arc::new(FakeCsvMappingRepo::new());
+
+    let uc = UploadImport::new(
+        decoder,
+        batch_repo.clone(),
+        movement_repo.clone(),
+        mapping_repo.clone(),
+    );
+
+    let result = uc
+        .execute(UploadImportInput {
+            filename: "test.csv".into(),
+            bytes: csv,
+            currency: "EUR".into(),
+            mapping: Some(ColumnMapping {
+                date_column: "Date".into(),
+                amount_column: "Amount".into(),
+                description_column: "Description".into(),
+                origin_account_column: None,
+            }),
+        })
+        .await
+        .unwrap();
+
+    assert!(result.origin_account_values.is_empty());
+    assert!(result.valid[0].origin_account.is_none());
 }

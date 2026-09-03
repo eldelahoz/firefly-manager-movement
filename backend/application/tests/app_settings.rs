@@ -5,7 +5,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use ffm_application::dtos::SettingsView;
-use ffm_application::dtos::{About, Ff3AccountDto, Ff3TransactionDto, NewAppSettings, NewFf3TransactionCreation};
+use ffm_application::dtos::{
+    About, Ff3AccountDto, Ff3TransactionDto, NewAppSettings, NewFf3TransactionCreation,
+};
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::{
     AppSettingsRepository, FireflyClient, FireflyClientFactory, FireflyConnectionManager,

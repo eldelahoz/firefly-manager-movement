@@ -19,6 +19,7 @@ pub struct ParsedMovement {
     pub amount_cents: AmountCents,
     pub description: String,
     pub raw_json: String,
+    pub origin_account: Option<String>,
 }
 
 /// A line that failed validation, with the reason.
@@ -36,6 +37,8 @@ pub struct CsvParseResult {
     pub detected_delimiter: char,
     pub valid: Vec<ParsedMovement>,
     pub invalid: Vec<InvalidLine>,
+    /// Distinct non-empty origin-account values extracted from the CSV, sorted.
+    pub origin_account_values: Vec<String>,
 }
 
 /// Parses a decoded CSV string using the given column mapping.
@@ -87,8 +90,14 @@ pub fn parse_csv(
     let amount_idx = amount_idx.unwrap();
     let desc_idx = desc_idx.unwrap();
 
+    let origin_account_idx = mapping
+        .origin_account_column
+        .as_ref()
+        .and_then(|col| find_column_index(&headers, col));
+
     let mut valid = Vec::new();
     let mut invalid = Vec::new();
+    let mut origin_set = std::collections::BTreeSet::new();
     let mut line_no = 1i32;
 
     for result in reader.records() {
@@ -144,6 +153,15 @@ pub fn parse_csv(
             amount_cents: amount,
             description: desc_str.to_string(),
             raw_json,
+            origin_account: origin_account_idx.and_then(|idx| {
+                let val = record.get(idx)?.trim().to_string();
+                if val.is_empty() {
+                    None
+                } else {
+                    origin_set.insert(val.clone());
+                    Some(val)
+                }
+            }),
         });
         line_no += 1;
     }
@@ -153,6 +171,7 @@ pub fn parse_csv(
         detected_delimiter: delimiter,
         valid,
         invalid,
+        origin_account_values: origin_set.into_iter().collect(),
     })
 }
 

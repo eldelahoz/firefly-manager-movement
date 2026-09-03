@@ -108,7 +108,10 @@ async fn asset_accounts_maps_iban_and_account_number() {
 
     let client = make_client(&server);
     let accounts = client.asset_accounts().await.unwrap();
-    assert_eq!(accounts[0].iban.as_deref(), Some("DE44 5001 0517 5407 3249 31"));
+    assert_eq!(
+        accounts[0].iban.as_deref(),
+        Some("DE44 5001 0517 5407 3249 31")
+    );
     assert_eq!(accounts[0].account_number.as_deref(), Some("1001"));
     // absent attributes map to None (serde defaults)
     assert_eq!(accounts[1].iban, None);

@@ -6,10 +6,13 @@ pub struct ColumnMapping {
     pub date_column: String,
     pub amount_column: String,
     pub description_column: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub origin_account_column: Option<String>,
 }
 
 /// Tries to auto-detect the column mapping from header names.
-/// Returns `None` if any of the three columns cannot be guessed.
+/// Returns `None` if any of the three required columns cannot be guessed.
+/// The origin-account column is optional — auto-detected if found, `None` otherwise.
 pub fn auto_detect_mapping(headers: &[String]) -> Option<ColumnMapping> {
     let date_column = headers
         .iter()
@@ -46,9 +49,24 @@ pub fn auto_detect_mapping(headers: &[String]) -> Option<ColumnMapping> {
         })
         .cloned()?;
 
+    let origin_account_column = headers
+        .iter()
+        .find(|h| {
+            let l = h.trim().to_lowercase();
+            l.contains("account")
+                || l.contains("compte")
+                || l.contains("cuenta")
+                || l.contains("origin")
+                || l.contains("origen")
+                || l.contains("source")
+                || l.contains("emisor")
+        })
+        .cloned();
+
     Some(ColumnMapping {
         date_column,
         amount_column,
         description_column,
+        origin_account_column,
     })
 }

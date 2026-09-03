@@ -4,9 +4,7 @@
 use crate::dtos::SettingsView;
 use crate::dtos::{About, NewAppSettings};
 use crate::error::ApplicationError;
-use crate::ports::{
-    AppSettingsRepository, FireflyClientFactory, FireflyConnectionManager,
-};
+use crate::ports::{AppSettingsRepository, FireflyClientFactory, FireflyConnectionManager};
 
 pub struct GetAppSettings<R> {
     repo: R,

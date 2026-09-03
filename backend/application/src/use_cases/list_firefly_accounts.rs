@@ -17,7 +17,10 @@ impl<C, R> ListFireflyAccounts<C, R> {
 }
 
 impl<C: FireflyClient, R: Ff3AccountRepository> ListFireflyAccounts<C, R> {
-    pub async fn execute(&self, account_type: &str) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
+    pub async fn execute(
+        &self,
+        account_type: &str,
+    ) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
         let dtos = self.client.accounts_by_type(account_type).await?;
         let new_accounts: Vec<NewFf3Account> = dtos
             .iter()

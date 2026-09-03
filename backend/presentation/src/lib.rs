@@ -14,10 +14,9 @@ use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::trace::TraceLayer;
 
 use crate::handlers::firefly::{
-    __path_delete_transaction, __path_list_accounts, __path_list_budgets,
-    __path_list_categories, __path_list_tags, account_transactions,
-    account_transactions_fallback, delete_transaction, list_accounts, list_budgets,
-    list_categories, list_tags,
+    __path_delete_transaction, __path_list_accounts, __path_list_budgets, __path_list_categories,
+    __path_list_tags, account_transactions, account_transactions_fallback, delete_transaction,
+    list_accounts, list_budgets, list_categories, list_tags,
 };
 use crate::handlers::imports::__path_delete_import;
 use crate::handlers::imports::{__path_get_import, __path_list_imports, __path_save_mapping};
@@ -27,8 +26,8 @@ use crate::handlers::reconcile::{__path_apply, __path_get_results, __path_ignore
 use crate::handlers::reconcile::{__path_reconcile, apply};
 use crate::handlers::reconcile::{get_results, ignore_movement, reconcile};
 use crate::handlers::settings::{
-    __path_get_settings, __path_save_settings, __path_verify_settings, get_settings,
-    save_settings, verify_settings,
+    __path_get_settings, __path_save_settings, __path_verify_settings, get_settings, save_settings,
+    verify_settings,
 };
 
 mod error;

@@ -58,6 +58,16 @@ impl FireflyClient for Arc<dyn FireflyClient> {
     async fn delete_transaction(&self, ff3_id: i64) -> Result<(), ApplicationError> {
         self.as_ref().delete_transaction(ff3_id).await
     }
+    async fn attach_to_transaction(
+        &self,
+        journal_ff3_id: i64,
+        filename: &str,
+        content_base64: &str,
+    ) -> Result<(), ApplicationError> {
+        self.as_ref()
+            .attach_to_transaction(journal_ff3_id, filename, content_base64)
+            .await
+    }
 }
 
 #[async_trait]

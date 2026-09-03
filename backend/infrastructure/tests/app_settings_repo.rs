@@ -41,7 +41,13 @@ async fn app_settings_repo_roundtrip_and_reversible_migration() {
     })
     .await
     .unwrap();
-    assert!(repo.get().await.unwrap().unwrap().default_creation_tag.is_none());
+    assert!(repo
+        .get()
+        .await
+        .unwrap()
+        .unwrap()
+        .default_creation_tag
+        .is_none());
 
     // migration is reversible: down then up, then the table still works.
     // DDL must go through the text protocol (batch_execute), not the

@@ -183,11 +183,7 @@ async fn put_settings_saves_and_reconfigures() {
         updated_at: chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
     });
     let manager = FakeSettingsManager::default();
-    let state = make_state(
-        settings,
-        manager.clone(),
-        FakeVerifyFactory { fail: false },
-    );
+    let state = make_state(settings, manager.clone(), FakeVerifyFactory { fail: false });
     let router = app(state);
 
     let response = router
@@ -219,7 +215,10 @@ async fn put_settings_saves_and_reconfigures() {
     // Manager received reconfigure call.
     let calls = manager.0.lock().unwrap();
     assert_eq!(calls.len(), 1);
-    assert_eq!(calls[0], ("http://ff3.new".to_string(), "new_tok".to_string()));
+    assert_eq!(
+        calls[0],
+        ("http://ff3.new".to_string(), "new_tok".to_string())
+    );
 }
 
 #[tokio::test]
@@ -231,11 +230,7 @@ async fn put_settings_keeps_existing_token_when_omitted() {
         updated_at: chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
     });
     let manager = FakeSettingsManager::default();
-    let state = make_state(
-        settings,
-        manager.clone(),
-        FakeVerifyFactory { fail: false },
-    );
+    let state = make_state(settings, manager.clone(), FakeVerifyFactory { fail: false });
     let router = app(state);
 
     let response = router

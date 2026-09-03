@@ -16,8 +16,7 @@ pub trait AppSettingsRepository: Send + Sync {
 /// over env vars, RF-19).
 #[async_trait]
 pub trait FireflyConnectionManager: Send + Sync {
-    async fn reconfigure(&self, ff3_url: &str, ff3_token: &str)
-        -> Result<(), ApplicationError>;
+    async fn reconfigure(&self, ff3_url: &str, ff3_token: &str) -> Result<(), ApplicationError>;
 }
 
 /// Builds a throwaway client for a candidate connection (verify action).
