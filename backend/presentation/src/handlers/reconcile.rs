@@ -234,8 +234,10 @@ pub struct AttachmentRequest {
 #[derive(Deserialize, ToSchema)]
 pub struct ApplyMovementBody {
     pub movement_id: i64,
-    /// Counterparty account (external FF3 id), required per movement.
-    pub counterparty_ff3_id: i64,
+    /// Counterparty account (external FF3 id). Optional since v0.8: when
+    /// omitted, Firefly III applies its default handling for the movement.
+    #[serde(default)]
+    pub counterparty_ff3_id: Option<i64>,
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]

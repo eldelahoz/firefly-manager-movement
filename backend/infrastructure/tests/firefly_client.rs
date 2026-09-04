@@ -317,8 +317,8 @@ async fn create_transaction_ok() {
         amount: AmountCents::from_str("123.45").unwrap(),
         date: NaiveDate::from_ymd_opt(2026, 3, 15).unwrap(),
         description: "test tx".into(),
-        source_ff3_id: 1,
-        destination_ff3_id: 2,
+        source_ff3_id: Some(1),
+        destination_ff3_id: Some(2),
         category: None,
         budget: None,
         notes: None,
@@ -347,8 +347,8 @@ async fn create_transaction_wraps_in_transactions_array() {
         amount: AmountCents::from_str("50.00").unwrap(),
         date: NaiveDate::from_ymd_opt(2026, 9, 3).unwrap(),
         description: "salary".into(),
-        source_ff3_id: 10,
-        destination_ff3_id: 20,
+        source_ff3_id: Some(10),
+        destination_ff3_id: Some(20),
         category: Some("Income".into()),
         budget: None,
         notes: Some("monthly".into()),
@@ -400,8 +400,8 @@ async fn create_transaction_sends_absolute_amount() {
         amount: AmountCents::from_str("-42.00").unwrap(),
         date: NaiveDate::from_ymd_opt(2026, 8, 3).unwrap(),
         description: "groceries".into(),
-        source_ff3_id: 1,
-        destination_ff3_id: 2,
+        source_ff3_id: Some(1),
+        destination_ff3_id: Some(2),
         category: None,
         budget: None,
         notes: None,
@@ -416,4 +416,41 @@ async fn create_transaction_sends_absolute_amount() {
     let tx = &body["transactions"][0];
     assert_eq!(tx["type"], "withdrawal");
     assert_eq!(tx["amount"], "42.00");
+}
+
+#[tokio::test]
+async fn create_transaction_omits_absent_account_side() {
+    let server = MockServer::start().await;
+    let _mock = Mock::given(method("POST"))
+        .and(path("/api/v1/transactions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": { "id": "9" }
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let creation = ffm_application::dtos::NewFf3TransactionCreation {
+        transaction_type: "withdrawal".into(),
+        amount: AmountCents::from_str("-1.00").unwrap(),
+        date: NaiveDate::from_ymd_opt(2026, 8, 3).unwrap(),
+        description: "no counterparty".into(),
+        source_ff3_id: Some(1),
+        destination_ff3_id: None,
+        category: None,
+        budget: None,
+        notes: None,
+        tags: vec![],
+    };
+    client.create_transaction(creation).await.unwrap();
+
+    let requests = server.received_requests().await.unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+    let tx = &body["transactions"][0];
+    assert_eq!(tx["source_id"], "1");
+    assert!(
+        tx.get("destination_id").is_none(),
+        "counterparty side must be omitted, got: {tx}"
+    );
 }

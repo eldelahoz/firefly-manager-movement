@@ -11,7 +11,9 @@ pub struct AttachmentPayload {
 #[derive(Debug, Clone)]
 pub struct MovementApply {
     pub movement_id: MovementId,
-    pub counterparty_ff3_id: i64,
+    /// Counterparty account (external FF3 id). Optional since v0.8:
+    /// when `None`, the account side is omitted from the FF3 payload.
+    pub counterparty_ff3_id: Option<i64>,
     pub description: Option<String>,
     pub category: Option<String>,
     pub budget: Option<String>,

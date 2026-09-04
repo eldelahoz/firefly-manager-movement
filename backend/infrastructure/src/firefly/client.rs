@@ -322,9 +322,16 @@ impl FireflyClient for ReqwestFireflyClient {
             "amount": Self::format_decimal(AmountCents::new(creation.amount.as_i64().abs())),
             "date": format!("{}T00:00:00+00:00", creation.date.format("%Y-%m-%d")),
             "description": creation.description,
-            "source_id": creation.source_ff3_id.to_string(),
-            "destination_id": creation.destination_ff3_id.to_string(),
         });
+        let obj = attrs.as_object_mut().unwrap();
+        // Optional counterparty (RF-08 v0.8): an absent side is not sent and
+        // Firefly III applies its default handling for the movement.
+        if let Some(src) = creation.source_ff3_id {
+            obj.insert("source_id".into(), json!(src.to_string()));
+        }
+        if let Some(dst) = creation.destination_ff3_id {
+            obj.insert("destination_id".into(), json!(dst.to_string()));
+        }
         let obj = attrs.as_object_mut().unwrap();
         if let Some(ref cat) = creation.category {
             obj.insert("category_name".into(), json!(cat));

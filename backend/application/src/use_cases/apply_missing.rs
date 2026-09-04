@@ -187,10 +187,12 @@ where
             }
 
             // ── Determine type + counterparties by sign ───────────
+            // Optional counterparty (v0.8): the batch account is always the known
+            // side; the opposite side is `None` when the user omitted it.
             let (transaction_type, source, destination) = if m.amount_cents.as_i64() < 0 {
-                ("withdrawal", account_ff3_id, cust.counterparty_ff3_id)
+                ("withdrawal", Some(account_ff3_id), cust.counterparty_ff3_id)
             } else {
-                ("deposit", cust.counterparty_ff3_id, account_ff3_id)
+                ("deposit", cust.counterparty_ff3_id, Some(account_ff3_id))
             };
 
             // ── Description: override > statement ─────────────────
