@@ -173,7 +173,6 @@
     "confirmTitle": "Crear en Firefly III",
     "confirmCount": "{{count}} transacciones serán creadas",
     "confirm": "Crear",
-    "missingCounterparty": "Cuenta de contrapartida faltante",
     "originTagNote": "Cada transacción creada lleva la etiqueta de origen {{tag}}",
     "attachmentWarning": "Creado, pero el adjunto falló: {{reason}}",
     "col.amount": "Importe",

@@ -173,7 +173,6 @@
     "confirmTitle": "Create in Firefly III",
     "confirmCount": "{{count}} transactions will be created",
     "confirm": "Create",
-    "missingCounterparty": "Missing counterparty account",
     "originTagNote": "Each created transaction carries the origin tag {{tag}}",
     "attachmentWarning": "Created, but the attachment failed: {{reason}}",
     "col.amount": "Amount",

@@ -206,7 +206,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `ignore_movement.rs::un_ignore_without_any_run_restores_imported` | Un-ignore restores `Imported` when no run exists |
 | **App** | `reconcile_batch.rs::reconcile_persists_run_and_updates_statuses` | Ignored movements excluded from matching, status untouched |
 | **App** | `get_results.rs::results_include_ignored_movements` | Results include the ignored movements |
-| **Infra** | `reconcile_endpoints.rs::results_include_ignored_movements` | Endpoint returns ignored movements in results |
+| **Pres** | `reconcile_endpoints.rs::results_include_ignored_movements` | Endpoint returns ignored movements in results |
 | **Pres** | `reconcile_endpoints.rs` | Ignore endpoint sets the ignored state |
 | **Pres** | `reconcile_endpoints.rs::un_ignore_endpoint_restores_latest_run_status` | Un-ignore endpoint restores status per latest run |
 | **FE** | `ResultsPage.test.tsx::ignored section lists rows with badge and Un-ignore action` | Ignored table below results with `Ignored` badge and Un-ignore button (v0.8) |
@@ -454,7 +454,7 @@ cd ../frontend && pnpm lint && pnpm test && pnpm build
 
 ## Coverage Summary (as of 2026-09-03)
 
-The per-layer columns reflect **test existence** for the original (pre-amendment) scope; the **Status** column reflects the *amended* spec (see per-RF sections for pending deltas).
+All RFs are now implemented. The per-layer columns show test existence; the **Status** column confirms implementation.
 
 | RF | Domain | App | Infra | Pres | FE | Status |
 | --- | :---: | :---: | :---: | :---: | :---: | --- |

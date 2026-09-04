@@ -173,7 +173,6 @@
     "confirmTitle": "Créer dans Firefly III",
     "confirmCount": "{{count}} transactions seront créées",
     "confirm": "Créer",
-    "missingCounterparty": "Compte de contrepartie manquant",
     "originTagNote": "Chaque transaction créée porte le tag d'origine {{tag}}",
     "attachmentWarning": "Créé, mais la pièce jointe a échoué : {{reason}}",
     "col.amount": "Montant",
