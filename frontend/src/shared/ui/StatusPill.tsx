@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 export type PillStatus = string;
 
 const PILL_BASE =
-  'inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide';
+  'inline-flex w-fit max-w-full items-center overflow-hidden rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide';
 
 const NEUTRAL = 'bg-border-subtle text-text-2';
 
@@ -36,5 +36,9 @@ export function Pill({
 
 export function StatusPill({ status }: { status: string }) {
   const { t } = useTranslation();
-  return <Pill className={STYLES[status] ?? NEUTRAL}>{t(`status.${status}`)}</Pill>;
+  return (
+    <Pill className={STYLES[status] ?? NEUTRAL}>
+      <span className="truncate">{t(`status.${status}`)}</span>
+    </Pill>
+  );
 }

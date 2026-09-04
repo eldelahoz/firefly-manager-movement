@@ -31,7 +31,7 @@ import { IgnoredRow } from './IgnoredRow';
 import { ExtraRow } from './ExtraRow';
 import { BulkPersonalizeSheet } from './BulkPersonalizeSheet';
 import { ConfirmCreateDialog } from './ConfirmCreateDialog';
-import { TableHeader } from './tableLayout';
+import { TableHeader, GRID_COLS } from './tableLayout';
 
 type Tab = 'matched' | 'missing' | 'extra';
 
@@ -241,7 +241,9 @@ export function ResultsPage() {
                 renderItem={(i) => {
                   const { movement, ff3 } = results.data.matched[i];
                   return (
-                    <div className="grid grid-cols-[7rem_1fr_1fr_8rem_6rem] items-center gap-2 border-b border-border-subtle py-3 text-sm">
+                    <div
+                      className={`grid ${GRID_COLS.matched} items-center gap-2 border-b border-border-subtle py-3 text-sm`}
+                    >
                       <span>{formatDate(movement.date, i18n.language)}</span>
                       <span className="min-w-0 truncate" title={movement.description}>
                         {movement.description}
