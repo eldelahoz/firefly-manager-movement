@@ -1,5 +1,13 @@
 export function formatMoney(cents: number, currency: string, locale: string): string {
-  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(cents / 100);
+  const parts = new Intl.NumberFormat(locale, { style: 'currency', currency }).formatToParts(
+    cents / 100,
+  );
+  const unit = parts.find((p) => p.type === 'currency')?.value ?? currency;
+  const amount = parts
+    .filter((p) => p.type !== 'currency' && p.type !== 'literal')
+    .map((p) => p.value)
+    .join('');
+  return `${amount} ${unit}`;
 }
 
 export function formatSignedMoney(cents: number, currency: string, locale: string): string {

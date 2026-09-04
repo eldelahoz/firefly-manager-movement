@@ -50,7 +50,7 @@ test('renders description, amount and edit action', () => {
     />,
   );
   expect(screen.getByText('Book')).toBeInTheDocument();
-  expect(screen.getByText('-€99.00')).toBeInTheDocument();
+  expect(screen.getByText('-99.00 €')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
 });
 
