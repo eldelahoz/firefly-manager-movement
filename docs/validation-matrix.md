@@ -2,6 +2,8 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
+> **Docs @** PRD `d734652` · TRD `d734652` · audited 2026-09-03 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
 > - **App** → `backend/application/tests/*.rs` (use cases with fake repos)
@@ -13,6 +15,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 > - `implemented` — matches the current spec
 > - `partial (spec v0.X)` — base works; the listed amendment deltas are pending
 > - `pending (spec v0.X)` — the amended functionality is not implemented
+> - `not tested` — no dedicated tests yet (NFR table only)
 >
 > Spec versions are declared in the `Version` field of each requirement doc (`docs/specs/requirements/`): `v0.X (integrates ...)` for amended requirements, `Original (2026-08-14) — unamended` otherwise.
 
@@ -20,7 +23,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-01  CSV upload (max 10 MB); XLSX → CSV by user
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -40,7 +43,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-02  CSV parsing with manual mapping; memorize by header signature
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -62,7 +65,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-03  Detect and report invalid lines without blocking; keep valid
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -74,7 +77,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-04  List FF3 asset accounts; select target at import; pre-select at reconcile
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -92,7 +95,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-05  Fetch target account transactions via FF3 API over date window
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -106,7 +109,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-06  Reconciliation engine with configurable date tolerance
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -123,7 +126,9 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-07  Results in 3 groups (matched / missing / extras) with visual gap highlighting
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** partial (spec v0.8) · **Last verified:** 2026-09-03 · **Spec @** `d734652`
+
+> **v0.8 amendment delta (2026-09-03)**: results table layout (RF-07) — explicit column headers per group and the Status column (incl. post-apply pills) are **pending implementation**; the FE currently renders ad-hoc row layouts without headers.
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -141,12 +146,15 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-08  Batch-create missing; edit description/category/budget/tags/attachment/notes
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** partial (spec v0.8) · **Last verified:** 2026-09-03 · **Spec @** `4683eb9`
+
+> **v0.8 amendment delta (2026-09-03)**: (a) movement classification by amount sign — negative = expense (`withdrawal`), positive = income (`deposit`), transfers never generated — already implemented, covered by the two tests below; (b) the counterparty account is now **optional** — **pending implementation** (backend validation, FF3 payload and frontend editor/confirmation currently enforce it as required).
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
+| **App** | `apply_missing.rs::applies_per_movement_customization` | Sign-based type: negative → `withdrawal` (source = batch account), positive → `deposit` (source = counterparty); per-movement description, category, budget, tags, notes override |
+| **Infra** | `firefly_client.rs::create_transaction_sends_absolute_amount` | FF3 amount always positive; direction via type + accounts |
 | **App** | `apply_missing.rs::apply_creates_with_origin_tag_and_confirms_matched` | Creates in FF3 with origin tag, category, notes |
-| **App** | `apply_missing.rs::applies_per_movement_customization` | Per-movement description, category, budget, tags, notes override |
 | **App** | `apply_missing.rs::origin_tag_appended_in_addition_to_user_tags` | Origin tag merged with user-selected tags |
 | **App** | `apply_missing.rs::origin_tag_appended_when_user_tags_empty` | Origin tag applied when no user tags |
 | **App** | `apply_missing.rs::origin_tag_not_duplicated_when_user_includes_it` | No duplicate origin tag |
@@ -170,7 +178,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-09  Each import batch immutable and viewable a posteriori (history)
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -182,23 +190,24 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ---
 
-## RF-10  Manual ignore / un-ignore; dedicated section in results
+## RF-10  Manual ignore / un-ignore; dedicated table below the results
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** partial (spec v0.8) · **Last verified:** 2026-09-03 · **Spec @** `d734652`
+
+> **v0.8 amendment delta (2026-09-03)**: **pending** — un-ignore (backend state restore + endpoint body `{"ignored": bool}`), ignore/un-ignore buttons in the FE, the `Ignored` status badge per row, and the ignored table below the results. The FE test rows previously listed here did not exist and were removed (matrix hygiene, Rule 2).
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
-| **App** | `ignore_movement.rs` | `IgnoreMovement` use case toggles `status=Ignored` |
+| **App** | `ignore_movement.rs` | `IgnoreMovement` use case sets `status=Ignored` |
 | **App** | `reconcile_batch.rs::reconcile_persists_run_and_updates_statuses` | Ignored movements excluded from matching, status untouched |
-| **Pres** | `reconcile_endpoints.rs` | Ignore endpoint (if exists) |
-| **FE** | `ResultsPage.test.tsx` | Ignored section rendered, un-ignore action |
-| **FE** | `MissingRow.test.tsx` | Ignore button on missing rows |
+| **App** | `get_results.rs` | Results include the ignored movements |
+| **Pres** | `reconcile_endpoints.rs` | Ignore endpoint sets the ignored state |
 
 ---
 
 ## RF-11  Created transactions carry origin trace (tag/note: file + batch)
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -213,7 +222,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-12  Multiple currencies: statement currency from FF3 account; blocking warning on mismatch
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -227,7 +236,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-13  Re-run reconciliation on existing batch
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -240,7 +249,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-14  Browse FF3 account transactions by period (min/max date)
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -253,7 +262,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-15  Flag duplicates; delete with double confirmation + audit snapshot
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -270,7 +279,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-16  Refuse duplicate filename upload (409 before storage)
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -284,7 +293,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-17  Delete `parsed` batch after explicit confirmation (file name + count); irreversible; refused for `reconciled`/`applied`
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -298,7 +307,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-18  Resume incomplete import: wizard reopens at first pending step (reconcile); free back/forward navigation
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -312,7 +321,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-19  App settings: configure FF3 connection (URL + token), verify connectivity, save; replaces env vars
 
-**Status:** implemented · **Last verified:** 2026-09-03
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -349,8 +358,63 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Idempotency (NFR-05)** | `apply_missing.rs::apply_retry_creates_nothing_nfr05` (creation UNIQUE), `upload_import.rs::upload_import_rejects_duplicate_filename` |
 | **Amounts as cents (NFR-06)** | `matching_engine.rs` (all use `AmountCents::new(cents)`), `value_objects.rs` |
 | **No auto create/delete (O4, O5)** | `apply_missing.rs` requires explicit selection; `delete_firefly_transaction.rs` requires double confirm |
-| **Security (NFR-02)** | `firefly_client.rs` token from backend env config only; token-not-returned test pending with RF-19 settings |
+| **Security (NFR-02)** | `firefly_client.rs` token backend-only (env / app settings); settings GET masks token — `app_settings.rs::get_masks_token_but_reports_presence`, `settings_endpoints.rs::get_settings_returns_url_and_has_token` |
 | **Batch immutability** | `delete_import.rs` rejects non-`Parsed`; `apply_missing.rs` requires `Reconciled` batch |
+
+---
+
+## NFR Validation Matrix
+
+Per-requirement tracking for `docs/specs/requirements/nfr-*.md`.
+
+| NFR | Concern | Status | Last verified | Spec @ |
+| --- | --- | --- | --- | --- |
+| 01 | Clean Architecture layering | not tested | — | `95378a6` |
+| 02 | Security: backend-only token, masking | implemented | 2026-09-03 | `95378a6` |
+| 03 | Privacy: no PII in logs | not tested | — | `95378a6` |
+| 04 | Performance: reconcile 1000 movements < 5 s | implemented | 2026-09-03 | `95378a6` |
+| 05 | Idempotency: no double creation / duplicate upload | implemented | 2026-09-03 | `95378a6` |
+| 06 | Amount integrity: signed cents, no floats | implemented | 2026-09-03 | `95378a6` |
+| 07 | Observability | not tested | — | `95378a6` |
+| 08 | Internationalization (en/fr/es) | not tested | — | `95378a6` |
+| 09 | Error handling | not tested | — | `95378a6` |
+| 10 | Data retention | not tested | — | `95378a6` |
+| 11 | Accessibility | not tested | — | `95378a6` |
+| 12 | Responsive layout | not tested | — | `95378a6` |
+| 13 | Browser support | not tested | — | `95378a6` |
+
+---
+
+## Traceability
+
+Each requirement is pinned to the exact commit of its spec file that was reviewed when setting its **Status**:
+
+- **RF sections** → `Spec @` on the status line (`docs/specs/requirements/rf-XX-*.md` commit)
+- **NFR table** → `Spec @` column (`docs/specs/requirements/nfr-XX-*.md` commit)
+- **Header** → `Docs @` (PRD / TRD commits)
+
+If a spec file changes after its pin, the matrix entry is **stale** and must be re-verified before it can be trusted.
+
+### Checking freshness
+
+Compare the pin against the file's last commit manually:
+
+```bash
+git log -1 --format=%h -- docs/specs/requirements/rf-08-batch-creation.md
+```
+
+If the output differs from the pinned `Spec @`, re-verify the requirement against its current spec, update the pin (and `Last verified` if re-verified) in the same session, and commit.
+
+### Commit trailers
+
+Commits that touch requirement specs or their implementation carry:
+
+```
+Refs: RF-08, NFR-06      # requirement IDs this commit affects
+Spec: v0.8               # only when a spec version bumps
+```
+
+Query the history of a requirement: `git log --grep "Refs: RF-08" --oneline`.
 
 ---
 
@@ -390,10 +454,10 @@ The per-layer columns reflect **test existence** for the original (pre-amendment
 | 04 | — | ✅ | ✅ | ✅ | ✅ | implemented |
 | 05 | — | ✅ | ✅ | ✅ | ✅ | implemented |
 | 06 | ✅ | ✅ | — | — | — | implemented |
-| 07 | ✅ | ✅ | ✅ | ✅ | ✅ | implemented |
-| 08 | — | ✅ | — | ✅ | ✅ | implemented |
+| 07 | ✅ | ✅ | ✅ | ✅ | ✅ | partial (spec v0.8) |
+| 08 | — | ✅ | ✅ | ✅ | ✅ | partial (spec v0.8) |
 | 09 | — | ✅ | ✅ | ✅ | ✅ | implemented |
-| 10 | — | ✅ | — | — | ✅ | implemented |
+| 10 | — | ✅ | — | ✅ | — | partial (spec v0.8) |
 | 11 | — | ✅ | — | — | ✅ | implemented |
 | 12 | — | ✅ | — | — | ✅ | implemented |
 | 13 | — | ✅ | — | ✅ | ✅ | implemented |
@@ -408,4 +472,4 @@ The per-layer columns reflect **test existence** for the original (pre-amendment
 
 ---
 
-*Generated from PRD v0.7 / TRD v0.5 and the current test suite. Status audited 2026-09-03.*
+*Generated from PRD v0.8 / TRD v0.7 and the current test suite. Status audited 2026-09-03.*

@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Version | Original (2026-08-14) — unamended |
+| Version | v0.8 (integrates v0.8 amendment) |
 | Priority | P0 |
 | Use cases | CU-4 |
 | Depends on | RF-06 (a reconciliation run exists) |
@@ -20,6 +20,19 @@ Results MUST be presented in **three groups** with visual highlighting of the ga
 
 A fourth, dedicated section lists **ignored** movements (RF-10). Duplicate-flagged transactions carry a visible badge in the extras group (RF-15). The results view MUST remain responsive with large lists (virtualized rendering).
 
+## Table layout (v0.8)
+
+Each group renders as a **table with column headers**. Columns per group:
+
+| Group | Columns |
+| --- | --- |
+| Matched | Date · Description (statement) · Description (Firefly III) · Amount · Status |
+| Missing | Selection · Date · Description · Amount · Status · Actions (Personalize, Ignore) |
+| Extras | Date · Description · Amount · Status (duplicate badge, RF-15) · Actions (RF-15) |
+| Ignored | Date · Description · Amount · Status (`Ignored`) · Actions (Un-ignore) |
+
+The Status column always reflects the movement's real state, including the post-creation report pills (`created` / `failed`) on missing rows (RF-08).
+
 ## Preconditions
 
 1. At least one reconciliation run has completed on the batch (RF-06).
@@ -28,7 +41,7 @@ A fourth, dedicated section lists **ignored** movements (RF-10). Duplicate-flagg
 
 1. **Given** a reconciled batch,
 2. **When** the user opens the results view,
-3. **Then** the system displays the three groups (with per-group counts) plus the ignored section, each row showing date, amount and description, with visual highlighting of gaps.
+3. **Then** the system displays the three groups (with per-group counts) plus the ignored table, each rendered with the columns defined in the table layout (v0.8) and visual highlighting of gaps.
 
 ## Expected result
 
@@ -46,4 +59,6 @@ A fourth, dedicated section lists **ignored** movements (RF-10). Duplicate-flagg
 - [ ] The latest run's results (3 groups + ignored) are available at any time
 - [ ] The results page renders three tabs/sections
 - [ ] Rows render with checkboxes, editable fields and duplicate flags
+- [ ] Each group renders as a table with column headers per the table layout (v0.8)
+- [ ] The Status column reflects the movement's real state, including post-apply report pills
 - [ ] Large lists stay performant

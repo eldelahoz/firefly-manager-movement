@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Project | firefly-manager-movement |
-| Version | 0.5 |
+| Version | 0.7 |
 | Created | 2026-08-14 |
-| Last modified | 2026-09-02 |
+| Last modified | 2026-09-03 |
 | Related PRD | [`2026-08-14-prd-rapprochement-bancaire.md`](./2026-08-14-prd-rapprochement-bancaire.md) |
 | Status | Draft in progress |
 
@@ -151,7 +151,8 @@ Key constraints:
 | GET | `/api/imports` / `/api/imports/{id}` | List / batch detail |
 | PUT | `/api/imports/{id}/mapping` | Save CSV mapping |
 | POST | `/api/imports/{id}/reconcile` | Run the reconciliation |
-| GET | `/api/imports/{id}/results` | Results in 3 groups |
+| GET | `/api/imports/{id}/results` | Results in 3 groups (+ ignored movements) |
+| POST | `/api/imports/{id}/movements/{mid}/ignore` | Set a movement's ignore state — body `{"ignored": true \| false}`; a pure status change, the movement is never removed from the batch (RF-10, PRD v0.8) |
 | POST | `/api/imports/{id}/apply` | Create the selected missing transactions in Firefly III |
 | DELETE | `/api/imports/{id}` | Delete a batch in `parsed` status (+ its movements) — 409 if the batch is not `parsed`; response `200 {id, status: "deleted"}` |
 | GET | `/api/firefly/accounts` | Read proxy of asset accounts |
@@ -166,7 +167,7 @@ Notes:
 - **Duplicate file names**: `POST /api/imports` refuses a file whose name already exists in an existing batch — `find_by_filename` check before insertion (RF-16, case-insensitive via MySQL collation). The wizard also pre-checks client-side against the batch list and blocks the upload with an inline error.
 - **Mapping probe flow**: when no mapping is memorized or auto-detected, the wizard performs a "probe" upload (headers only, 0 movements, batch in `parsed` status). Upon mapping confirmation, the probe is deleted (`DELETE /api/imports/{id}`) and the file is re-uploaded with the confirmed columns — no orphan batches.
 - `POST /apply` is idempotent per movement: before each creation, check the existence of a row in `creations` (`UNIQUE(movement_id)`, NFR-05); skip already-created movements.
-- `POST /apply` body (v0.7): for each selected movement, the **resolved** customization — counterparty account (required), and optionally description, category, budget, tags, notes, attachment. Bulk-panel merging (fill-only) and default-tag pre-fill are resolved client-side; the tags sent are the user's final selection. The backend **always appends the origin trace tag** (`ffm:<filename>:<batchId>`, RF-11) in addition — it is never part of, nor replaced by, the user's tags.
+- `POST /apply` body (v0.7): for each selected movement, the **resolved** customization — counterparty account (optional, PRD v0.8), and optionally description, category, budget, tags, notes, attachment. Bulk-panel merging (fill-only) and default-tag pre-fill are resolved client-side; the tags sent are the user's final selection. The backend **always appends the origin trace tag** (`ffm:<filename>:<batchId>`, RF-11) in addition — it is never part of, nor replaced by, the user's tags.
 - Firefly III API errors during a batch `apply`: handled per movement, the batch continues, final report per movement (success/failure/reason).
 - **QUERY method (RFC 9295)**: used only for routes with complex filters in body (reads with search criteria). Simple retrievals by ID or full lists stay in GET. The backend translates `QUERY` → `GET` when calling the Firefly III API (which stays GET). Requires registering the method explicitly in axum (`Route::on("QUERY", handler)` or equivalent macro).
 
@@ -181,6 +182,15 @@ Notes:
 | Creation | `POST /api/v1/transactions` — body is `{ "transactions": [...] }` at top level (FF3 v1 `TransactionStore` schema; unlike other endpoints, the transactions store request does NOT use the JSON-API `data`/`attributes` wrapper) |
 | Deletion | `DELETE /api/v1/transactions/{id}` |
 | Health | `GET /api/v1/about` |
+
+**Transaction creation mapping (PRD v0.8)**: the direction of the imported movement determines the FF3 transaction type. The amount is always sent as an **absolute value** - FF3 requires a positive amount; the direction is conveyed by `type` + source/destination only:
+
+| Imported amount sign | FF3 `type` | `source_id` | `destination_id` |
+| --- | --- | --- | --- |
+| negative (expense) | `withdrawal` | target asset account | counterparty expense account |
+| positive (income) | `deposit` | counterparty income account | target asset account |
+
+`transfer` is never generated: a bank statement movement is always money in or out of the reconciled account (internal transfers visible on one side only are handled by ignoring the movement, RF-10). The counterparty is optional (PRD v0.8): when the user omits it, the counterparty-side `source_id`/`destination_id` is not sent and Firefly III applies its default handling for the movement type.
 
 Backend configuration (environment variables):
 
