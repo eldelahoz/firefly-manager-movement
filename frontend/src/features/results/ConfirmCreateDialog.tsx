@@ -73,9 +73,7 @@ export function ConfirmCreateDialog({
           <Button variant="cancel" onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          <Button onClick={onConfirm}>
-            {t('results.confirm')}
-          </Button>
+          <Button onClick={onConfirm}>{t('results.confirm')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

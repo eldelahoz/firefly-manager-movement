@@ -37,9 +37,7 @@ test('renders per-movement summary and origin tag note', () => {
 });
 
 test('confirm enabled without counterparty (optional field)', () => {
-  const movements = [
-    { id: 10, description: 'Coffee', amountCents: -4200, customization: {} },
-  ];
+  const movements = [{ id: 10, description: 'Coffee', amountCents: -4200, customization: {} }];
   renderWithProviders(
     <ConfirmCreateDialog
       open
