@@ -14,15 +14,15 @@ The user selects missing movements (individual checkboxes + "select all") and ha
 
 1. **Personalize transactions** - opens the personalization editor for the selection: inline editing for a single movement, or a **bulk panel** when several movements are selected. The editor is pre-populated with the existing Firefly III categories, budgets and tags. Available fields:
 
-| Field                                                                                  | Status                                                                                                                                               |
-| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Counterparty account (expense/income account, or asset account depending on direction) | **Optional** - picked from existing FF3 accounts, listed by direction; when omitted, Firefly III applies its default handling for the movement       |
-| Description                                                                            | Editable - pre-filled from the statement                                                                                                             |
-| Category                                                                               | Optional - picked from existing FF3 categories                                                                                                       |
-| Budget                                                                                 | Optional - picked from existing FF3 budgets                                                                                                          |
-| Tags                                                                                   | Optional - picked from existing FF3 tags; pre-filled with the default creation tag configured in settings (RF-19) - the user's selection replaces it |
-| Attachment (file)                                                                      | Optional - uploaded and linked to the created transaction                                                                                            |
-| Notes                                                                                  | Optional                                                                                                                                             |
+| Field | Status |
+| --- | --- |
+| Counterparty account (expense/income account, or asset account depending on direction) | **Optional** - picked from existing FF3 accounts, listed by direction; when omitted, Firefly III applies its default handling for the movement |
+| Description | Editable - pre-filled from the statement |
+| Category | Optional - picked from existing FF3 categories |
+| Budget | Optional - picked from existing FF3 budgets |
+| Tags | Optional - picked from existing FF3 tags; pre-filled with the default creation tag configured in settings (RF-19) - the user's selection replaces it |
+| Attachment (file) | Optional - uploaded and linked to the created transaction |
+| Notes | Optional |
 
 **Bulk semantics**: in the bulk panel, **only the fields the user fills are applied** to every selected movement; fields left empty leave each movement's own values untouched.
 
