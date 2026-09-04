@@ -110,7 +110,8 @@ export interface AttachmentPayload {
 
 export interface ApplyMovementRequest {
   movement_id: number;
-  counterparty_ff3_id: number;
+  /** Optional since spec v0.8: omitted → FF3 default handling. */
+  counterparty_ff3_id?: number;
   description?: string;
   category?: string;
   budget?: string;

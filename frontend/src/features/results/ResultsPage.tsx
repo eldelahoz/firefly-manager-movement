@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { getAccounts, getImport, getResults, getSettings, postApply } from '@/shared/api/endpoints';
-import type { ApplyReport } from '@/shared/api/dto';
+import type { ApplyMovementRequest, ApplyReport } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { EmptyState } from '@/shared/ui/EmptyState';
@@ -90,19 +90,8 @@ export function ResultsPage() {
           .filter((sid) => missing.some((m) => m.id === sid))
           .map(async (sid) => {
             const c = customizations[sid] ?? {};
-            const payload: {
-              movement_id: number;
-              counterparty_ff3_id: number;
-              description?: string;
-              category?: string;
-              budget?: string;
-              tags?: string[];
-              notes?: string;
-              attachment?: { filename: string; content_base64: string };
-            } = {
-              movement_id: sid,
-              counterparty_ff3_id: c.counterpartyId ?? 0,
-            };
+            const payload: ApplyMovementRequest = { movement_id: sid };
+            if (c.counterpartyId != null) payload.counterparty_ff3_id = c.counterpartyId;
             if (c.description) payload.description = c.description;
             if (c.category) payload.category = c.category;
             if (c.budget) payload.budget = c.budget;

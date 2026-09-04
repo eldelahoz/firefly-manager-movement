@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
@@ -116,4 +116,28 @@ test('virtualizes 1000 matched rows without rendering all', async () => {
   await screen.findByText('Matched (1000)');
   expect(screen.queryByText('m999')).not.toBeInTheDocument();
   expect(document.querySelectorAll('[data-index]').length).toBeLessThan(1000);
+});
+
+test('apply payload omits counterparty_ff3_id when not personalized', async () => {
+  let body: { movements: { movement_id: number; counterparty_ff3_id?: number }[] } | undefined;
+  server.use(
+    http.post('/api/imports/:id/apply', async ({ request }) => {
+      body = await request.json();
+      return HttpResponse.json({
+        reports: [],
+        created_count: 1,
+        already_created_count: 0,
+        failed_count: 0,
+      });
+    }),
+  );
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+  await userEvent.click(screen.getByRole('button', { name: /Create in Firefly III/ }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Create' }));
+  await waitFor(() => {
+    expect(body?.movements[0]).toEqual({ movement_id: expect.any(Number) });
+  });
 });

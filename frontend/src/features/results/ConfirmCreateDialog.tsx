@@ -32,7 +32,6 @@ export function ConfirmCreateDialog({
     if (!id) return null;
     return accounts.find((a) => a.id === id)?.name ?? null;
   }
-  const anyMissing = movements.some((m) => !m.customization.counterpartyId);
   return (
     <Dialog
       open={open}
@@ -55,7 +54,6 @@ export function ConfirmCreateDialog({
               <div key={m.id} className="border-b border-border-subtle pb-2 text-sm">
                 <p className="truncate font-medium">{m.description}</p>
                 <MoneyText cents={m.amountCents} currency="EUR" />
-                {!cpName && <p className="text-destructive">{t('results.missingCounterparty')}</p>}
                 {cpName && <p className="text-text-2">→ {cpName}</p>}
                 {c.category && <p className="text-text-3">Category: {c.category}</p>}
                 {c.budget && <p className="text-text-3">Budget: {c.budget}</p>}
@@ -75,7 +73,7 @@ export function ConfirmCreateDialog({
           <Button variant="cancel" onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          <Button disabled={anyMissing} onClick={onConfirm}>
+          <Button onClick={onConfirm}>
             {t('results.confirm')}
           </Button>
         </DialogFooter>
