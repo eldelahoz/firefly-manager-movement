@@ -52,11 +52,12 @@ Start order matters - MySQL must be healthy before Firefly III connects:
 
 ```bash
 # Step 2a: MySQL + Adminer
-docker compose -f docker-compose.dev.yml up -d
+docker compose -p ffm-dev -f docker-compose.dev.yml up -d
 
 # Step 2b: Firefly III (after MySQL is healthy)
-docker compose -f docker-compose.firefly.yml up -d
+docker compose -p ffm-firefly -f docker-compose.firefly.yml up -d
 ```
+> Both compose files run from the same directory, so Docker Compose defaults to the same project name (`firefly-manager-movement`). Without explicit project names, the second `up` sees containers from the first file that aren't in its own file → "orphan containers" warning. The `-p` flag isolates them into separate projects.
 
 Wait ~30s for Firefly III to run its first-time migrations, then verify:
 
@@ -182,12 +183,12 @@ cd frontend && pnpm api:types
 # Stop backend: Ctrl+C in the cargo run terminal
 
 # Stop Docker stacks (keeps data)
-docker compose -f docker-compose.firefly.yml down
-docker compose -f docker-compose.dev.yml down
+docker compose -p ffm-firefly -f docker-compose.firefly.yml down
+docker compose -p ffm-dev -f docker-compose.dev.yml down
 
 # Stop + wipe all data (fresh start next time)
-docker compose -f docker-compose.dev.yml down -v
-docker compose -f docker-compose.firefly.yml down -v
+docker compose -p ffm-dev -f docker-compose.dev.yml down -v
+docker compose -p ffm-firefly -f docker-compose.firefly.yml down -v
 ```
 
 ## Environment Variables
@@ -225,8 +226,8 @@ cargo test -p ffm-presentation
 | `cargo test --workspace` | Run all tests |
 | `diesel migration run` | Apply migrations |
 | `diesel migration redo` | Rollback + reapply last migration |
-| `docker compose -f docker-compose.dev.yml down -v` | Stop dev stack + wipe volumes |
-| `docker compose -f docker-compose.firefly.yml down -v` | Stop Firefly III + wipe volumes |
+| `docker compose -p ffm-dev -f docker-compose.dev.yml down -v` | Stop dev stack + wipe volumes |
+| `docker compose -p ffm-firefly -f docker-compose.firefly.yml down -v` | Stop Firefly III + wipe volumes |
 
 ## Git Workflow
 
