@@ -139,7 +139,7 @@ test('apply payload omits counterparty_ff3_id when not personalized', async () =
   let body: { movements: { movement_id: number; counterparty_ff3_id?: number }[] } | undefined;
   server.use(
     http.post('/api/imports/:id/apply', async ({ request }) => {
-      body = (await request.json()) as { movements: { movement_id: number; counterparty_ff3_id?: number }[] };
+      body = await request.json();
       return HttpResponse.json({
         reports: [],
         created_count: 1,
