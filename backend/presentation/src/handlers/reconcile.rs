@@ -200,15 +200,22 @@ pub async fn get_results(
     }))
 }
 
+#[derive(Deserialize, ToSchema)]
+pub struct IgnoreMovementRequest {
+    /// `true` = ignore, `false` = un-ignore (restore latest-run status).
+    pub ignored: bool,
+}
+
 #[utoipa::path(
     post,
     path = "/api/imports/{id}/movements/{mid}/ignore",
+    request_body = IgnoreMovementRequest,
     params(
         ("id" = i64, Path, description = "Batch id"),
         ("mid" = i64, Path, description = "Movement id"),
     ),
     responses(
-        (status = 200, description = "Movement ignored", body = IgnoreMovementResponse),
+        (status = 200, description = "Ignored state set", body = IgnoreMovementResponse),
         (status = 404, description = "Batch or movement not found"),
     ),
     tag = "reconcile",
@@ -216,15 +223,22 @@ pub async fn get_results(
 pub async fn ignore_movement(
     State(state): State<AppState>,
     Path((id, mid)): Path<(i64, i64)>,
+    Json(body): Json<IgnoreMovementRequest>,
 ) -> Result<Json<IgnoreMovementResponse>, ApiError> {
-    let uc = IgnoreMovement::new(state.movements.clone(), state.batches.clone());
-    uc.execute(BatchId::new(id), MovementId::new(mid))
+    let uc = IgnoreMovement::new(
+        state.movements.clone(),
+        state.batches.clone(),
+        state.reconciliations.clone(),
+        state.matches.clone(),
+    );
+    let status = uc
+        .execute(BatchId::new(id), MovementId::new(mid), body.ignored)
         .await
         .map_err(ApiError)?;
 
     Ok(Json(IgnoreMovementResponse {
         movement_id: mid,
-        status: "ignored".to_string(),
+        status: status.as_str().to_string(),
     }))
 }
 
