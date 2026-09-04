@@ -16,6 +16,7 @@ export function MissingRow({
   report,
   editing,
   onEdit,
+  onIgnore,
   accounts,
   tags,
   categories,
@@ -31,6 +32,7 @@ export function MissingRow({
   report?: { outcome: 'created' | 'already_created' | 'failed'; reason?: string };
   editing?: boolean;
   onEdit?: () => void;
+  onIgnore?: (id: number) => void;
   accounts: Ff3Account[];
   tags: string[];
   categories: string[];
@@ -64,6 +66,9 @@ export function MissingRow({
         <span className="flex gap-1">
           <Button variant="ghost" size="sm" onClick={() => onEdit?.()} disabled={editing}>
             {t('results.edit')}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => onIgnore?.(movement.id)}>
+            {t('results.ignore')}
           </Button>
         </span>
       </div>

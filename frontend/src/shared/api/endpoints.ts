@@ -31,9 +31,10 @@ export const putMapping = (
 export const postReconcile = (id: number, body: ReconcileRequest) =>
   api.post<ReconcileResponse>(`/api/imports/${id}/reconcile`, body);
 export const getResults = (id: number) => api.get<ResultsResponse>(`/api/imports/${id}/results`);
-export const postIgnore = (batchId: number, movementId: number) =>
-  api.post<{ movement_id: number; status: 'ignored' }>(
+export const postIgnore = (batchId: number, movementId: number, ignored: boolean) =>
+  api.post<{ movement_id: number; status: string }>(
     `/api/imports/${batchId}/movements/${movementId}/ignore`,
+    { ignored },
   );
 export const postApply = (batchId: number, body: ApplyRequestV2) =>
   api.post<ApplyResponse>(`/api/imports/${batchId}/apply`, body);

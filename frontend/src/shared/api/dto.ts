@@ -100,6 +100,7 @@ export interface ResultsResponse {
   reconciliation_id: number;
   matched: { movement: MovementDTO; ff3: Ff3CachedTxDTO }[];
   missing: MovementDTO[];
+  ignored: MovementDTO[];
   extra: Ff3CachedTxDTO[];
 }
 

@@ -3,7 +3,14 @@ import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { getAccounts, getImport, getResults, getSettings, postApply } from '@/shared/api/endpoints';
+import {
+  getAccounts,
+  getImport,
+  getResults,
+  getSettings,
+  postApply,
+  postIgnore,
+} from '@/shared/api/endpoints';
 import type { ApplyMovementRequest, ApplyReport } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
@@ -20,6 +27,7 @@ import type { BulkFields, Customization } from './customization';
 import { applyBulkFillOnly } from './customization';
 import { VirtualList } from './VirtualList';
 import { MissingRow } from './MissingRow';
+import { IgnoredRow } from './IgnoredRow';
 import { ExtraRow } from './ExtraRow';
 import { BulkPersonalizeSheet } from './BulkPersonalizeSheet';
 import { ConfirmCreateDialog } from './ConfirmCreateDialog';
@@ -129,6 +137,15 @@ export function ResultsPage() {
       setSelected([]);
       setCustomizations({});
       setConfirmOpen(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const ignore = useMutation({
+    mutationFn: ({ mid, ignored }: { mid: number; ignored: boolean }) =>
+      postIgnore(id, mid, ignored),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.results(id) });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -306,6 +323,7 @@ export function ResultsPage() {
                         }
                         editing={editingId === m.id}
                         onEdit={() => setEditingId(editingId === m.id ? null : m.id)}
+                        onIgnore={(mid) => ignore.mutate({ mid, ignored: true })}
                         accounts={accounts.data ?? []}
                         tags={tags.data ?? []}
                         categories={categories.data ?? []}
@@ -338,6 +356,26 @@ export function ResultsPage() {
           )}
         </TabsContent>
       </Tabs>
+      <section aria-label={t('results.ignored')}>
+        <h2 className="px-2 pt-2 text-sm font-semibold text-text-2">
+          {t('results.ignored')} ({results.data.ignored.length})
+        </h2>
+        {results.data.ignored.length === 0 ? (
+          <p className="px-2 py-3 text-sm text-text-3">{t('results.ignoredEmpty')}</p>
+        ) : (
+          <>
+            <TableHeader group="ignored" />
+            {results.data.ignored.map((m) => (
+              <IgnoredRow
+                key={m.id}
+                movement={m}
+                currency={currency}
+                onUnignore={() => ignore.mutate({ mid: m.id, ignored: false })}
+              />
+            ))}
+          </>
+        )}
+      </section>
       {bulkOpen && tab === 'missing' && (
         <BulkPersonalizeSheet
           count={activeSelected.length}

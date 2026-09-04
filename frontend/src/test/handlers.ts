@@ -102,6 +102,16 @@ export const fixtures = {
         status: 'missing',
       },
     ],
+    ignored: [
+      {
+        id: 13,
+        line_no: 4,
+        date: '2026-08-02',
+        amount_cents: 1500,
+        description: 'Internal transfer',
+        status: 'ignored',
+      },
+    ],
     extra: [
       {
         id: 8,

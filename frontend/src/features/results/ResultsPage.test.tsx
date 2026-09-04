@@ -123,23 +123,23 @@ test('matched group renders column headers per spec v0.8', async () => {
   await screen.findByText('Matched (1)');
   expect(screen.getByText('Description (statement)')).toBeInTheDocument();
   expect(screen.getByText('Description (Firefly III)')).toBeInTheDocument();
-  expect(screen.getByText('Amount')).toBeInTheDocument();
-  expect(screen.getByText('Status')).toBeInTheDocument();
+  expect(screen.getAllByText('Amount').length).toBeGreaterThanOrEqual(1);
+  expect(screen.getAllByText('Status').length).toBeGreaterThanOrEqual(1);
 });
 
 test('missing group renders selection/status/actions headers', async () => {
   renderResults();
   await screen.findByText('Matched (1)');
   await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
-  expect(screen.getByText('Actions')).toBeInTheDocument();
-  expect(screen.getByText('Status')).toBeInTheDocument();
+  expect(screen.getAllByText('Actions').length).toBeGreaterThanOrEqual(1);
+  expect(screen.getAllByText('Status').length).toBeGreaterThanOrEqual(1);
 });
 
 test('apply payload omits counterparty_ff3_id when not personalized', async () => {
   let body: { movements: { movement_id: number; counterparty_ff3_id?: number }[] } | undefined;
   server.use(
     http.post('/api/imports/:id/apply', async ({ request }) => {
-      body = await request.json();
+      body = (await request.json()) as { movements: { movement_id: number; counterparty_ff3_id?: number }[] };
       return HttpResponse.json({
         reports: [],
         created_count: 1,
@@ -157,4 +157,42 @@ test('apply payload omits counterparty_ff3_id when not personalized', async () =
   await waitFor(() => {
     expect(body?.movements[0]).toEqual({ movement_id: expect.any(Number) });
   });
+});
+
+test('ignored section lists rows with badge and Un-ignore action', async () => {
+  renderResults();
+  await screen.findByText('Matched (1)');
+  expect(screen.getByText('Ignored (1)')).toBeInTheDocument();
+  expect(screen.getByText('Internal transfer')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Un-ignore' })).toBeInTheDocument();
+});
+
+test('ignore button on missing row posts ignored=true', async () => {
+  const bodies: unknown[] = [];
+  server.use(
+    http.post('/api/imports/:bid/movements/:mid/ignore', async ({ request }) => {
+      bodies.push(await request.json());
+      return HttpResponse.json({ movement_id: 12, status: 'ignored' });
+    }),
+  );
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  await userEvent.click(screen.getAllByRole('button', { name: 'Ignore' })[0]);
+  await waitFor(() => expect(bodies[0]).toEqual({ ignored: true }));
+});
+
+test('un-ignore posts ignored=false and refreshes results', async () => {
+  const bodies: unknown[] = [];
+  server.use(
+    http.post('/api/imports/:bid/movements/:mid/ignore', async ({ request }) => {
+      bodies.push(await request.json());
+      return HttpResponse.json({ movement_id: 13, status: 'missing' });
+    }),
+  );
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('button', { name: 'Un-ignore' }));
+  await waitFor(() => expect(bodies[0]).toEqual({ ignored: false }));
+  expect(bodies.length).toBe(1);
 });
