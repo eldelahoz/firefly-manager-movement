@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `4683eb9` · TRD `4683eb9` · audited 2026-09-03 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `d734652` · TRD `d734652` · audited 2026-09-03 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
@@ -126,7 +126,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-07  Results in 3 groups (matched / missing / extras) with visual gap highlighting
 
-**Status:** partial (spec v0.8) · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** partial (spec v0.8) · **Last verified:** 2026-09-03 · **Spec @** `d734652`
 
 > **v0.8 amendment delta (2026-09-03)**: results table layout (RF-07) — explicit column headers per group and the Status column (incl. post-apply pills) are **pending implementation**; the FE currently renders ad-hoc row layouts without headers.
 
@@ -192,7 +192,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-10  Manual ignore / un-ignore; dedicated table below the results
 
-**Status:** partial (spec v0.8) · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** partial (spec v0.8) · **Last verified:** 2026-09-03 · **Spec @** `d734652`
 
 > **v0.8 amendment delta (2026-09-03)**: **pending** — un-ignore (backend state restore + endpoint body `{"ignored": bool}`), ignore/un-ignore buttons in the FE, the `Ignored` status badge per row, and the ignored table below the results. The FE test rows previously listed here did not exist and were removed (matrix hygiene, Rule 2).
 
