@@ -74,7 +74,7 @@ test('switching to extra shows duplicate with delete action', async () => {
   await userEvent.click(screen.getByRole('tab', { name: 'Extra (1)' }));
   expect(await screen.findByText('Duplicate A')).toBeInTheDocument();
   expect(screen.getByText('Duplicate')).toBeInTheDocument();
-  expect(screen.getByText('Delete duplicate')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Delete duplicate' })).toBeInTheDocument();
 });
 
 test('missing tab supports select-all and shows personalize/apply buttons', async () => {

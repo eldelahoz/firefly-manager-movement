@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { EyeOff, Pencil } from 'lucide-react';
 import type { Ff3Account, MovementDTO } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
 import { MoneyText } from '@/shared/ui/MoneyText';
@@ -7,6 +8,7 @@ import { Checkbox } from '@/shared/ui/checkbox';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import type { Customization } from './customization';
 import { PersonalizeEditor } from './PersonalizeEditor';
+import { GRID_COLS } from './tableLayout';
 
 export function MissingRow({
   movement,
@@ -45,7 +47,7 @@ export function MissingRow({
   const direction: 'withdrawal' | 'deposit' = movement.amount_cents < 0 ? 'withdrawal' : 'deposit';
   return (
     <div className="border-b border-border-subtle py-3 text-sm">
-      <div className="grid grid-cols-[2rem_7rem_1fr_8rem_6rem_11rem] items-center gap-2">
+      <div className={`grid ${GRID_COLS.missing} items-center gap-2`}>
         <Checkbox
           aria-label={movement.description}
           checked={selected ?? false}
@@ -63,12 +65,25 @@ export function MissingRow({
         ) : (
           <StatusPill status={movement.status} />
         )}
-        <span className="flex gap-1">
-          <Button variant="ghost" size="sm" onClick={() => onEdit?.()} disabled={editing}>
-            {t('results.edit')}
+        <span className="flex items-center justify-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('results.edit')}
+            title={t('results.edit')}
+            onClick={() => onEdit?.()}
+            disabled={editing}
+          >
+            <Pencil className="size-4" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => onIgnore?.(movement.id)}>
-            {t('results.ignore')}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('results.ignore')}
+            title={t('results.ignore')}
+            onClick={() => onIgnore?.(movement.id)}
+          >
+            <EyeOff className="size-4" />
           </Button>
         </span>
       </div>

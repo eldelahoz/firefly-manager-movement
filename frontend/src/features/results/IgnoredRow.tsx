@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Eye } from 'lucide-react';
 import type { MovementDTO } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
 import { MoneyText } from '@/shared/ui/MoneyText';
@@ -26,9 +27,15 @@ export function IgnoredRow({
       </span>
       <MoneyText cents={movement.amount_cents} currency={currency} />
       <StatusPill status="ignored" />
-      <span>
-        <Button variant="ghost" size="sm" onClick={onUnignore}>
-          {t('results.unignore')}
+      <span className="flex items-center justify-center">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t('results.unignore')}
+          title={t('results.unignore')}
+          onClick={onUnignore}
+        >
+          <Eye className="size-4" />
         </Button>
       </span>
     </div>
