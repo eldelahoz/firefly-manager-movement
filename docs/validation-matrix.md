@@ -126,9 +126,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-07  Results in 3 groups (matched / missing / extras) with visual gap highlighting
 
-**Status:** partial (spec v0.8) · **Last verified:** 2026-09-03 · **Spec @** `d734652`
-
-> **v0.8 amendment delta (2026-09-03)**: results table layout (RF-07) — explicit column headers per group and the Status column (incl. post-apply pills) are **pending implementation**; the FE currently renders ad-hoc row layouts without headers.
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `d734652`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -138,7 +136,10 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Infra** | `reconciliation_repo.rs` | `ReconciliationRepository` saves run with snapshot |
 | **Pres** | `reconcile_endpoints.rs` | `GET /api/imports/{id}/results` returns grouped DTOs |
 | **FE** | `ResultsPage.test.tsx` | Three tabs/sections: Matched, Missing, Extras |
+| **FE** | `ResultsPage.test.tsx::matched group renders column headers per spec v0.8` | Column headers per group per table layout (v0.8) |
+| **FE** | `ResultsPage.test.tsx::missing group renders selection/status/actions headers` | Missing group columns: Selection, Date, Description, Amount, Status, Actions |
 | **FE** | `MissingRow.test.tsx` | Row rendering, checkbox, editable fields |
+| **FE** | `MissingRow.test.tsx::renders grid columns with status pill and actions` | Status column reflects real state incl. post-apply pills (v0.8) |
 | **FE** | `ExtraRow.test.tsx` | Duplicate flag display |
 | **FE** | `VirtualList.test.tsx` | Large list performance |
 
@@ -146,14 +147,14 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-08  Batch-create missing; edit description/category/budget/tags/attachment/notes
 
-**Status:** partial (spec v0.8) · **Last verified:** 2026-09-03 · **Spec @** `4683eb9`
-
-> **v0.8 amendment delta (2026-09-03)**: (a) movement classification by amount sign — negative = expense (`withdrawal`), positive = income (`deposit`), transfers never generated — already implemented, covered by the two tests below; (b) the counterparty account is now **optional** — **pending implementation** (backend validation, FF3 payload and frontend editor/confirmation currently enforce it as required).
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `ae8790d`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `apply_missing.rs::applies_per_movement_customization` | Sign-based type: negative → `withdrawal` (source = batch account), positive → `deposit` (source = counterparty); per-movement description, category, budget, tags, notes override |
+| **App** | `apply_missing.rs::applies_without_counterparty_leaves_side_unset` | Creation works without counterparty (optional field, v0.8) |
 | **Infra** | `firefly_client.rs::create_transaction_sends_absolute_amount` | FF3 amount always positive; direction via type + accounts |
+| **Infra** | `firefly_client.rs::create_transaction_omits_absent_account_side` | FF3 payload omits absent account side (v0.8) |
 | **App** | `apply_missing.rs::apply_creates_with_origin_tag_and_confirms_matched` | Creates in FF3 with origin tag, category, notes |
 | **App** | `apply_missing.rs::origin_tag_appended_in_addition_to_user_tags` | Origin tag merged with user-selected tags |
 | **App** | `apply_missing.rs::origin_tag_appended_when_user_tags_empty` | Origin tag applied when no user tags |
@@ -165,13 +166,16 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `apply_missing.rs::apply_retry_creates_nothing_nfr05` | Idempotency: `creations` table UNIQUE prevents double creation (NFR-05) |
 | **App** | `apply_missing.rs::apply_rejects_movement_not_in_missing_state` | Only `Missing` movements accepted |
 | **Pres** | `apply_delete_endpoints.rs::apply_endpoint_creates_and_reports` | `POST /api/imports/{id}/apply` with selection body |
+| **Pres** | `apply_delete_endpoints.rs::apply_endpoint_creates_without_counterparty` | Apply endpoint creates without counterparty (v0.8) |
 | **Pres** | `apply_delete_endpoints.rs::apply_partial_failure_continues_and_reports_reason` | Partial failure reporting |
 | **Pres** | `apply_delete_endpoints.rs::apply_retry_endpoint_is_idempotent` | Retry returns same results |
 | **FE** | `ResultsPage.test.tsx` | Two-action flow (Personalize + Apply), selection, confirm modal |
+| **FE** | `ResultsPage.test.tsx::apply payload omits counterparty_ff3_id when not personalized` | Apply payload omits counterparty when not set (v0.8) |
 | **FE** | `MissingRow.test.tsx` | Row rendering, inline edit (PersonalizeEditor), failure/already-created pills |
 | **FE** | `PersonalizeEditor.test.tsx` | Per-movement fields: counterparty, description, tags, category, budget, notes |
 | **FE** | `BulkPersonalizeSheet.test.tsx` | Bulk fill-only panel for shared fields |
 | **FE** | `ConfirmCreateDialog.test.tsx` | Confirmation dialog with per-movement summary |
+| **FE** | `ConfirmCreateDialog.test.tsx::confirm enabled without counterparty (optional field)` | Confirm dialog enables without counterparty (v0.8) |
 | **FE** | `customization.test.ts` | `applyBulkFillOnly()` pure logic |
 
 ---
@@ -192,16 +196,22 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-10  Manual ignore / un-ignore; dedicated table below the results
 
-**Status:** partial (spec v0.8) · **Last verified:** 2026-09-03 · **Spec @** `d734652`
-
-> **v0.8 amendment delta (2026-09-03)**: **pending** — un-ignore (backend state restore + endpoint body `{"ignored": bool}`), ignore/un-ignore buttons in the FE, the `Ignored` status badge per row, and the ignored table below the results. The FE test rows previously listed here did not exist and were removed (matrix hygiene, Rule 2).
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `d734652`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `ignore_movement.rs` | `IgnoreMovement` use case sets `status=Ignored` |
+| **App** | `ignore_movement.rs::un_ignore_restores_missing_when_not_in_latest_run_matches` | Un-ignore restores `Missing` when latest run didn't match |
+| **App** | `ignore_movement.rs::un_ignore_restores_matched_when_in_latest_run_matches` | Un-ignore restores `Matched` when latest run matched |
+| **App** | `ignore_movement.rs::un_ignore_without_any_run_restores_imported` | Un-ignore restores `Imported` when no run exists |
 | **App** | `reconcile_batch.rs::reconcile_persists_run_and_updates_statuses` | Ignored movements excluded from matching, status untouched |
-| **App** | `get_results.rs` | Results include the ignored movements |
+| **App** | `get_results.rs::results_include_ignored_movements` | Results include the ignored movements |
+| **Infra** | `reconcile_endpoints.rs::results_include_ignored_movements` | Endpoint returns ignored movements in results |
 | **Pres** | `reconcile_endpoints.rs` | Ignore endpoint sets the ignored state |
+| **Pres** | `reconcile_endpoints.rs::un_ignore_endpoint_restores_latest_run_status` | Un-ignore endpoint restores status per latest run |
+| **FE** | `ResultsPage.test.tsx::ignored section lists rows with badge and Un-ignore action` | Ignored table below results with `Ignored` badge and Un-ignore button (v0.8) |
+| **FE** | `ResultsPage.test.tsx::ignore button on missing row posts ignored=true` | Ignore action on missing rows |
+| **FE** | `ResultsPage.test.tsx::un-ignore posts ignored=false and refreshes results` | Un-ignore action restores group and refreshes results |
 
 ---
 
@@ -454,10 +464,10 @@ The per-layer columns reflect **test existence** for the original (pre-amendment
 | 04 | — | ✅ | ✅ | ✅ | ✅ | implemented |
 | 05 | — | ✅ | ✅ | ✅ | ✅ | implemented |
 | 06 | ✅ | ✅ | — | — | — | implemented |
-| 07 | ✅ | ✅ | ✅ | ✅ | ✅ | partial (spec v0.8) |
-| 08 | — | ✅ | ✅ | ✅ | ✅ | partial (spec v0.8) |
+| 07 | ✅ | ✅ | ✅ | ✅ | ✅ | implemented |
+| 08 | — | ✅ | ✅ | ✅ | ✅ | implemented |
 | 09 | — | ✅ | ✅ | ✅ | ✅ | implemented |
-| 10 | — | ✅ | — | ✅ | — | partial (spec v0.8) |
+| 10 | — | ✅ | ✅ | ✅ | ✅ | implemented |
 | 11 | — | ✅ | — | — | ✅ | implemented |
 | 12 | — | ✅ | — | — | ✅ | implemented |
 | 13 | — | ✅ | — | ✅ | ✅ | implemented |
