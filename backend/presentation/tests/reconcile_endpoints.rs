@@ -545,3 +545,42 @@ async fn ignore_unknown_movement_is_404() {
         .expect("request");
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn results_include_ignored_movements() {
+    let t = test_app(default_txs());
+
+    let _ = t
+        .app()
+        .oneshot(post_json("/api/imports/1/reconcile", reconcile_body()))
+        .await
+        .expect("reconcile");
+    let _ = t
+        .app()
+        .oneshot(post_json(
+            "/api/imports/1/movements/4/ignore",
+            serde_json::json!({ "ignored": true }),
+        ))
+        .await
+        .expect("ignore");
+
+    let response = t
+        .app()
+        .oneshot(
+            Request::get("/api/imports/1/results")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("request");
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = read_json(response).await;
+
+    let ignored = json["ignored"].as_array().expect("ignored array");
+    assert_eq!(ignored.len(), 1);
+    assert_eq!(ignored[0]["id"], 4);
+    assert_eq!(ignored[0]["status"], "ignored");
+    // Ignoring never removes the movement from the missing group's source
+    // data — the status filter keeps it out of `missing` only.
+    assert_eq!(json["missing"].as_array().expect("missing").len(), 0);
+}

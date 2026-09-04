@@ -23,12 +23,15 @@ pub struct MatchedPair {
     pub ff3: Ff3Transaction,
 }
 
-/// Result of the latest run, in three groups.
+/// Result of the latest run: three groups plus the ignored movements.
 #[derive(Debug)]
 pub struct GetResultsResult {
     pub reconciliation_id: ReconciliationId,
     pub matched: Vec<MatchedPair>,
     pub missing: Vec<Movement>,
+    /// Movements manually marked ignored (RF-10); listed in the
+    /// dedicated table below the results.
+    pub ignored: Vec<Movement>,
     /// Unmatched FF3 transactions of the run: plain `extra` plus
     /// `duplicates` (distinguished by `is_duplicate`, RF-15).
     pub extra: Vec<Ff3Transaction>,
@@ -106,6 +109,13 @@ where
             matched.push(MatchedPair { movement, ff3 });
         }
 
+        // Ignored group: status-only state (RF-10) — never removed from the batch.
+        let ignored: Vec<Movement> = movements
+            .iter()
+            .filter(|m| m.status == MovementStatus::Ignored)
+            .cloned()
+            .collect();
+
         // Missing group: current movements still in `missing`.
         let missing: Vec<Movement> = movements
             .into_iter()
@@ -121,6 +131,7 @@ where
         Ok(GetResultsResult {
             reconciliation_id: reconciliation.id,
             matched,
+            ignored,
             missing,
             extra,
         })

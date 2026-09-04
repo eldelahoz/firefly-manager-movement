@@ -298,3 +298,16 @@ async fn results_without_reconciliation_is_not_found() {
         .expect_err("must fail");
     assert!(matches!(err, ApplicationError::NotFound(_)));
 }
+
+#[tokio::test]
+async fn results_include_ignored_movements() {
+    let r = run_fixture()
+        .uc()
+        .execute(BatchId::new(1))
+        .await
+        .expect("results ok");
+
+    assert_eq!(r.ignored.len(), 1);
+    assert_eq!(r.ignored[0].id, MovementId::new(3));
+    assert_eq!(r.ignored[0].status, MovementStatus::Ignored);
+}

@@ -74,6 +74,8 @@ pub struct GetResultsResponse {
     pub reconciliation_id: i64,
     pub matched: Vec<MatchedPairResponse>,
     pub missing: Vec<MovementResponse>,
+    /// Movements manually marked ignored (RF-10).
+    pub ignored: Vec<MovementResponse>,
     /// Unmatched FF3 transactions; duplicates carry `is_duplicate = true`.
     pub extra: Vec<Ff3TransactionResponse>,
 }
@@ -193,6 +195,7 @@ pub async fn get_results(
             })
             .collect(),
         missing: result.missing.into_iter().map(Into::into).collect(),
+        ignored: result.ignored.into_iter().map(Into::into).collect(),
         extra: result.extra.into_iter().map(Into::into).collect(),
     }))
 }
