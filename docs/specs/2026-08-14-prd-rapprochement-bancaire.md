@@ -146,7 +146,18 @@ Special cases:
 | **Matched** (`matched`) | Movements present on both sides | None (read-only) |
 | **Missing** (`missing`) | In the statement, absent from Firefly III | Create in Firefly III (single or batch) (RF-08) |
 | **Extras** (`extra`) | In Firefly III, absent from the statement | Informative in v1; deletion possible when flagged `duplicate` (RF-15) |
-| **Ignored** (`ignored`) | Movements dismissed by the user during review | Shown in a dedicated section below the results; un-ignore (returns the movement to its group) (RF-10) |
+| **Ignored** (`ignored`) | Movements dismissed by the user during review | Listed in a dedicated table below the results; each row displays the `Ignored` status and an **Un-ignore** action (RF-10) |
+
+**Table layout (v0.8)**: each group renders as a **table with column headers**. Columns per group:
+
+| Group | Columns |
+| --- | --- |
+| Matched | Date · Description (statement) · Description (Firefly III) · Amount · Status |
+| Missing | Selection · Date · Description · Amount · Status · Actions (Personalize, Ignore) |
+| Extras | Date · Description · Amount · Status (duplicate badge, RF-15) · Actions (RF-15) |
+| Ignored | Date · Description · Amount · Status (`Ignored`) · Actions (Un-ignore) |
+
+The Status column always reflects the movement's real state, including the post-creation report pills (`created` / `failed`) on missing rows (RF-08).
 
 ### Deleting duplicates in Firefly III (RF-15)
 
@@ -193,7 +204,7 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 | [RF-07](./requirements/rf-07-result-groups.md) | Results are presented in 3 groups (matched / missing / extras) with visual highlighting of the gaps. | P0 |
 | [RF-08](./requirements/rf-08-batch-creation.md) | The user can batch-create the missing transactions in Firefly III, as-is or after personalization - individual or bulk (only filled fields applied). Before creation, each missing movement can be edited: description (pre-filled from the statement), category, budget, tags (pre-filled with the default creation tag), attachment and notes; creation goes through a confirmation modal. | P0 |
 | [RF-09](./requirements/rf-09-batch-history.md) | Each import batch is immutable and viewable a posteriori (history). | P1 |
-| [RF-10](./requirements/rf-10-ignore-movements.md) | The user can manually ignore a movement (`ignored`). Ignored movements are listed in a dedicated section of the results view and can be restored (un-ignored) at any time. | P1 |
+| [RF-10](./requirements/rf-10-ignore-movements.md) | The user can manually ignore a movement (`ignored`). Ignored movements are listed in a dedicated table below the results, each showing the `Ignored` status and an Un-ignore action, and can be restored (un-ignored) at any time. Ignoring is a status change only: movements are never removed from the import. | P1 |
 | [RF-11](./requirements/rf-11-origin-trace.md) | Created transactions carry an origin trace (tag or note: file + batch), applied in addition to user-selected or default tags. | P1 |
 | [RF-12](./requirements/rf-12-currencies.md) | The system handles multiple currencies: the statement currency must match the target account's, otherwise a blocking warning. | P1 |
 | [RF-13](./requirements/rf-13-reconciliation-rerun.md) | The user can re-run a reconciliation on an existing batch. | P1 |
@@ -225,10 +236,11 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 > - The tags field is pre-filled with a default creation tag configured in settings - a dropdown of the existing Firefly III tags; the user's selection replaces it. The origin trace tag (`ffm:...`) is always applied in addition and never replaced (RF-08, RF-11, RF-19).
 > - The CSV mapping gains an optional origin-account column; when its values match a single Firefly III asset account (IBAN, account number or name), that account is pre-selected automatically in the wizard - otherwise manual selection with a non-blocking warning listing the distinct values (RF-02, RF-04).
 
-> **Amendment (v0.8, 2026-09-03) — movement classification and creation field requirements**:
+> **Amendment (v0.8, 2026-09-03) — movement classification, creation field requirements, results table layout and ignore UX**:
 > - The kind of transaction created from an imported movement is derived from the amount's sign: a **negative amount is an expense**, a **positive amount is an income** (RF-08).
 > - The reconciler never creates internal transfers: a bank statement movement is always money entering or leaving the reconciled account. Internal transfers visible on one side only are handled by ignoring the movement (RF-10).
 > - The counterparty account is **no longer required** for creation (RF-08): the required fields are description, date and amount (from the statement); the reconciled target account is the opposite side (source for an expense, destination for an income); the counterparty is optional and Firefly III applies its default handling when omitted.
+> - Results render as **tables with explicit column headers** per group, and the ignored movements appear in a dedicated table below with the `Ignored` status and an Un-ignore action per row (RF-07, RF-10).
 
 ## 6. Non-functional requirements
 

@@ -126,7 +126,9 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-07  Results in 3 groups (matched / missing / extras) with visual gap highlighting
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** partial (spec v0.8) · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+
+> **v0.8 amendment delta (2026-09-03)**: results table layout (RF-07) — explicit column headers per group and the Status column (incl. post-apply pills) are **pending implementation**; the FE currently renders ad-hoc row layouts without headers.
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -188,17 +190,18 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ---
 
-## RF-10  Manual ignore / un-ignore; dedicated section in results
+## RF-10  Manual ignore / un-ignore; dedicated table below the results
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** partial (spec v0.8) · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+
+> **v0.8 amendment delta (2026-09-03)**: **pending** — un-ignore (backend state restore + endpoint body `{"ignored": bool}`), ignore/un-ignore buttons in the FE, the `Ignored` status badge per row, and the ignored table below the results. The FE test rows previously listed here did not exist and were removed (matrix hygiene, Rule 2).
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
-| **App** | `ignore_movement.rs` | `IgnoreMovement` use case toggles `status=Ignored` |
+| **App** | `ignore_movement.rs` | `IgnoreMovement` use case sets `status=Ignored` |
 | **App** | `reconcile_batch.rs::reconcile_persists_run_and_updates_statuses` | Ignored movements excluded from matching, status untouched |
-| **Pres** | `reconcile_endpoints.rs` | Ignore endpoint (if exists) |
-| **FE** | `ResultsPage.test.tsx` | Ignored section rendered, un-ignore action |
-| **FE** | `MissingRow.test.tsx` | Ignore button on missing rows |
+| **App** | `get_results.rs` | Results include the ignored movements |
+| **Pres** | `reconcile_endpoints.rs` | Ignore endpoint sets the ignored state |
 
 ---
 
@@ -451,10 +454,10 @@ The per-layer columns reflect **test existence** for the original (pre-amendment
 | 04 | — | ✅ | ✅ | ✅ | ✅ | implemented |
 | 05 | — | ✅ | ✅ | ✅ | ✅ | implemented |
 | 06 | ✅ | ✅ | — | — | — | implemented |
-| 07 | ✅ | ✅ | ✅ | ✅ | ✅ | implemented |
+| 07 | ✅ | ✅ | ✅ | ✅ | ✅ | partial (spec v0.8) |
 | 08 | — | ✅ | ✅ | ✅ | ✅ | partial (spec v0.8) |
 | 09 | — | ✅ | ✅ | ✅ | ✅ | implemented |
-| 10 | — | ✅ | — | — | ✅ | implemented |
+| 10 | — | ✅ | — | ✅ | — | partial (spec v0.8) |
 | 11 | — | ✅ | — | — | ✅ | implemented |
 | 12 | — | ✅ | — | — | ✅ | implemented |
 | 13 | — | ✅ | — | ✅ | ✅ | implemented |
@@ -469,4 +472,4 @@ The per-layer columns reflect **test existence** for the original (pre-amendment
 
 ---
 
-*Generated from PRD v0.8 / TRD v0.6 and the current test suite. Status audited 2026-09-03.*
+*Generated from PRD v0.8 / TRD v0.7 and the current test suite. Status audited 2026-09-03.*

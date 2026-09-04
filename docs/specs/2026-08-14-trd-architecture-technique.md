@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Project | firefly-manager-movement |
-| Version | 0.6 |
+| Version | 0.7 |
 | Created | 2026-08-14 |
 | Last modified | 2026-09-03 |
 | Related PRD | [`2026-08-14-prd-rapprochement-bancaire.md`](./2026-08-14-prd-rapprochement-bancaire.md) |
@@ -151,7 +151,8 @@ Key constraints:
 | GET | `/api/imports` / `/api/imports/{id}` | List / batch detail |
 | PUT | `/api/imports/{id}/mapping` | Save CSV mapping |
 | POST | `/api/imports/{id}/reconcile` | Run the reconciliation |
-| GET | `/api/imports/{id}/results` | Results in 3 groups |
+| GET | `/api/imports/{id}/results` | Results in 3 groups (+ ignored movements) |
+| POST | `/api/imports/{id}/movements/{mid}/ignore` | Set a movement's ignore state — body `{"ignored": true \| false}`; a pure status change, the movement is never removed from the batch (RF-10, PRD v0.8) |
 | POST | `/api/imports/{id}/apply` | Create the selected missing transactions in Firefly III |
 | DELETE | `/api/imports/{id}` | Delete a batch in `parsed` status (+ its movements) — 409 if the batch is not `parsed`; response `200 {id, status: "deleted"}` |
 | GET | `/api/firefly/accounts` | Read proxy of asset accounts |
