@@ -285,6 +285,7 @@ export function ResultsPage() {
               </div>
               <TableHeader group="missing" />
               <VirtualList
+                count={counts.missing}
                 renderItem={(i) => {
                   const m = results.data.missing[i];
                   return (
