@@ -118,6 +118,23 @@ test('virtualizes 1000 matched rows without rendering all', async () => {
   expect(document.querySelectorAll('[data-index]').length).toBeLessThan(1000);
 });
 
+test('matched group renders column headers per spec v0.8', async () => {
+  renderResults();
+  await screen.findByText('Matched (1)');
+  expect(screen.getByText('Description (statement)')).toBeInTheDocument();
+  expect(screen.getByText('Description (Firefly III)')).toBeInTheDocument();
+  expect(screen.getByText('Amount')).toBeInTheDocument();
+  expect(screen.getByText('Status')).toBeInTheDocument();
+});
+
+test('missing group renders selection/status/actions headers', async () => {
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  expect(screen.getByText('Actions')).toBeInTheDocument();
+  expect(screen.getByText('Status')).toBeInTheDocument();
+});
+
 test('apply payload omits counterparty_ff3_id when not personalized', async () => {
   let body: { movements: { movement_id: number; counterparty_ff3_id?: number }[] } | undefined;
   server.use(

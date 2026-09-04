@@ -172,7 +172,15 @@
     "confirm": "Create",
     "missingCounterparty": "Missing counterparty account",
     "originTagNote": "Each created transaction carries the origin tag {{tag}}",
-    "attachmentWarning": "Created, but the attachment failed: {{reason}}"
+    "attachmentWarning": "Created, but the attachment failed: {{reason}}",
+    "col.amount": "Amount",
+    "col.actions": "Actions",
+    "col.date": "Date",
+    "col.description": "Description",
+    "col.descriptionFf3": "Description (Firefly III)",
+    "col.descriptionStatement": "Description (statement)",
+    "col.selection": "",
+    "col.status": "Status"
   },
   "status": {
     "imported": "Imported",

@@ -172,7 +172,15 @@
     "confirm": "Crear",
     "missingCounterparty": "Cuenta de contrapartida faltante",
     "originTagNote": "Cada transacción creada lleva la etiqueta de origen {{tag}}",
-    "attachmentWarning": "Creado, pero el adjunto falló: {{reason}}"
+    "attachmentWarning": "Creado, pero el adjunto falló: {{reason}}",
+    "col.amount": "Importe",
+    "col.actions": "Acciones",
+    "col.date": "Fecha",
+    "col.description": "Descripción",
+    "col.descriptionFf3": "Descripción (Firefly III)",
+    "col.descriptionStatement": "Descripción (extracto)",
+    "col.selection": "",
+    "col.status": "Estado"
   },
   "status": {
     "imported": "Importado",

@@ -43,31 +43,29 @@ export function MissingRow({
   const direction: 'withdrawal' | 'deposit' = movement.amount_cents < 0 ? 'withdrawal' : 'deposit';
   return (
     <div className="border-b border-border-subtle py-3 text-sm">
-      <div className="flex items-center gap-3">
+      <div className="grid grid-cols-[2rem_7rem_1fr_8rem_6rem_11rem] items-center gap-2">
         <Checkbox
           aria-label={movement.description}
           checked={selected ?? false}
           onCheckedChange={() => onToggle?.(movement.id)}
         />
-        <div className="min-w-0 flex-1">
-          <p className="truncate">{movement.description}</p>
-          <p className="text-xs text-text-3">
-            #{movement.line_no} · {formatDate(movement.date, i18n.language)}
-          </p>
-        </div>
+        <span>{formatDate(movement.date, i18n.language)}</span>
+        <span className="min-w-0 truncate" title={movement.description}>
+          {movement.description}
+        </span>
         <MoneyText cents={movement.amount_cents} currency={currency} />
-        {movement.status === 'ignored' ? (
-          <StatusPill status="ignored" />
-        ) : (
-          <Button variant="ghost" size="sm" onClick={() => onEdit?.()} disabled={editing}>
-            {t('results.edit')}
-          </Button>
-        )}
-        {report && (
+        {report ? (
           <span title={report.reason ?? ''}>
             <StatusPill status={report.outcome} />
           </span>
+        ) : (
+          <StatusPill status={movement.status} />
         )}
+        <span className="flex gap-1">
+          <Button variant="ghost" size="sm" onClick={() => onEdit?.()} disabled={editing}>
+            {t('results.edit')}
+          </Button>
+        </span>
       </div>
       {editing && (
         <PersonalizeEditor

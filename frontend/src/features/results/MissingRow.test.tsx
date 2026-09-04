@@ -17,6 +17,24 @@ const tags: never[] = [];
 const categories: never[] = [];
 const budgets: never[] = [];
 
+test('renders grid columns with status pill and actions', () => {
+  renderWithProviders(
+    <MissingRow
+      movement={movement}
+      currency="EUR"
+      accounts={accounts}
+      tags={tags}
+      categories={categories}
+      budgets={budgets}
+      defaultTag={null}
+      onSave={() => {}}
+      onCancel={() => {}}
+    />,
+  );
+  expect(screen.getByText('Missing')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+});
+
 test('renders description, amount and edit action', () => {
   renderWithProviders(
     <MissingRow

@@ -172,7 +172,15 @@
     "confirm": "Créer",
     "missingCounterparty": "Compte de contrepartie manquant",
     "originTagNote": "Chaque transaction créée porte le tag d'origine {{tag}}",
-    "attachmentWarning": "Créé, mais la pièce jointe a échoué : {{reason}}"
+    "attachmentWarning": "Créé, mais la pièce jointe a échoué : {{reason}}",
+    "col.amount": "Montant",
+    "col.actions": "Actions",
+    "col.date": "Date",
+    "col.description": "Description",
+    "col.descriptionFf3": "Description (Firefly III)",
+    "col.descriptionStatement": "Description (relevé)",
+    "col.selection": "",
+    "col.status": "Statut"
   },
   "status": {
     "imported": "Importé",

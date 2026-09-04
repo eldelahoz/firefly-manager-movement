@@ -11,6 +11,7 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { Button } from '@/shared/ui/button';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { MoneyText } from '@/shared/ui/MoneyText';
+import { StatusPill } from '@/shared/ui/StatusPill';
 import { usePageHeader } from '@/shared/ui/PageHeader';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
@@ -22,6 +23,7 @@ import { MissingRow } from './MissingRow';
 import { ExtraRow } from './ExtraRow';
 import { BulkPersonalizeSheet } from './BulkPersonalizeSheet';
 import { ConfirmCreateDialog } from './ConfirmCreateDialog';
+import { TableHeader } from './tableLayout';
 
 type Tab = 'matched' | 'missing' | 'extra';
 
@@ -215,30 +217,28 @@ export function ResultsPage() {
           {counts.matched === 0 ? (
             <EmptyState title={t('results.matched')} />
           ) : (
-            <VirtualList
-              count={counts.matched}
-              renderItem={(i) => {
-                const { movement, ff3 } = results.data.matched[i];
-                return (
-                  <div className="grid grid-cols-[1fr_1fr] gap-2 border-b border-border-subtle py-3 text-sm">
-                    <div className="min-w-0">
-                      <p className="truncate">{movement.description}</p>
-                      <p className="text-xs text-text-3">
-                        #{movement.line_no} · {formatDate(movement.date, i18n.language)}
-                      </p>
+            <>
+              <TableHeader group="matched" />
+              <VirtualList
+                count={counts.matched}
+                renderItem={(i) => {
+                  const { movement, ff3 } = results.data.matched[i];
+                  return (
+                    <div className="grid grid-cols-[7rem_1fr_1fr_8rem_6rem] items-center gap-2 border-b border-border-subtle py-3 text-sm">
+                      <span>{formatDate(movement.date, i18n.language)}</span>
+                      <span className="min-w-0 truncate" title={movement.description}>
+                        {movement.description}
+                      </span>
+                      <span className="min-w-0 truncate" title={ff3.description}>
+                        {ff3.description}
+                      </span>
                       <MoneyText cents={movement.amount_cents} currency={currency} />
+                      <StatusPill status={movement.status} />
                     </div>
-                    <div className="min-w-0">
-                      <p className="truncate">{ff3.description}</p>
-                      <p className="text-xs text-text-3">
-                        FF3 {ff3.ff3_id} · {formatDate(ff3.date, i18n.language)}
-                      </p>
-                      <MoneyText cents={ff3.amount_cents} currency={currency} />
-                    </div>
-                  </div>
-                );
-              }}
-            />
+                  );
+                }}
+              />
+            </>
           )}
         </TabsContent>
         <TabsContent value="missing">
@@ -283,8 +283,8 @@ export function ResultsPage() {
                   </Button>
                 </div>
               </div>
+              <TableHeader group="missing" />
               <VirtualList
-                count={counts.missing}
                 renderItem={(i) => {
                   const m = results.data.missing[i];
                   return (
@@ -327,10 +327,13 @@ export function ResultsPage() {
           {counts.extra === 0 ? (
             <EmptyState title={t('results.extra')} />
           ) : (
-            <VirtualList
-              count={counts.extra}
-              renderItem={(i) => <ExtraRow tx={results.data.extra[i]} currency={currency} />}
-            />
+            <>
+              <TableHeader group="extra" />
+              <VirtualList
+                count={counts.extra}
+                renderItem={(i) => <ExtraRow tx={results.data.extra[i]} currency={currency} />}
+              />
+            </>
           )}
         </TabsContent>
       </Tabs>

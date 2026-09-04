@@ -11,18 +11,16 @@ export function ExtraRow({ tx, currency }: { tx: Ff3CachedTxDTO; currency: strin
   const { t, i18n } = useTranslation();
   const [confirming, setConfirming] = useState(false);
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-border-subtle py-3 text-sm">
-      <div className="min-w-0">
-        <p className="truncate">{tx.description}</p>
-        <p className="text-xs text-text-3">
-          FF3 {tx.ff3_id} · {formatDate(tx.date, i18n.language)}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
+    <div className="border-b border-border-subtle py-3 text-sm">
+      <div className="grid grid-cols-[7rem_1fr_8rem_7rem_9rem] items-center gap-2">
+        <span>{formatDate(tx.date, i18n.language)}</span>
+        <span className="min-w-0 truncate" title={tx.description}>
+          {tx.description}
+        </span>
         <MoneyText cents={tx.amount_cents} currency={currency} />
-        {tx.is_duplicate && (
-          <>
-            <StatusPill status="duplicate" />
+        <StatusPill status={tx.is_duplicate ? 'duplicate' : 'extra'} />
+        <span>
+          {tx.is_duplicate && (
             <Button
               variant="ghost"
               size="sm"
@@ -31,8 +29,8 @@ export function ExtraRow({ tx, currency }: { tx: Ff3CachedTxDTO; currency: strin
             >
               {t('dashboard.deleteDuplicate')}
             </Button>
-          </>
-        )}
+          )}
+        </span>
       </div>
       <DeleteDuplicateDialog
         tx={
