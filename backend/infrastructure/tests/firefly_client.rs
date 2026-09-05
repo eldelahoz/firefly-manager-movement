@@ -158,6 +158,7 @@ async fn asset_accounts_paginates() {
 #[tokio::test]
 async fn account_transactions_single_page() {
     let server = MockServer::start().await;
+    // Real FF3 format: `amount` is positive; the sense is conveyed by `type`.
     Mock::given(method("GET"))
         .and(path("/api/v1/accounts/1/transactions"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -165,9 +166,12 @@ async fn account_transactions_single_page() {
                 "id": "42",
                 "attributes": {
                     "transactions": [{
+                        "type": "withdrawal",
                         "date": "2026-01-05T00:00:00+00:00",
-                        "amount": "-123.45",
-                        "description": "lunch"
+                        "amount": "123.45",
+                        "description": "lunch",
+                        "source_id": "1",
+                        "destination_id": "7"
                     }]
                 }
             }],
@@ -200,9 +204,12 @@ async fn account_transactions_paginates() {
                     "id": "10",
                     "attributes": {
                         "transactions": [{
+                            "type": "deposit",
                             "date": "2026-02-01T00:00:00+00:00",
                             "amount": "50.00",
-                            "description": "salary"
+                            "description": "salary",
+                            "source_id": "9",
+                            "destination_id": "5"
                         }]
                     }
                 },
@@ -210,9 +217,12 @@ async fn account_transactions_paginates() {
                     "id": "11",
                     "attributes": {
                         "transactions": [{
+                            "type": "withdrawal",
                             "date": "2026-02-03T00:00:00+00:00",
-                            "amount": "-25.50",
-                            "description": "groceries"
+                            "amount": "25.50",
+                            "description": "groceries",
+                            "source_id": "5",
+                            "destination_id": "8"
                         }]
                     }
                 }
@@ -229,9 +239,12 @@ async fn account_transactions_paginates() {
                 "id": "12",
                 "attributes": {
                     "transactions": [{
+                        "type": "withdrawal",
                         "date": "2026-02-15T00:00:00+00:00",
-                        "amount": "-100.00",
-                        "description": "rent"
+                        "amount": "100.00",
+                        "description": "rent",
+                        "source_id": "5",
+                        "destination_id": "9"
                     }]
                 }
             }],
@@ -250,6 +263,58 @@ async fn account_transactions_paginates() {
     assert_eq!(txs[1].description, "groceries");
     assert_eq!(txs[2].description, "rent");
     assert_eq!(txs[2].amount_cents.as_i64(), -10000);
+}
+
+#[tokio::test]
+async fn account_transactions_transfer_sign_follows_queried_account() {
+    let server = MockServer::start().await;
+    // Out of account 5 (source) -> negative; into account 5 (destination) -> positive.
+    Mock::given(method("GET"))
+        .and(path("/api/v1/accounts/5/transactions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [
+                {
+                    "id": "21",
+                    "attributes": {
+                        "transactions": [{
+                            "type": "transfer",
+                            "date": "2026-03-01T00:00:00+00:00",
+                            "amount": "300.00",
+                            "description": "to savings",
+                            "source_id": "5",
+                            "destination_id": "6"
+                        }]
+                    }
+                },
+                {
+                    "id": "22",
+                    "attributes": {
+                        "transactions": [{
+                            "type": "transfer",
+                            "date": "2026-03-02T00:00:00+00:00",
+                            "amount": "75.00",
+                            "description": "from savings",
+                            "source_id": "6",
+                            "destination_id": "5"
+                        }]
+                    }
+                }
+            ],
+            "meta": { "pagination": { "current_page": 1, "total_pages": 1 } }
+        })))
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let start = NaiveDate::from_ymd_opt(2026, 3, 1).unwrap();
+    let end = NaiveDate::from_ymd_opt(2026, 3, 31).unwrap();
+    let txs = client.account_transactions(5, start, end).await.unwrap();
+
+    assert_eq!(txs.len(), 2);
+    assert_eq!(txs[0].ff3_id, 21);
+    assert_eq!(txs[0].amount_cents.as_i64(), -30000);
+    assert_eq!(txs[1].ff3_id, 22);
+    assert_eq!(txs[1].amount_cents.as_i64(), 7500);
 }
 
 #[tokio::test]

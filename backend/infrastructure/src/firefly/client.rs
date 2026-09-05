@@ -68,6 +68,10 @@ struct TransactionSplit {
     date: String,
     amount: String,
     description: String,
+    #[serde(rename = "type", default)]
+    transaction_type: Option<String>,
+    #[serde(default)]
+    source_id: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -284,19 +288,33 @@ impl FireflyClient for ReqwestFireflyClient {
                                 split.date
                             ))
                         })?;
-                    let amount = AmountCents::from_api_str(&split.amount).map_err(|e| {
+                    let magnitude = AmountCents::from_api_str(&split.amount).map_err(|e| {
                         ApplicationError::Parse(format!(
                             "invalid transaction amount '{}': {:?}",
                             split.amount, e
                         ))
                     })?;
+                    // FF3 v1 returns `amount` positive and conveys the
+                    // sense via `type` (+ source/destination for the rest).
+                    // Normalize to the queried account's perspective:
+                    // money leaving the account is negative.
+                    let account_id_str = account_ff3_id.to_string();
+                    let cents = magnitude.as_i64();
+                    let signed = match split.transaction_type.as_deref() {
+                        Some("withdrawal") => -cents.abs(),
+                        Some("deposit") => cents.abs(),
+                        _ if split.source_id.as_deref() == Some(account_id_str.as_str()) => {
+                            -cents.abs()
+                        }
+                        _ => cents,
+                    };
                     let ff3_id = group.id.parse::<i64>().map_err(|e| {
                         ApplicationError::Parse(format!("invalid FF3 transaction id: {e}"))
                     })?;
                     all.push(Ff3TransactionDto {
                         ff3_id,
                         date,
-                        amount_cents: amount,
+                        amount_cents: AmountCents::new(signed),
                         description: split.description.clone(),
                     });
                 }
