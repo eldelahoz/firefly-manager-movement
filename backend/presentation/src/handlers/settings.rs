@@ -5,13 +5,12 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::error::ApiError;
+use crate::state::AppState;
 use ffm_application::dtos::SettingsView;
 use ffm_application::use_cases::app_settings::{
     GetAppSettings, SaveAppSettings, SaveAppSettingsInput, VerifyFireflyConnection,
 };
-
-use crate::error::ApiError;
-use crate::state::AppState;
 
 #[derive(Serialize, ToSchema)]
 pub struct SettingsResponse {
@@ -62,7 +61,7 @@ pub struct VerifySettingsResponse {
 pub async fn get_settings(
     State(state): State<AppState>,
 ) -> Result<Json<SettingsResponse>, ApiError> {
-    let view = GetAppSettings::new(state.app_settings.clone())
+    let view = GetAppSettings::new(state.app_settings.clone(), state.env_defaults.clone())
         .execute()
         .await
         .map_err(ApiError)?;
@@ -84,14 +83,18 @@ pub async fn save_settings(
     State(state): State<AppState>,
     Json(body): Json<SaveSettingsRequest>,
 ) -> Result<Json<SettingsResponse>, ApiError> {
-    let view = SaveAppSettings::new(state.app_settings.clone(), state.firefly_manager.clone())
-        .execute(SaveAppSettingsInput {
-            ff3_url: body.ff3_url,
-            ff3_token: body.ff3_token,
-            default_creation_tag: body.default_creation_tag,
-        })
-        .await
-        .map_err(ApiError)?;
+    let view = SaveAppSettings::new(
+        state.app_settings.clone(),
+        state.firefly_manager.clone(),
+        state.env_defaults.clone(),
+    )
+    .execute(SaveAppSettingsInput {
+        ff3_url: body.ff3_url,
+        ff3_token: body.ff3_token,
+        default_creation_tag: body.default_creation_tag,
+    })
+    .await
+    .map_err(ApiError)?;
     Ok(Json(view.into()))
 }
 

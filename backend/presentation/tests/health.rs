@@ -30,6 +30,7 @@ async fn health_returns_ok_json() {
         app_settings: Arc::new(FakeAppSettingsRepository::default()),
         firefly_manager: Arc::new(FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(FakeFireflyClientFactory::new(FakeFireflyClient::ok())),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
     };
     let router = app(state);
 
@@ -67,6 +68,7 @@ async fn health_with_probe_ok() {
         app_settings: Arc::new(FakeAppSettingsRepository::default()),
         firefly_manager: Arc::new(FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(FakeFireflyClientFactory::new(FakeFireflyClient::ok())),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
     };
     let router = app(state);
 
@@ -106,6 +108,7 @@ async fn health_with_probe_degraded() {
         app_settings: Arc::new(FakeAppSettingsRepository::default()),
         firefly_manager: Arc::new(FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(FakeFireflyClientFactory::new(FakeFireflyClient::ok())),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
     };
     let router = app(state);
 
@@ -144,6 +147,7 @@ async fn openapi_json_is_served() {
         app_settings: Arc::new(FakeAppSettingsRepository::default()),
         firefly_manager: Arc::new(FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(FakeFireflyClientFactory::new(FakeFireflyClient::ok())),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
     };
     let router = app(state);
 

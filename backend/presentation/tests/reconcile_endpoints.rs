@@ -321,6 +321,7 @@ fn test_app(transactions: Vec<Ff3TransactionDto>) -> TestApp {
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),

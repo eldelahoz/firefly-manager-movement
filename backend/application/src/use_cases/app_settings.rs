@@ -6,13 +6,29 @@ use crate::dtos::{About, NewAppSettings};
 use crate::error::ApplicationError;
 use crate::ports::{AppSettingsRepository, FireflyClientFactory, FireflyConnectionManager};
 
+/// Effective environment-variable fallback (RF-19, TRD §4): used when no
+/// settings row exists yet. Carries the raw env token server-side only —
+/// the token is never surfaced to the presentation layer (NFR-02).
+#[derive(Clone, Default)]
+pub struct EnvDefaults {
+    pub ff3_url: String,
+    pub ff3_token: String,
+}
+
+impl EnvDefaults {
+    fn has_token(&self) -> bool {
+        !self.ff3_token.is_empty()
+    }
+}
+
 pub struct GetAppSettings<R> {
     repo: R,
+    env: EnvDefaults,
 }
 
 impl<R> GetAppSettings<R> {
-    pub fn new(repo: R) -> Self {
-        Self { repo }
+    pub fn new(repo: R, env: EnvDefaults) -> Self {
+        Self { repo, env }
     }
 }
 
@@ -24,9 +40,10 @@ impl<R: AppSettingsRepository> GetAppSettings<R> {
                 has_token: true,
                 default_creation_tag: s.default_creation_tag,
             },
+            // No row yet: the running config comes from env fallback.
             None => SettingsView {
-                ff3_url: String::new(),
-                has_token: false,
+                ff3_url: self.env.ff3_url.clone(),
+                has_token: self.env.has_token(),
                 default_creation_tag: None,
             },
         })
@@ -43,11 +60,12 @@ pub struct SaveAppSettingsInput {
 pub struct SaveAppSettings<R, M> {
     repo: R,
     manager: M,
+    env: EnvDefaults,
 }
 
 impl<R, M> SaveAppSettings<R, M> {
-    pub fn new(repo: R, manager: M) -> Self {
-        Self { repo, manager }
+    pub fn new(repo: R, manager: M, env: EnvDefaults) -> Self {
+        Self { repo, manager, env }
     }
 }
 
@@ -63,12 +81,20 @@ impl<R: AppSettingsRepository, M: FireflyConnectionManager> SaveAppSettings<R, M
             ));
         }
         let current = self.repo.get().await?;
+        // Token resolution: input → stored row → env bootstrap (RF-19).
         let token = input
             .ff3_token
             .map(|t| t.trim().to_string())
             .filter(|t| !t.is_empty())
             .or_else(|| current.as_ref().map(|c| c.ff3_token.clone()))
             .filter(|t| !t.is_empty())
+            .or_else(|| {
+                if self.env.has_token() {
+                    Some(self.env.ff3_token.clone())
+                } else {
+                    None
+                }
+            })
             .ok_or_else(|| ApplicationError::Config("an FF3 API token is required".into()))?;
         let tag = input
             .default_creation_tag

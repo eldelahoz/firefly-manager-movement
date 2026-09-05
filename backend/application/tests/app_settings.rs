@@ -13,9 +13,16 @@ use ffm_application::ports::{
     AppSettingsRepository, FireflyClient, FireflyClientFactory, FireflyConnectionManager,
 };
 use ffm_application::use_cases::app_settings::{
-    GetAppSettings, SaveAppSettings, SaveAppSettingsInput, VerifyFireflyConnection,
+    EnvDefaults, GetAppSettings, SaveAppSettings, SaveAppSettingsInput, VerifyFireflyConnection,
 };
 use ffm_domain::entities::AppSettings;
+
+fn env(url: &str, token: &str) -> EnvDefaults {
+    EnvDefaults {
+        ff3_url: url.into(),
+        ff3_token: token.into(),
+    }
+}
 
 // ── Fakes ───────────────────────────────────────────────────────────────
 
@@ -116,7 +123,10 @@ fn epoch() -> AppSettings {
 #[tokio::test]
 async fn get_returns_empty_view_when_no_row() {
     let repo = FakeSettings(std::sync::Mutex::new(None));
-    let view: SettingsView = GetAppSettings::new(repo).execute().await.unwrap();
+    let view: SettingsView = GetAppSettings::new(repo, env("", ""))
+        .execute()
+        .await
+        .unwrap();
     assert_eq!(view.ff3_url, "");
     assert!(!view.has_token);
     assert_eq!(view.default_creation_tag, None);
@@ -125,10 +135,25 @@ async fn get_returns_empty_view_when_no_row() {
 #[tokio::test]
 async fn get_masks_token_but_reports_presence() {
     let repo = FakeSettings(std::sync::Mutex::new(Some(epoch())));
-    let view = GetAppSettings::new(repo).execute().await.unwrap();
+    let view = GetAppSettings::new(repo, env("", ""))
+        .execute()
+        .await
+        .unwrap();
     assert_eq!(view.ff3_url, "http://localhost:8080");
     assert!(view.has_token);
     // SettingsView carries no token field at all (compile-time guarantee, NFR-02).
+}
+
+#[tokio::test]
+async fn get_reflects_env_fallback_when_no_row() {
+    let repo = FakeSettings(std::sync::Mutex::new(None));
+    let view = GetAppSettings::new(repo, env("http://env-ff3:8080", "envtok"))
+        .execute()
+        .await
+        .unwrap();
+    assert_eq!(view.ff3_url, "http://env-ff3:8080");
+    assert!(view.has_token);
+    assert_eq!(view.default_creation_tag, None);
 }
 
 // ── SaveAppSettings ─────────────────────────────────────────────────────
@@ -137,7 +162,7 @@ async fn get_masks_token_but_reports_presence() {
 async fn save_persists_reconfigures_and_keeps_token_when_omitted() {
     let repo = FakeSettings(std::sync::Mutex::new(Some(epoch())));
     let mgr = FakeManager::default();
-    let view = SaveAppSettings::new(repo, mgr.clone())
+    let view = SaveAppSettings::new(repo, mgr.clone(), env("", ""))
         .execute(SaveAppSettingsInput {
             ff3_url: "http://ff3.new".into(),
             ff3_token: None, // keep existing
@@ -157,7 +182,7 @@ async fn save_persists_reconfigures_and_keeps_token_when_omitted() {
 async fn save_replaces_token_when_provided_and_clears_tag() {
     let repo = FakeSettings(std::sync::Mutex::new(Some(epoch())));
     let mgr = FakeManager::default();
-    let view = SaveAppSettings::new(repo, mgr)
+    let view = SaveAppSettings::new(repo, mgr, env("", ""))
         .execute(SaveAppSettingsInput {
             ff3_url: "http://ff3.new".into(),
             ff3_token: Some("  tok2 ".into()),
@@ -172,7 +197,7 @@ async fn save_replaces_token_when_provided_and_clears_tag() {
 #[tokio::test]
 async fn save_rejects_blank_url() {
     let repo = FakeSettings(std::sync::Mutex::new(Some(epoch())));
-    let err = SaveAppSettings::new(repo, FakeManager::default())
+    let err = SaveAppSettings::new(repo, FakeManager::default(), env("", ""))
         .execute(SaveAppSettingsInput {
             ff3_url: "  ".into(),
             ff3_token: Some("t".into()),
@@ -186,7 +211,7 @@ async fn save_rejects_blank_url() {
 #[tokio::test]
 async fn save_rejects_non_http_url() {
     let repo = FakeSettings(std::sync::Mutex::new(Some(epoch())));
-    let err = SaveAppSettings::new(repo, FakeManager::default())
+    let err = SaveAppSettings::new(repo, FakeManager::default(), env("", ""))
         .execute(SaveAppSettingsInput {
             ff3_url: "ftp://ff3".into(),
             ff3_token: Some("t".into()),
@@ -200,7 +225,7 @@ async fn save_rejects_non_http_url() {
 #[tokio::test]
 async fn save_without_any_token_is_rejected() {
     let repo = FakeSettings(std::sync::Mutex::new(None)); // no stored token
-    let err = SaveAppSettings::new(repo, FakeManager::default())
+    let err = SaveAppSettings::new(repo, FakeManager::default(), env("", ""))
         .execute(SaveAppSettingsInput {
             ff3_url: "http://x".into(),
             ff3_token: None,
@@ -209,6 +234,32 @@ async fn save_without_any_token_is_rejected() {
         .await
         .unwrap_err();
     assert!(matches!(err, ApplicationError::Config(_)));
+}
+
+#[tokio::test]
+async fn save_bootstraps_token_from_env_when_no_row() {
+    let repo = std::sync::Arc::new(FakeSettings(std::sync::Mutex::new(None)));
+    let mgr = FakeManager::default();
+    let view = SaveAppSettings::new(
+        repo.clone(),
+        mgr.clone(),
+        env("http://env-ff3:8080", "envtok"),
+    )
+    .execute(SaveAppSettingsInput {
+        ff3_url: "http://ff3.new".into(),
+        ff3_token: None, // no row to keep from: fall back to env token
+        default_creation_tag: None,
+    })
+    .await
+    .unwrap();
+    assert!(view.has_token);
+    // Persisted row now carries the bootstrapped token.
+    let stored = repo.get().await.unwrap().expect("row saved");
+    assert_eq!(stored.ff3_token, "envtok");
+    assert_eq!(
+        mgr.0.lock().unwrap()[0],
+        ("http://ff3.new".to_string(), "envtok".to_string())
+    );
 }
 
 // ── VerifyFireflyConnection ─────────────────────────────────────────────

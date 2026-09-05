@@ -88,6 +88,15 @@ fn make_state(
     manager: FakeSettingsManager,
     factory: FakeVerifyFactory,
 ) -> AppState {
+    make_state_with_env(settings, manager, factory, Default::default())
+}
+
+fn make_state_with_env(
+    settings: FakeAppSettingsRepository,
+    manager: FakeSettingsManager,
+    factory: FakeVerifyFactory,
+    env_defaults: ffm_application::use_cases::app_settings::EnvDefaults,
+) -> AppState {
     AppState {
         firefly: Arc::new(common::FakeFireflyClient::ok()),
         ff3_accounts: Arc::new(common::FakeFf3AccountRepository::new()),
@@ -104,6 +113,7 @@ fn make_state(
         app_settings: Arc::new(settings),
         firefly_manager: Arc::new(manager),
         firefly_factory: Arc::new(factory),
+        env_defaults,
     }
 }
 
@@ -135,6 +145,37 @@ async fn get_settings_empty_when_no_row() {
     assert_eq!(body["has_token"], false);
     assert_eq!(body["default_creation_tag"], serde_json::Value::Null);
     // Token field must never appear (NFR-02 compile-time guarantee).
+    assert!(body.get("ff3_token").is_none());
+}
+
+#[tokio::test]
+async fn get_settings_reflects_env_fallback_when_no_row() {
+    let state = make_state_with_env(
+        FakeAppSettingsRepository::new(),
+        FakeSettingsManager::default(),
+        FakeVerifyFactory { fail: false },
+        ffm_application::use_cases::app_settings::EnvDefaults {
+            ff3_url: "http://env-ff3:8080".into(),
+            ff3_token: "envtok".into(),
+        },
+    );
+    let router = app(state);
+
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/api/settings")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(body["ff3_url"], "http://env-ff3:8080");
+    assert_eq!(body["has_token"], true);
     assert!(body.get("ff3_token").is_none());
 }
 

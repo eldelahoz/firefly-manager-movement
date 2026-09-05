@@ -6,6 +6,7 @@ use ffm_application::ports::{
     FireflyClientFactory, FireflyConnectionManager, MatchRepository, MovementRepository,
     ReconciliationRepository,
 };
+use ffm_application::use_cases::app_settings::EnvDefaults;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -24,4 +25,5 @@ pub struct AppState {
     pub app_settings: Arc<dyn AppSettingsRepository>,
     pub firefly_manager: Arc<dyn FireflyConnectionManager>,
     pub firefly_factory: Arc<dyn FireflyClientFactory>,
+    pub env_defaults: EnvDefaults,
 }

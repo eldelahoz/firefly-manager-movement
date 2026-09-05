@@ -333,29 +333,32 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-19  App settings: configure FF3 connection (URL + token), verify connectivity, save; replaces env vars
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-04 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
-| **App** | `app_settings.rs::get_returns_empty_view_when_no_row` | Empty state before first save |
+| **App** | `app_settings.rs::get_returns_empty_view_when_no_row` | Empty state before first save (no env fallback configured) |
+| **App** | `app_settings.rs::get_reflects_env_fallback_when_no_row` | GET with no row returns effective env URL + token presence (TRD §4 fallback) |
 | **App** | `app_settings.rs::get_masks_token_but_reports_presence` | Token masked in GET response |
 | **App** | `app_settings.rs::save_persists_reconfigures_and_keeps_token_when_omitted` | Save persists, reconfigure FF3 client, keep token when blank |
 | **App** | `app_settings.rs::save_replaces_token_when_provided_and_clears_tag` | Token replacement, tag cleared |
+| **App** | `app_settings.rs::save_bootstraps_token_from_env_when_no_row` | First save without token input persists env token (bootstrap) |
 | **App** | `app_settings.rs::save_rejects_blank_url` | Blank URL → `Validation` error |
 | **App** | `app_settings.rs::save_rejects_non_http_url` | Non-HTTP URL → `Validation` error |
-| **App** | `app_settings.rs::save_without_any_token_is_rejected` | No token → `Validation` error |
+| **App** | `app_settings.rs::save_without_any_token_is_rejected` | No token anywhere → `Validation` error |
 | **App** | `app_settings.rs::verify_probes_via_factory` | Verify connectivity via factory |
 | **App** | `app_settings.rs::verify_rejects_invalid_url` | Invalid URL → `Validation` error |
 | **App** | `app_settings.rs::verify_rejects_blank_token` | Blank token → `Validation` error |
 | **Infra** | `app_settings_repo.rs` | Repository CRUD + reversible migration |
 | **Pres** | `settings_endpoints.rs::get_settings_returns_url_and_has_token` | GET returns URL + token presence |
+| **Pres** | `settings_endpoints.rs::get_settings_reflects_env_fallback_when_no_row` | GET with no row returns env URL + `has_token`, never the token value |
 | **Pres** | `settings_endpoints.rs::put_settings_saves_and_reconfigures` | PUT saves and reconfigures |
 | **Pres** | `settings_endpoints.rs::put_settings_keeps_existing_token_when_omitted` | Token kept when not provided |
 | **Pres** | `settings_endpoints.rs::put_settings_blank_url_returns_400` | Blank URL → 400 |
 | **Pres** | `settings_endpoints.rs::verify_ok_returns_version` | Verify → FF3 version |
 | **Pres** | `settings_endpoints.rs::verify_bad_url_returns_400` | Invalid URL → 400 |
 | **Pres** | `settings_endpoints.rs::verify_unreachable_returns_502` | Unreachable → 502 |
-| **Pres** | `settings_endpoints.rs::get_settings_empty_when_no_row` | Empty state |
+| **Pres** | `settings_endpoints.rs::get_settings_empty_when_no_row` | Empty state (no row, no env token) |
 | **FE** | `SettingsPage.test.tsx::shows connection status after save` | Connection form with URL input, save, status display |
 | **FE** | `SettingsPage.test.tsx::verify connectivity button probes FF3` | Test connection button |
 | **FE** | `SettingsPage.test.tsx::default creation tag dropdown shows tags from FF3` | Tag dropdown from FF3 API |

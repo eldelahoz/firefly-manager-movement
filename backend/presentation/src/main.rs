@@ -89,6 +89,10 @@ async fn main() {
         app_settings,
         firefly_manager,
         firefly_factory,
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults {
+            ff3_url: ff3_defaults.0,
+            ff3_token: ff3_defaults.1,
+        },
     };
 
     let app = app(state);
