@@ -8,7 +8,7 @@ import { Checkbox } from '@/shared/ui/checkbox';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import type { Customization } from './customization';
 import { PersonalizeEditor } from './PersonalizeEditor';
-import { GRID_COLS } from './tableLayout';
+import { GRID_COLS, GROUP_ACCENT } from './tableLayout';
 
 export function MissingRow({
   movement,
@@ -46,26 +46,34 @@ export function MissingRow({
   const { t, i18n } = useTranslation();
   const direction: 'withdrawal' | 'deposit' = movement.amount_cents < 0 ? 'withdrawal' : 'deposit';
   return (
-    <div className="border-b border-border-subtle py-3 text-sm">
-      <div className={`grid ${GRID_COLS.missing} items-center gap-2`}>
-        <Checkbox
-          aria-label={movement.description}
-          checked={selected ?? false}
-          onCheckedChange={() => onToggle?.(movement.id)}
-        />
-        <span>{formatDate(movement.date, i18n.language)}</span>
-        <span className="min-w-0 truncate" title={movement.description}>
+    <div
+      className={`border-b border-border-subtle py-3 text-sm transition-colors ${GROUP_ACCENT.missing.rowHover}`}
+    >
+      <div role="row" className={`grid ${GRID_COLS.missing} items-center gap-3 px-2`}>
+        <div role="cell">
+          <Checkbox
+            aria-label={movement.description}
+            checked={selected ?? false}
+            onCheckedChange={() => onToggle?.(movement.id)}
+          />
+        </div>
+        <span role="cell">{formatDate(movement.date, i18n.language)}</span>
+        <span role="cell" className="min-w-0 truncate" title={movement.description}>
           {movement.description}
         </span>
-        <MoneyText cents={movement.amount_cents} currency={currency} />
+        <div role="cell">
+          <MoneyText cents={movement.amount_cents} currency={currency} className="text-right" />
+        </div>
         {report ? (
-          <span title={report.reason ?? ''}>
+          <div role="cell" title={report.reason ?? ''} className="flex justify-center">
             <StatusPill status={report.outcome} />
-          </span>
+          </div>
         ) : (
-          <StatusPill status={movement.status} />
+          <div role="cell" className="flex justify-center">
+            <StatusPill status={movement.status} />
+          </div>
         )}
-        <span className="flex items-center justify-center gap-1">
+        <span role="cell" className="flex items-center justify-center gap-1">
           <Button
             variant="ghost"
             size="icon-sm"
