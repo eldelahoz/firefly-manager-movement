@@ -349,7 +349,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `app_settings.rs::verify_probes_via_factory` | Verify connectivity via factory |
 | **App** | `app_settings.rs::verify_rejects_invalid_url` | Invalid URL → `Validation` error |
 | **App** | `app_settings.rs::verify_rejects_blank_token` | Blank token → `Validation` error |
-| **Infra** | `app_settings_repo.rs` | Repository CRUD + reversible migration |
+| **Infra** | `app_settings_repo.rs` | Repository CRUD + reversible migration + ~1 KB FF3 token persistence (migration 0008) |
 | **Pres** | `settings_endpoints.rs::get_settings_returns_url_and_has_token` | GET returns URL + token presence |
 | **Pres** | `settings_endpoints.rs::get_settings_reflects_env_fallback_when_no_row` | GET with no row returns env URL + `has_token`, never the token value |
 | **Pres** | `settings_endpoints.rs::put_settings_saves_and_reconfigures` | PUT saves and reconfigures |
