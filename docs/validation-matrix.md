@@ -272,7 +272,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-15  Flag duplicates; delete with double confirmation + audit snapshot
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-04 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -280,9 +280,11 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Domain** | `matching_engine.rs::duplicate_of_already_matched_movement` | 3 FF3 for 2 movements → 2 matches + 1 duplicate |
 | **App** | `reconcile_batch.rs::reconcile_persists_run_and_updates_statuses` | `is_duplicate=true` on cached FF3 transactions |
 | **App** | `delete_firefly_transaction.rs` | `DeleteFireflyTransaction` use case: double confirm, JSON snapshot in `deleted_audit` |
-| **Infra** | `deleted_audit_repo.rs` | `DeletedAuditRepository` inserts snapshot |
+| **App** | `get_results.rs::results_exclude_deleted_ff3_transactions_from_extra` | Deleted FF3 tx removed from extras list after deletion (spec: "removed from the extras list") |
+| **Infra** | `deleted_audit_repo.rs::insert_returns_increasing_ids` | `DeletedAuditRepository` inserts snapshot + `deleted_ff3_ids` lists deleted ids |
+| **Infra** | `firefly_client.rs::delete_transaction_not_found_maps_to_not_found` | Already-deleted FF3 tx → `NotFound` (API 404, spec exception reported) |
 | **Pres** | `apply_delete_endpoints.rs` | `DELETE /api/firefly/transactions/{id}` with confirmation |
-| **FE** | `DeleteDuplicateDialog.test.tsx` | Double confirmation dialog, recap, snapshot preview |
+| **FE** | `DeleteDuplicateDialog.test.tsx` | Double confirmation dialog, recap, snapshot preview; 404 → explanatory toast, other errors → generic toast |
 | **FE** | `ResultsPage.test.tsx` / `ExtraRow.test.tsx` | Duplicate badge, delete button |
 
 ---

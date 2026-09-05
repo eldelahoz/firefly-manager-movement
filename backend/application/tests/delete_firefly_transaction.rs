@@ -108,6 +108,9 @@ impl DeletedAuditRepository for FakeDeletedAuditRepo {
         self.rows.lock().unwrap().push(audit);
         Ok(DeletedAuditId::new(self.rows.lock().unwrap().len() as i64))
     }
+    async fn deleted_ff3_ids(&self) -> Result<std::collections::HashSet<i64>, ApplicationError> {
+        Ok(self.rows.lock().unwrap().iter().map(|a| a.ff3_id).collect())
+    }
 }
 
 // ── Fixture ─────────────────────────────────────────────────────────────

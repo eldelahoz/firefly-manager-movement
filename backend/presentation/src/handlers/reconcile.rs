@@ -181,6 +181,7 @@ pub async fn get_results(
         state.matches.clone(),
         state.ff3_transactions.clone(),
         state.movements.clone(),
+        state.deleted_audits.clone(),
     );
     let result = uc.execute(BatchId::new(id)).await.map_err(ApiError)?;
 

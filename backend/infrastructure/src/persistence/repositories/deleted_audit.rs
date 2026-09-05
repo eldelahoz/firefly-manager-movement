@@ -1,6 +1,9 @@
 //! `MysqlDeletedAuditRepository` - implements `DeletedAuditRepository`.
 
+use std::collections::HashSet;
+
 use async_trait::async_trait;
+use diesel::query_dsl::methods::SelectDsl;
 use diesel_async::RunQueryDsl;
 
 use ffm_application::dtos::NewDeletedAudit;
@@ -51,5 +54,19 @@ impl DeletedAuditRepository for MysqlDeletedAuditRepository {
         .await
         .map(DeletedAuditId::new)
         .map_err(map_diesel_err)
+    }
+
+    async fn deleted_ff3_ids(&self) -> Result<HashSet<i64>, ApplicationError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| ApplicationError::Database(e.to_string()))?;
+        deleted_audit::table
+            .select(deleted_audit::ff3_id)
+            .load::<i64>(&mut conn)
+            .await
+            .map(HashSet::from_iter)
+            .map_err(map_diesel_err)
     }
 }

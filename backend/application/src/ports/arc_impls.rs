@@ -246,6 +246,9 @@ impl<T: DeletedAuditRepository + ?Sized> DeletedAuditRepository for Arc<T> {
     async fn insert(&self, audit: NewDeletedAudit) -> Result<DeletedAuditId, ApplicationError> {
         self.as_ref().insert(audit).await
     }
+    async fn deleted_ff3_ids(&self) -> Result<HashSet<i64>, ApplicationError> {
+        self.as_ref().deleted_ff3_ids().await
+    }
 }
 
 #[async_trait]

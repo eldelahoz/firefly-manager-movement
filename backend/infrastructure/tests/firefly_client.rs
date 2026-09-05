@@ -365,6 +365,25 @@ async fn delete_transaction_ok() {
 }
 
 #[tokio::test]
+async fn delete_transaction_not_found_maps_to_not_found() {
+    let server = MockServer::start().await;
+    Mock::given(method("DELETE"))
+        .and(path("/api/v1/transactions/78"))
+        .respond_with(ResponseTemplate::new(404).set_body_json(serde_json::json!({
+            "message": "Resource not found"
+        })))
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let err = client.delete_transaction(78).await.unwrap_err();
+    match &err {
+        ApplicationError::NotFound(msg) => assert!(msg.contains("78")),
+        other => panic!("expected NotFound error, got {:?}", other),
+    }
+}
+
+#[tokio::test]
 async fn create_transaction_ok() {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
