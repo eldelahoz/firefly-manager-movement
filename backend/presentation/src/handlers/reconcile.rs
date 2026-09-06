@@ -328,6 +328,7 @@ pub async fn apply(
             matches: state.matches.clone(),
             ff3_transactions: state.ff3_transactions.clone(),
         },
+        state.app_settings.clone(),
     );
     let result = uc
         .execute(ApplyMissingInput {

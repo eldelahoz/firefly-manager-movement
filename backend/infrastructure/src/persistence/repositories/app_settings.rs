@@ -49,16 +49,18 @@ impl AppSettingsRepository for MysqlAppSettingsRepository {
             .await
             .map_err(|e| ApplicationError::Database(e.to_string()))?;
         diesel::sql_query(
-            "INSERT INTO app_settings (id, ff3_url, ff3_token, default_creation_tag) \
-             VALUES (1, ?, ?, ?) \
+            "INSERT INTO app_settings (id, ff3_url, ff3_token, default_creation_tag, enable_origin_trace) \
+             VALUES (1, ?, ?, ?, ?) \
              ON DUPLICATE KEY UPDATE ff3_url = VALUES(ff3_url), ff3_token = VALUES(ff3_token), \
-             default_creation_tag = VALUES(default_creation_tag), updated_at = CURRENT_TIMESTAMP",
+             default_creation_tag = VALUES(default_creation_tag), \
+             enable_origin_trace = VALUES(enable_origin_trace), updated_at = CURRENT_TIMESTAMP",
         )
         .bind::<diesel::sql_types::Varchar, _>(&settings.ff3_url)
         .bind::<diesel::sql_types::Varchar, _>(&settings.ff3_token)
         .bind::<diesel::sql_types::Nullable<diesel::sql_types::Varchar>, _>(
             &settings.default_creation_tag,
         )
+        .bind::<diesel::sql_types::Bool, _>(&settings.enable_origin_trace)
         .execute(&mut conn)
         .await
         .map_err(|e| ApplicationError::Database(e.to_string()))?;

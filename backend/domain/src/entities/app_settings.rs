@@ -7,5 +7,6 @@ pub struct AppSettings {
     pub ff3_url: String,
     pub ff3_token: String,
     pub default_creation_tag: Option<String>,
+    pub enable_origin_trace: bool,
     pub updated_at: NaiveDateTime,
 }

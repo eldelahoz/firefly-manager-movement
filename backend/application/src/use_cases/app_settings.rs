@@ -39,12 +39,14 @@ impl<R: AppSettingsRepository> GetAppSettings<R> {
                 ff3_url: s.ff3_url,
                 has_token: true,
                 default_creation_tag: s.default_creation_tag,
+                enable_origin_trace: s.enable_origin_trace,
             },
             // No row yet: the running config comes from env fallback.
             None => SettingsView {
                 ff3_url: self.env.ff3_url.clone(),
                 has_token: self.env.has_token(),
                 default_creation_tag: None,
+                enable_origin_trace: true,
             },
         })
     }
@@ -55,6 +57,7 @@ pub struct SaveAppSettingsInput {
     /// None/empty = keep the existing token.
     pub ff3_token: Option<String>,
     pub default_creation_tag: Option<String>,
+    pub enable_origin_trace: bool,
 }
 
 pub struct SaveAppSettings<R, M> {
@@ -100,11 +103,13 @@ impl<R: AppSettingsRepository, M: FireflyConnectionManager> SaveAppSettings<R, M
             .default_creation_tag
             .map(|t| t.trim().to_string())
             .filter(|t| !t.is_empty());
+        let enable_origin_trace = input.enable_origin_trace;
         self.repo
             .save(NewAppSettings {
                 ff3_url: url.clone(),
                 ff3_token: token.clone(),
                 default_creation_tag: tag.clone(),
+                enable_origin_trace,
             })
             .await?;
         self.manager.reconfigure(&url, &token).await?;
@@ -112,6 +117,7 @@ impl<R: AppSettingsRepository, M: FireflyConnectionManager> SaveAppSettings<R, M
             ff3_url: url,
             has_token: true,
             default_creation_tag: tag,
+            enable_origin_trace,
         })
     }
 }
@@ -146,5 +152,22 @@ impl<F: FireflyClientFactory> VerifyFireflyConnection<F> {
         }
         let client = self.factory.build(&url, &token);
         client.about().await
+    }
+}
+
+/// Test-only fake settings repo for integration tests.
+#[doc(hidden)]
+pub struct FakeSettings(pub std::sync::Mutex<Option<ffm_domain::entities::AppSettings>>);
+
+#[async_trait::async_trait]
+impl AppSettingsRepository for FakeSettings {
+    async fn get(&self) -> Result<Option<ffm_domain::entities::AppSettings>, ApplicationError> {
+        Ok(self.0.lock().unwrap().clone())
+    }
+    async fn save(
+        &self,
+        _settings: crate::dtos::NewAppSettings,
+    ) -> Result<ffm_domain::entities::AppSettings, ApplicationError> {
+        unimplemented!("FakeSettings::save")
     }
 }

@@ -7,6 +7,7 @@ pub struct NewAppSettings {
     pub ff3_url: String,
     pub ff3_token: String,
     pub default_creation_tag: Option<String>,
+    pub enable_origin_trace: bool,
 }
 
 /// Public view of the settings: no token value (NFR-02).
@@ -15,4 +16,5 @@ pub struct SettingsView {
     pub ff3_url: String,
     pub has_token: bool,
     pub default_creation_tag: Option<String>,
+    pub enable_origin_trace: bool,
 }
