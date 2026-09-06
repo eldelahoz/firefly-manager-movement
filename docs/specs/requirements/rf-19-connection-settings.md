@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Version | v0.7 (integrates v0.6 + v0.7 amendments) |
+| Version | v0.8 (integrates v0.6 + v0.7 + v0.8 amendments) |
 | Priority | P1 |
 | Use cases | CU-11 |
 | Depends on | - (prerequisite for every FF3-touching requirement) |
@@ -14,6 +14,7 @@ The app settings MUST allow configuring the Firefly III connection:
 
 - **Fields**: Firefly III URL and API token.
 - **Default creation tag**: an optional tag picked from a dropdown listing the existing Firefly III tags; it is applied by default to the transactions created through the app (RF-08), where the user's selection replaces it. An empty value means no default tag.
+- **Enable origin trace**: a boolean toggle (default: true) that controls whether the origin trace note (`ffm:<filename>:<batchId>`) is added to created transactions (RF-11). When enabled, the note is added below any user-provided note with line breaks.
 - **Connectivity check**: a "verify connection" action probes the Firefly III instance with the entered credentials and reports success/failure before saving.
 - **Persistence**: the connection is saved app-side and **replaces environment-variable configuration**; every FF3-dependent feature uses it.
 - **Required before first use**: any feature needing Firefly III (accounts, reconciliation, browsing) requires a configured connection.
@@ -53,3 +54,4 @@ The app settings MUST allow configuring the Firefly III connection:
 
 - Integrates v0.6 amendment. Settings storage and related interfaces are specified in the TRD (section 3).
 - Integrates v0.7 amendment: default creation tag (optional, FF3-sourced dropdown) pre-filling the tags field at creation (RF-08).
+- Integrates v0.8 amendment: enable_origin_trace boolean toggle (default: true) controlling origin trace note addition (RF-11).
