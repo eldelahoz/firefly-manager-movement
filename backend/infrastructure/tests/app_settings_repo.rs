@@ -9,6 +9,10 @@ use ffm_infrastructure::persistence::repositories::app_settings::MysqlAppSetting
 
 const UP_SQL: &str = include_str!("../migrations/2026-09-03-100000-0006_app_settings/up.sql");
 const DOWN_SQL: &str = include_str!("../migrations/2026-09-03-100000-0006_app_settings/down.sql");
+// Re-apply later migrations after the 0006 down->up cycle so the restored
+// schema matches the current one (0008 widened ff3_token to TEXT).
+const UP_TOKEN_SQL: &str =
+    include_str!("../migrations/2026-09-05-100000-0008_ff3_token_text/up.sql");
 
 #[tokio::test]
 async fn app_settings_repo_roundtrip_and_reversible_migration() {
@@ -49,6 +53,19 @@ async fn app_settings_repo_roundtrip_and_reversible_migration() {
         .default_creation_tag
         .is_none());
 
+    // Firefly III OAuth personal access tokens are ~1 KB JWTs; the live
+    // table must accept them (migration 0008 widened ff3_token to TEXT).
+    let long_token = "eyJ".to_string() + &"a".repeat(1025);
+    repo.save(NewAppSettings {
+        ff3_url: "http://localhost:8080".into(),
+        ff3_token: long_token.clone(),
+        default_creation_tag: None,
+    })
+    .await
+    .expect("save with 1028-char token");
+    let loaded = repo.get().await.unwrap().unwrap();
+    assert_eq!(loaded.ff3_token, long_token);
+
     // migration is reversible: down then up, then the table still works.
     // DDL must go through the text protocol (batch_execute), not the
     // prepared-statement protocol.
@@ -56,6 +73,7 @@ async fn app_settings_repo_roundtrip_and_reversible_migration() {
         let mut conn = db.get().await.unwrap();
         conn.batch_execute(DOWN_SQL).await.unwrap();
         conn.batch_execute(UP_SQL).await.unwrap();
+        conn.batch_execute(UP_TOKEN_SQL).await.unwrap();
     }
     assert!(repo.get().await.unwrap().is_none());
 }

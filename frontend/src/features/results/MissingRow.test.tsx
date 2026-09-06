@@ -12,27 +12,17 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 const movement = fixtures.results.missing[0] as MovementDTO;
-const accounts: never[] = [];
-const tags: never[] = [];
-const categories: never[] = [];
-const budgets: never[] = [];
+
+test('renders grid columns with status pill and actions', () => {
+  renderWithProviders(<MissingRow movement={movement} currency="EUR" />);
+  expect(screen.getByText('Missing')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+});
 
 test('renders description, amount and edit action', () => {
-  renderWithProviders(
-    <MissingRow
-      movement={movement}
-      currency="EUR"
-      accounts={accounts}
-      tags={tags}
-      categories={categories}
-      budgets={budgets}
-      defaultTag={null}
-      onSave={() => {}}
-      onCancel={() => {}}
-    />,
-  );
+  renderWithProviders(<MissingRow movement={movement} currency="EUR" />);
   expect(screen.getByText('Book')).toBeInTheDocument();
-  expect(screen.getByText('-€99.00')).toBeInTheDocument();
+  expect(screen.getByText('-99.00 €')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
 });
 
@@ -42,13 +32,6 @@ test('failed report pill shows with reason tooltip', () => {
       movement={movement}
       currency="EUR"
       report={{ outcome: 'failed', reason: 'FF3 502' }}
-      accounts={accounts}
-      tags={tags}
-      categories={categories}
-      budgets={budgets}
-      defaultTag={null}
-      onSave={() => {}}
-      onCancel={() => {}}
     />,
   );
   expect(screen.getByText('Failed')).toBeInTheDocument();
@@ -57,18 +40,7 @@ test('failed report pill shows with reason tooltip', () => {
 
 test('already_created shows neutral pill', () => {
   renderWithProviders(
-    <MissingRow
-      movement={movement}
-      currency="EUR"
-      report={{ outcome: 'already_created' }}
-      accounts={accounts}
-      tags={tags}
-      categories={categories}
-      budgets={budgets}
-      defaultTag={null}
-      onSave={() => {}}
-      onCancel={() => {}}
-    />,
+    <MissingRow movement={movement} currency="EUR" report={{ outcome: 'already_created' }} />,
   );
   expect(screen.getByText('Already created')).toBeInTheDocument();
 });

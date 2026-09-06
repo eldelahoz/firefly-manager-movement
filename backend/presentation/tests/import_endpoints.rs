@@ -237,6 +237,7 @@ async fn post_imports_parses_and_persists_movements() {
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -303,6 +304,7 @@ async fn get_imports_lists_batches() {
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -372,6 +374,7 @@ async fn get_import_returns_batch_and_movements() {
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -451,6 +454,7 @@ async fn post_imports_same_filename_twice_returns_409() {
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -511,6 +515,7 @@ async fn delete_import_removes_parsed_batch() {
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -588,6 +593,7 @@ async fn delete_import_rejects_reconciled_batch() {
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -651,6 +657,7 @@ async fn put_import_mapping_saves_mapping() {
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),

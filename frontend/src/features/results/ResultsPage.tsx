@@ -3,14 +3,22 @@ import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import { getAccounts, getImport, getResults, getSettings, postApply } from '@/shared/api/endpoints';
-import type { ApplyReport } from '@/shared/api/dto';
+import {
+  getAccounts,
+  getImport,
+  getResults,
+  getSettings,
+  postApply,
+  postIgnore,
+} from '@/shared/api/endpoints';
+import type { ApplyMovementRequest, ApplyReport } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Button } from '@/shared/ui/button';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { MoneyText } from '@/shared/ui/MoneyText';
+import { StatusPill } from '@/shared/ui/StatusPill';
 import { usePageHeader } from '@/shared/ui/PageHeader';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
@@ -19,11 +27,22 @@ import type { BulkFields, Customization } from './customization';
 import { applyBulkFillOnly } from './customization';
 import { VirtualList } from './VirtualList';
 import { MissingRow } from './MissingRow';
+import { IgnoredRow } from './IgnoredRow';
 import { ExtraRow } from './ExtraRow';
-import { BulkPersonalizeSheet } from './BulkPersonalizeSheet';
+import { BulkPersonalizeDialog } from './BulkPersonalizeDialog';
+import { EditMovementDialog } from './EditMovementDialog';
 import { ConfirmCreateDialog } from './ConfirmCreateDialog';
+import { TableHeader, GRID_COLS, GROUP_ACCENT } from './tableLayout';
 
 type Tab = 'matched' | 'missing' | 'extra';
+
+const TAB_ACCENT: Record<Tab, string> = {
+  matched:
+    'data-[state=active]:text-status-matched-txt data-[state=active]:after:bg-status-matched',
+  missing:
+    'data-[state=active]:text-status-missing-txt data-[state=active]:after:bg-status-missing',
+  extra: 'data-[state=active]:text-status-extra-txt data-[state=active]:after:bg-status-extra',
+};
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -90,19 +109,8 @@ export function ResultsPage() {
           .filter((sid) => missing.some((m) => m.id === sid))
           .map(async (sid) => {
             const c = customizations[sid] ?? {};
-            const payload: {
-              movement_id: number;
-              counterparty_ff3_id: number;
-              description?: string;
-              category?: string;
-              budget?: string;
-              tags?: string[];
-              notes?: string;
-              attachment?: { filename: string; content_base64: string };
-            } = {
-              movement_id: sid,
-              counterparty_ff3_id: c.counterpartyId ?? 0,
-            };
+            const payload: ApplyMovementRequest = { movement_id: sid };
+            if (c.counterpartyId != null) payload.counterparty_ff3_id = c.counterpartyId;
             if (c.description) payload.description = c.description;
             if (c.category) payload.category = c.category;
             if (c.budget) payload.budget = c.budget;
@@ -138,6 +146,15 @@ export function ResultsPage() {
       setSelected([]);
       setCustomizations({});
       setConfirmOpen(false);
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const ignore = useMutation({
+    mutationFn: ({ mid, ignored }: { mid: number; ignored: boolean }) =>
+      postIgnore(id, mid, ignored),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.results(id) });
     },
     onError: (e) => toast.error(e.message),
   });
@@ -203,6 +220,8 @@ export function ResultsPage() {
         customization: customizations[sid] ?? {},
       };
     });
+  const editingMovement =
+    editingId != null ? (results.data.missing.find((m) => m.id === editingId) ?? null) : null;
 
   function handleBulkApply(fields: BulkFields) {
     setCustomizations((prev) => applyBulkFillOnly(prev, activeSelected, fields));
@@ -217,7 +236,7 @@ export function ResultsPage() {
           className="sticky top-0 z-[5] w-full justify-start rounded-none border-b border-border-subtle bg-canvas py-1"
         >
           {tabs.map((tb) => (
-            <TabsTrigger key={tb} value={tb}>
+            <TabsTrigger key={tb} value={tb} className={TAB_ACCENT[tb]}>
               {t(`results.${tb}`)} ({counts[tb]})
             </TabsTrigger>
           ))}
@@ -226,30 +245,45 @@ export function ResultsPage() {
           {counts.matched === 0 ? (
             <EmptyState title={t('results.matched')} />
           ) : (
-            <VirtualList
-              count={counts.matched}
-              renderItem={(i) => {
-                const { movement, ff3 } = results.data.matched[i];
-                return (
-                  <div className="grid grid-cols-[1fr_1fr] gap-2 border-b border-border-subtle py-3 text-sm">
-                    <div className="min-w-0">
-                      <p className="truncate">{movement.description}</p>
-                      <p className="text-xs text-text-3">
-                        #{movement.line_no} · {formatDate(movement.date, i18n.language)}
-                      </p>
-                      <MoneyText cents={movement.amount_cents} currency={currency} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate">{ff3.description}</p>
-                      <p className="text-xs text-text-3">
-                        FF3 {ff3.ff3_id} · {formatDate(ff3.date, i18n.language)}
-                      </p>
-                      <MoneyText cents={ff3.amount_cents} currency={currency} />
-                    </div>
-                  </div>
-                );
-              }}
-            />
+            <>
+              <div
+                role="table"
+                aria-label={t('results.matched')}
+                className="overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm"
+              >
+                <VirtualList
+                  count={counts.matched}
+                  header={<TableHeader group="matched" />}
+                  renderItem={(i) => {
+                    const { movement, ff3 } = results.data.matched[i];
+                    return (
+                      <div
+                        role="row"
+                        className={`grid ${GRID_COLS.matched} items-center gap-3 border-b border-border-subtle px-2 py-3 text-sm transition-colors ${GROUP_ACCENT.matched.rowHover}`}
+                      >
+                        <span role="cell">{formatDate(movement.date, i18n.language)}</span>
+                        <span role="cell" className="min-w-0 truncate" title={movement.description}>
+                          {movement.description}
+                        </span>
+                        <span role="cell" className="min-w-0 truncate" title={ff3.description}>
+                          {ff3.description}
+                        </span>
+                        <div role="cell">
+                          <MoneyText
+                            cents={movement.amount_cents}
+                            currency={currency}
+                            className="text-right"
+                          />
+                        </div>
+                        <div role="cell" className="flex justify-center">
+                          <StatusPill status={movement.status} />
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+              </div>
+            </>
           )}
         </TabsContent>
         <TabsContent value="missing">
@@ -294,43 +328,40 @@ export function ResultsPage() {
                   </Button>
                 </div>
               </div>
-              <VirtualList
-                count={counts.missing}
-                renderItem={(i) => {
-                  const m = results.data.missing[i];
-                  return (
-                    <>
-                      <MissingRow
-                        movement={m}
-                        currency={currency}
-                        selected={activeSelected.includes(m.id)}
-                        report={
-                          reports.batchId === id
-                            ? reports.items.find((r) => r.movement_id === m.id)
-                            : undefined
-                        }
-                        onToggle={(mid) =>
-                          setSelected((s) =>
-                            s.includes(mid) ? s.filter((x) => x !== mid) : [...s, mid],
-                          )
-                        }
-                        editing={editingId === m.id}
-                        onEdit={() => setEditingId(editingId === m.id ? null : m.id)}
-                        accounts={accounts.data ?? []}
-                        tags={tags.data ?? []}
-                        categories={categories.data ?? []}
-                        budgets={budgets.data ?? []}
-                        defaultTag={defaultTag}
-                        onSave={(c) => {
-                          setCustomizations((prev) => ({ ...prev, [m.id]: c }));
-                          setEditingId(null);
-                        }}
-                        onCancel={() => setEditingId(null)}
-                      />
-                    </>
-                  );
-                }}
-              />
+              <div
+                role="table"
+                aria-label={t('results.missing')}
+                className="overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm"
+              >
+                <VirtualList
+                  count={counts.missing}
+                  header={<TableHeader group="missing" />}
+                  renderItem={(i) => {
+                    const m = results.data.missing[i];
+                    return (
+                      <>
+                        <MissingRow
+                          movement={m}
+                          currency={currency}
+                          selected={activeSelected.includes(m.id)}
+                          report={
+                            reports.batchId === id
+                              ? reports.items.find((r) => r.movement_id === m.id)
+                              : undefined
+                          }
+                          onToggle={(mid) =>
+                            setSelected((s) =>
+                              s.includes(mid) ? s.filter((x) => x !== mid) : [...s, mid],
+                            )
+                          }
+                          onEdit={() => setEditingId(m.id)}
+                          onIgnore={(mid) => ignore.mutate({ mid, ignored: true })}
+                        />
+                      </>
+                    );
+                  }}
+                />
+              </div>
             </>
           )}
         </TabsContent>
@@ -338,15 +369,65 @@ export function ResultsPage() {
           {counts.extra === 0 ? (
             <EmptyState title={t('results.extra')} />
           ) : (
-            <VirtualList
-              count={counts.extra}
-              renderItem={(i) => <ExtraRow tx={results.data.extra[i]} currency={currency} />}
-            />
+            <>
+              <div
+                role="table"
+                aria-label={t('results.extra')}
+                className="overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm"
+              >
+                <VirtualList
+                  count={counts.extra}
+                  header={<TableHeader group="extra" />}
+                  renderItem={(i) => <ExtraRow tx={results.data.extra[i]} currency={currency} />}
+                />
+              </div>
+            </>
           )}
         </TabsContent>
       </Tabs>
+      <section aria-label={t('results.ignored')}>
+        <h2 className="border-l-4 border-l-border-strong py-1 pl-2 pr-2 pt-2 text-sm font-semibold text-text-2">
+          {t('results.ignored')} ({results.data.ignored.length})
+        </h2>
+        {results.data.ignored.length === 0 ? (
+          <p className="px-2 py-3 text-sm text-text-3">{t('results.ignoredEmpty')}</p>
+        ) : (
+          <div
+            role="table"
+            aria-label={t('results.ignored')}
+            className="overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm"
+          >
+            <TableHeader group="ignored" />
+            {results.data.ignored.map((m) => (
+              <IgnoredRow
+                key={m.id}
+                movement={m}
+                currency={currency}
+                onUnignore={() => ignore.mutate({ mid: m.id, ignored: false })}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+      {editingMovement && (
+        <EditMovementDialog
+          movement={editingMovement}
+          initial={customizations[editingMovement.id] ?? {}}
+          defaultTag={defaultTag}
+          currency={currency}
+          accounts={accounts.data ?? []}
+          tags={tags.data ?? []}
+          categories={categories.data ?? []}
+          budgets={budgets.data ?? []}
+          onSave={(c) => {
+            setCustomizations((prev) => ({ ...prev, [editingMovement.id]: c }));
+            setEditingId(null);
+          }}
+          onClose={() => setEditingId(null)}
+        />
+      )}
       {bulkOpen && tab === 'missing' && (
-        <BulkPersonalizeSheet
+        <BulkPersonalizeDialog
           count={activeSelected.length}
           defaultTag={defaultTag}
           onApply={handleBulkApply}

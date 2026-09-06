@@ -5,8 +5,7 @@ diesel::table! {
         id -> Integer,
         #[max_length = 255]
         ff3_url -> Varchar,
-        #[max_length = 255]
-        ff3_token -> Varchar,
+        ff3_token -> Text,
         #[max_length = 255]
         default_creation_tag -> Nullable<Varchar>,
         updated_at -> Datetime,

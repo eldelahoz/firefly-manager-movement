@@ -68,6 +68,10 @@ struct TransactionSplit {
     date: String,
     amount: String,
     description: String,
+    #[serde(rename = "type", default)]
+    transaction_type: Option<String>,
+    #[serde(default)]
+    source_id: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -284,19 +288,33 @@ impl FireflyClient for ReqwestFireflyClient {
                                 split.date
                             ))
                         })?;
-                    let amount = AmountCents::from_api_str(&split.amount).map_err(|e| {
+                    let magnitude = AmountCents::from_api_str(&split.amount).map_err(|e| {
                         ApplicationError::Parse(format!(
                             "invalid transaction amount '{}': {:?}",
                             split.amount, e
                         ))
                     })?;
+                    // FF3 v1 returns `amount` positive and conveys the
+                    // sense via `type` (+ source/destination for the rest).
+                    // Normalize to the queried account's perspective:
+                    // money leaving the account is negative.
+                    let account_id_str = account_ff3_id.to_string();
+                    let cents = magnitude.as_i64();
+                    let signed = match split.transaction_type.as_deref() {
+                        Some("withdrawal") => -cents.abs(),
+                        Some("deposit") => cents.abs(),
+                        _ if split.source_id.as_deref() == Some(account_id_str.as_str()) => {
+                            -cents.abs()
+                        }
+                        _ => cents,
+                    };
                     let ff3_id = group.id.parse::<i64>().map_err(|e| {
                         ApplicationError::Parse(format!("invalid FF3 transaction id: {e}"))
                     })?;
                     all.push(Ff3TransactionDto {
                         ff3_id,
                         date,
-                        amount_cents: amount,
+                        amount_cents: AmountCents::new(signed),
                         description: split.description.clone(),
                     });
                 }
@@ -322,9 +340,16 @@ impl FireflyClient for ReqwestFireflyClient {
             "amount": Self::format_decimal(AmountCents::new(creation.amount.as_i64().abs())),
             "date": format!("{}T00:00:00+00:00", creation.date.format("%Y-%m-%d")),
             "description": creation.description,
-            "source_id": creation.source_ff3_id.to_string(),
-            "destination_id": creation.destination_ff3_id.to_string(),
         });
+        let obj = attrs.as_object_mut().unwrap();
+        // Optional counterparty (RF-08 v0.8): an absent side is not sent and
+        // Firefly III applies its default handling for the movement.
+        if let Some(src) = creation.source_ff3_id {
+            obj.insert("source_id".into(), json!(src.to_string()));
+        }
+        if let Some(dst) = creation.destination_ff3_id {
+            obj.insert("destination_id".into(), json!(dst.to_string()));
+        }
         let obj = attrs.as_object_mut().unwrap();
         if let Some(ref cat) = creation.category {
             obj.insert("category_name".into(), json!(cat));
@@ -382,13 +407,19 @@ impl FireflyClient for ReqwestFireflyClient {
             .map_err(|e| ApplicationError::FireflyClient(e.to_string()))?;
         let status = resp.status();
         if status.is_success() || status == reqwest::StatusCode::NO_CONTENT {
-            Ok(())
-        } else {
-            let text = resp.text().await.unwrap_or_else(|_| "<no body>".into());
-            Err(ApplicationError::FireflyClient(format!(
-                "FF3 returned {status}: {text}"
-            )))
+            return Ok(());
         }
+        let text = resp.text().await.unwrap_or_else(|_| "<no body>".into());
+        // Already deleted (or never existed) in FF3: surface as NotFound
+        // so the API answers 404 (RF-15 "already deleted" exception).
+        if status == reqwest::StatusCode::NOT_FOUND {
+            return Err(ApplicationError::NotFound(format!(
+                "FF3 transaction {ff3_id} not found in Firefly III: {text}"
+            )));
+        }
+        Err(ApplicationError::FireflyClient(format!(
+            "FF3 returned {status}: {text}"
+        )))
     }
 
     async fn tags(&self) -> Result<Vec<String>, ApplicationError> {

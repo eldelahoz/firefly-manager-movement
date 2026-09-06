@@ -569,6 +569,10 @@ impl Fx {
 }
 
 fn ma(movement_id: i64, counterparty_ff3_id: i64) -> MovementApply {
+    ma_opt(movement_id, Some(counterparty_ff3_id))
+}
+
+fn ma_opt(movement_id: i64, counterparty_ff3_id: Option<i64>) -> MovementApply {
     MovementApply {
         movement_id: MovementId::new(movement_id),
         counterparty_ff3_id,
@@ -589,7 +593,7 @@ async fn applies_per_movement_customization() {
     let input = f.input(vec![
         MovementApply {
             movement_id: MovementId::new(1),
-            counterparty_ff3_id: 10,
+            counterparty_ff3_id: Some(10),
             description: Some("Custom debit".into()),
             category: Some("Rent".into()),
             budget: Some("Housing".into()),
@@ -599,7 +603,7 @@ async fn applies_per_movement_customization() {
         },
         MovementApply {
             movement_id: MovementId::new(2),
-            counterparty_ff3_id: 20,
+            counterparty_ff3_id: Some(20),
             description: None, // falls back to statement description
             category: Some("Income".into()),
             budget: None,
@@ -624,8 +628,8 @@ async fn applies_per_movement_customization() {
         .find(|c| c.amount.as_i64() == -5000)
         .expect("debit");
     assert_eq!(debit.transaction_type, "withdrawal");
-    assert_eq!(debit.source_ff3_id, 7); // batch account
-    assert_eq!(debit.destination_ff3_id, 10); // per-movement counterparty
+    assert_eq!(debit.source_ff3_id, Some(7)); // batch account
+    assert_eq!(debit.destination_ff3_id, Some(10)); // per-movement counterparty
     assert_eq!(debit.description, "Custom debit");
     assert_eq!(debit.category.as_deref(), Some("Rent"));
     assert_eq!(debit.budget.as_deref(), Some("Housing"));
@@ -636,8 +640,8 @@ async fn applies_per_movement_customization() {
         .find(|c| c.amount.as_i64() == 3000)
         .expect("credit");
     assert_eq!(credit.transaction_type, "deposit");
-    assert_eq!(credit.source_ff3_id, 20); // per-movement counterparty
-    assert_eq!(credit.destination_ff3_id, 7); // batch account
+    assert_eq!(credit.source_ff3_id, Some(20)); // per-movement counterparty
+    assert_eq!(credit.destination_ff3_id, Some(7)); // batch account
     assert_eq!(credit.description, "m2"); // statement description fallback
     assert_eq!(credit.category.as_deref(), Some("Income"));
     assert!(credit.budget.is_none());
@@ -648,7 +652,7 @@ async fn origin_tag_appended_in_addition_to_user_tags() {
     let f = fx(vec![]);
     let input = f.input(vec![MovementApply {
         movement_id: MovementId::new(1),
-        counterparty_ff3_id: 42,
+        counterparty_ff3_id: Some(42),
         description: None,
         category: None,
         budget: None,
@@ -683,7 +687,7 @@ async fn origin_tag_not_duplicated_when_user_includes_it() {
     let f = fx(vec![]);
     let input = f.input(vec![MovementApply {
         movement_id: MovementId::new(1),
-        counterparty_ff3_id: 42,
+        counterparty_ff3_id: Some(42),
         description: None,
         category: None,
         budget: None,
@@ -704,7 +708,7 @@ async fn zero_amount_movement_fails_without_ff3_call() {
     // m4 has amount_cents = 0
     let input = f.input(vec![MovementApply {
         movement_id: MovementId::new(4),
-        counterparty_ff3_id: 42,
+        counterparty_ff3_id: Some(42),
         description: None,
         category: None,
         budget: None,
@@ -730,7 +734,7 @@ async fn attachment_uploaded_after_creation() {
     let f = fx(vec![]);
     let input = f.input(vec![MovementApply {
         movement_id: MovementId::new(1),
-        counterparty_ff3_id: 42,
+        counterparty_ff3_id: Some(42),
         description: None,
         category: None,
         budget: None,
@@ -762,7 +766,7 @@ async fn attachment_failure_does_not_fail_creation() {
     *f.firefly.fail_attachments.lock().unwrap() = true;
     let input = f.input(vec![MovementApply {
         movement_id: MovementId::new(1),
-        counterparty_ff3_id: 42,
+        counterparty_ff3_id: Some(42),
         description: None,
         category: None,
         budget: None,
@@ -870,7 +874,7 @@ async fn apply_unknown_batch_or_movement_is_not_found() {
         .uc()
         .execute(f.input(vec![MovementApply {
             movement_id: MovementId::new(777),
-            counterparty_ff3_id: 42,
+            counterparty_ff3_id: Some(42),
             description: None,
             category: None,
             budget: None,
@@ -894,4 +898,29 @@ async fn apply_rejects_movement_not_in_missing_state() {
         .expect_err("must fail");
     assert!(matches!(err, ApplicationError::InvalidState(_)));
     assert_eq!(f.firefly.calls().len(), 0);
+}
+
+#[tokio::test]
+async fn applies_without_counterparty_leaves_side_unset() {
+    let f = fx(vec![]);
+    let input = f.input(vec![ma_opt(1, None), ma_opt(2, None)]);
+    let result = f.uc().execute(input).await.expect("apply ok");
+    assert_eq!(result.created_count, 2);
+
+    let calls = f.firefly.calls();
+    let debit = calls
+        .iter()
+        .find(|c| c.amount.as_i64() == -5000)
+        .expect("debit");
+    assert_eq!(debit.transaction_type, "withdrawal");
+    assert_eq!(debit.source_ff3_id, Some(7)); // batch account is always the known side
+    assert_eq!(debit.destination_ff3_id, None); // counterparty omitted
+
+    let credit = calls
+        .iter()
+        .find(|c| c.amount.as_i64() == 3000)
+        .expect("credit");
+    assert_eq!(credit.transaction_type, "deposit");
+    assert_eq!(credit.source_ff3_id, None);
+    assert_eq!(credit.destination_ff3_id, Some(7));
 }

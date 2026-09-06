@@ -74,6 +74,8 @@ pub struct GetResultsResponse {
     pub reconciliation_id: i64,
     pub matched: Vec<MatchedPairResponse>,
     pub missing: Vec<MovementResponse>,
+    /// Movements manually marked ignored (RF-10).
+    pub ignored: Vec<MovementResponse>,
     /// Unmatched FF3 transactions; duplicates carry `is_duplicate = true`.
     pub extra: Vec<Ff3TransactionResponse>,
 }
@@ -179,6 +181,7 @@ pub async fn get_results(
         state.matches.clone(),
         state.ff3_transactions.clone(),
         state.movements.clone(),
+        state.deleted_audits.clone(),
     );
     let result = uc.execute(BatchId::new(id)).await.map_err(ApiError)?;
 
@@ -193,19 +196,27 @@ pub async fn get_results(
             })
             .collect(),
         missing: result.missing.into_iter().map(Into::into).collect(),
+        ignored: result.ignored.into_iter().map(Into::into).collect(),
         extra: result.extra.into_iter().map(Into::into).collect(),
     }))
+}
+
+#[derive(Deserialize, ToSchema)]
+pub struct IgnoreMovementRequest {
+    /// `true` = ignore, `false` = un-ignore (restore latest-run status).
+    pub ignored: bool,
 }
 
 #[utoipa::path(
     post,
     path = "/api/imports/{id}/movements/{mid}/ignore",
+    request_body = IgnoreMovementRequest,
     params(
         ("id" = i64, Path, description = "Batch id"),
         ("mid" = i64, Path, description = "Movement id"),
     ),
     responses(
-        (status = 200, description = "Movement ignored", body = IgnoreMovementResponse),
+        (status = 200, description = "Ignored state set", body = IgnoreMovementResponse),
         (status = 404, description = "Batch or movement not found"),
     ),
     tag = "reconcile",
@@ -213,15 +224,22 @@ pub async fn get_results(
 pub async fn ignore_movement(
     State(state): State<AppState>,
     Path((id, mid)): Path<(i64, i64)>,
+    Json(body): Json<IgnoreMovementRequest>,
 ) -> Result<Json<IgnoreMovementResponse>, ApiError> {
-    let uc = IgnoreMovement::new(state.movements.clone(), state.batches.clone());
-    uc.execute(BatchId::new(id), MovementId::new(mid))
+    let uc = IgnoreMovement::new(
+        state.movements.clone(),
+        state.batches.clone(),
+        state.reconciliations.clone(),
+        state.matches.clone(),
+    );
+    let status = uc
+        .execute(BatchId::new(id), MovementId::new(mid), body.ignored)
         .await
         .map_err(ApiError)?;
 
     Ok(Json(IgnoreMovementResponse {
         movement_id: mid,
-        status: "ignored".to_string(),
+        status: status.as_str().to_string(),
     }))
 }
 
@@ -234,8 +252,10 @@ pub struct AttachmentRequest {
 #[derive(Deserialize, ToSchema)]
 pub struct ApplyMovementBody {
     pub movement_id: i64,
-    /// Counterparty account (external FF3 id), required per movement.
-    pub counterparty_ff3_id: i64,
+    /// Counterparty account (external FF3 id). Optional since v0.8: when
+    /// omitted, Firefly III applies its default handling for the movement.
+    #[serde(default)]
+    pub counterparty_ff3_id: Option<i64>,
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]

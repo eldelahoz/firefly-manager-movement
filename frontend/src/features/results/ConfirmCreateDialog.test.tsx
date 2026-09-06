@@ -36,10 +36,8 @@ test('renders per-movement summary and origin tag note', () => {
   expect(screen.getByText(/food/)).toBeInTheDocument();
 });
 
-test('confirm disabled when a movement lacks counterparty', () => {
-  const movements = [
-    { id: 10, description: 'Coffee', amountCents: -450, customization: {} satisfies Customization },
-  ];
+test('confirm enabled without counterparty (optional field)', () => {
+  const movements = [{ id: 10, description: 'Coffee', amountCents: -4200, customization: {} }];
   renderWithProviders(
     <ConfirmCreateDialog
       open
@@ -51,8 +49,8 @@ test('confirm disabled when a movement lacks counterparty', () => {
       onClose={() => {}}
     />,
   );
-  expect(screen.getByText('Missing counterparty account')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Create' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Create' })).toBeEnabled();
+  expect(screen.queryByText('Missing counterparty account')).not.toBeInTheDocument();
 });
 
 test('confirm enabled after personalization and click calls onConfirm', async () => {

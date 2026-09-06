@@ -12,7 +12,8 @@ use ffm_domain::value_objects::MovementStatus;
 
 use crate::error::ApplicationError;
 use crate::ports::{
-    Ff3TransactionRepository, MatchRepository, MovementRepository, ReconciliationRepository,
+    DeletedAuditRepository, Ff3TransactionRepository, MatchRepository, MovementRepository,
+    ReconciliationRepository,
 };
 
 /// A matched pair: the batch movement and the FF3 transaction it
@@ -23,41 +24,53 @@ pub struct MatchedPair {
     pub ff3: Ff3Transaction,
 }
 
-/// Result of the latest run, in three groups.
+/// Result of the latest run: three groups plus the ignored movements.
 #[derive(Debug)]
 pub struct GetResultsResult {
     pub reconciliation_id: ReconciliationId,
     pub matched: Vec<MatchedPair>,
     pub missing: Vec<Movement>,
+    /// Movements manually marked ignored (RF-10); listed in the
+    /// dedicated table below the results.
+    pub ignored: Vec<Movement>,
     /// Unmatched FF3 transactions of the run: plain `extra` plus
     /// `duplicates` (distinguished by `is_duplicate`, RF-15).
     pub extra: Vec<Ff3Transaction>,
 }
 
-pub struct GetResults<R, M, T, V> {
+pub struct GetResults<R, M, T, V, A> {
     reconciliations: R,
     matches: M,
     ff3_transactions: T,
     movements: V,
+    deleted_audits: A,
 }
 
-impl<R, M, T, V> GetResults<R, M, T, V> {
-    pub fn new(reconciliations: R, matches: M, ff3_transactions: T, movements: V) -> Self {
+impl<R, M, T, V, A> GetResults<R, M, T, V, A> {
+    pub fn new(
+        reconciliations: R,
+        matches: M,
+        ff3_transactions: T,
+        movements: V,
+        deleted_audits: A,
+    ) -> Self {
         Self {
             reconciliations,
             matches,
             ff3_transactions,
             movements,
+            deleted_audits,
         }
     }
 }
 
-impl<R, M, T, V> GetResults<R, M, T, V>
+impl<R, M, T, V, A> GetResults<R, M, T, V, A>
 where
     R: ReconciliationRepository,
     M: MatchRepository,
     T: Ff3TransactionRepository,
     V: MovementRepository,
+    A: DeletedAuditRepository,
 {
     pub async fn execute(&self, batch_id: BatchId) -> Result<GetResultsResult, ApplicationError> {
         let reconciliation = self
@@ -106,6 +119,13 @@ where
             matched.push(MatchedPair { movement, ff3 });
         }
 
+        // Ignored group: status-only state (RF-10) — never removed from the batch.
+        let ignored: Vec<Movement> = movements
+            .iter()
+            .filter(|m| m.status == MovementStatus::Ignored)
+            .cloned()
+            .collect();
+
         // Missing group: current movements still in `missing`.
         let missing: Vec<Movement> = movements
             .into_iter()
@@ -113,14 +133,19 @@ where
             .collect();
 
         // Extra group: run transactions not paired by any match row.
+        // FF3 transactions deleted after the run (RF-15 audit) are
+        // removed from the list — the row no longer exists in FF3.
+        let deleted_ids = self.deleted_audits.deleted_ff3_ids().await?;
         let extra: Vec<Ff3Transaction> = run_txs
             .into_iter()
             .filter(|t| !matched_tx_ids.contains(&t.id.as_i64()))
+            .filter(|t| !deleted_ids.contains(&t.ff3_id))
             .collect();
 
         Ok(GetResultsResult {
             reconciliation_id: reconciliation.id,
             matched,
+            ignored,
             missing,
             extra,
         })

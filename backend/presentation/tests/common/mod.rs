@@ -285,6 +285,9 @@ impl ffm_application::ports::DeletedAuditRepository for FakeDeletedAuditReposito
         self.rows.lock().unwrap().push(audit);
         Ok(ffm_domain::ids::DeletedAuditId::new(1))
     }
+    async fn deleted_ff3_ids(&self) -> Result<std::collections::HashSet<i64>, ApplicationError> {
+        Ok(self.rows.lock().unwrap().iter().map(|a| a.ff3_id).collect())
+    }
 }
 
 // ── FakeReconciliationStore (F4: reconcile + results) ──────────────────

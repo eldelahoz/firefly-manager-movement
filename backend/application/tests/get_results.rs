@@ -6,12 +6,15 @@ use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use ffm_application::dtos::{NewFf3Transaction, NewMatch, NewReconciliation, ReconciliationRun};
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::{
-    Ff3TransactionRepository, MatchRepository, MovementRepository, ReconciliationRepository,
+    DeletedAuditRepository, Ff3TransactionRepository, MatchRepository, MovementRepository,
+    ReconciliationRepository,
 };
 use ffm_application::use_cases::get_results::GetResults;
 
 use ffm_domain::entities::{Ff3Transaction, Match, Movement, Reconciliation};
-use ffm_domain::ids::{BatchId, Ff3TransactionId, MatchId, MovementId, ReconciliationId};
+use ffm_domain::ids::{
+    BatchId, DeletedAuditId, Ff3TransactionId, MatchId, MovementId, ReconciliationId,
+};
 use ffm_domain::value_objects::{AmountCents, MovementStatus};
 
 // ── Fakes ───────────────────────────────────────────────────────────────
@@ -167,6 +170,23 @@ impl MovementRepository for FakeMovementRepo {
     }
 }
 
+struct FakeDeletedAuditRepo {
+    ff3_ids: Mutex<Vec<i64>>,
+}
+
+#[async_trait]
+impl DeletedAuditRepository for FakeDeletedAuditRepo {
+    async fn insert(
+        &self,
+        _audit: ffm_application::dtos::NewDeletedAudit,
+    ) -> Result<DeletedAuditId, ApplicationError> {
+        unimplemented!()
+    }
+    async fn deleted_ff3_ids(&self) -> Result<std::collections::HashSet<i64>, ApplicationError> {
+        Ok(self.ff3_ids.lock().unwrap().iter().copied().collect())
+    }
+}
+
 // ── Fixture ─────────────────────────────────────────────────────────────
 
 struct Fx {
@@ -174,6 +194,7 @@ struct Fx {
     txs: FakeFf3TxRepo,
     matches: FakeMatchRepo,
     movements: FakeMovementRepo,
+    audits: FakeDeletedAuditRepo,
 }
 
 fn movement(id: i64, status: MovementStatus) -> Movement {
@@ -245,14 +266,29 @@ fn run_fixture() -> Fx {
         txs,
         matches,
         movements,
+        audits: FakeDeletedAuditRepo {
+            ff3_ids: Mutex::new(vec![]),
+        },
     }
 }
 
 impl Fx {
     fn uc(
         self,
-    ) -> GetResults<FakeReconciliationRepo, FakeMatchRepo, FakeFf3TxRepo, FakeMovementRepo> {
-        GetResults::new(self.rec, self.matches, self.txs, self.movements)
+    ) -> GetResults<
+        FakeReconciliationRepo,
+        FakeMatchRepo,
+        FakeFf3TxRepo,
+        FakeMovementRepo,
+        FakeDeletedAuditRepo,
+    > {
+        GetResults::new(
+            self.rec,
+            self.matches,
+            self.txs,
+            self.movements,
+            self.audits,
+        )
     }
 }
 
@@ -297,4 +333,29 @@ async fn results_without_reconciliation_is_not_found() {
         .await
         .expect_err("must fail");
     assert!(matches!(err, ApplicationError::NotFound(_)));
+}
+
+#[tokio::test]
+async fn results_include_ignored_movements() {
+    let r = run_fixture()
+        .uc()
+        .execute(BatchId::new(1))
+        .await
+        .expect("results ok");
+
+    assert_eq!(r.ignored.len(), 1);
+    assert_eq!(r.ignored[0].id, MovementId::new(3));
+    assert_eq!(r.ignored[0].status, MovementStatus::Ignored);
+}
+
+#[tokio::test]
+async fn results_exclude_deleted_ff3_transactions_from_extra() {
+    let f = run_fixture();
+    // Duplicate 103 was deleted in FF3 after the run (audit exists, RF-15).
+    f.audits.ff3_ids.lock().unwrap().push(103);
+
+    let r = f.uc().execute(BatchId::new(1)).await.expect("results ok");
+
+    let extra_ids: Vec<i64> = r.extra.iter().map(|t| t.ff3_id).collect();
+    assert_eq!(extra_ids, vec![102]);
 }

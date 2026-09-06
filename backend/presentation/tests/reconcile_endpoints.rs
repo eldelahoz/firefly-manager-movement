@@ -321,6 +321,7 @@ fn test_app(transactions: Vec<Ff3TransactionDto>) -> TestApp {
         deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -513,11 +514,10 @@ async fn ignore_endpoint_marks_movement_ignored() {
 
     let response = t
         .app()
-        .oneshot(
-            Request::post("/api/imports/1/movements/4/ignore")
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(post_json(
+            "/api/imports/1/movements/4/ignore",
+            serde_json::json!({ "ignored": true }),
+        ))
         .await
         .expect("request");
     assert_eq!(response.status(), StatusCode::OK);
@@ -536,12 +536,87 @@ async fn ignore_unknown_movement_is_404() {
     let t = test_app(default_txs());
     let response = t
         .app()
+        .oneshot(post_json(
+            "/api/imports/1/movements/999/ignore",
+            serde_json::json!({ "ignored": true }),
+        ))
+        .await
+        .expect("request");
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn un_ignore_endpoint_restores_latest_run_status() {
+    let t = test_app(default_txs());
+
+    let _ = t
+        .app()
+        .oneshot(post_json("/api/imports/1/reconcile", reconcile_body()))
+        .await
+        .expect("reconcile");
+
+    let _ = t
+        .app()
+        .oneshot(post_json(
+            "/api/imports/1/movements/4/ignore",
+            serde_json::json!({ "ignored": true }),
+        ))
+        .await
+        .expect("ignore");
+    let response = t
+        .app()
+        .oneshot(post_json(
+            "/api/imports/1/movements/4/ignore",
+            serde_json::json!({ "ignored": false }),
+        ))
+        .await
+        .expect("un-ignore");
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = read_json(response).await;
+    assert_eq!(json["status"], "missing");
+
+    let rows = t.movements.rows.lock().unwrap().clone();
+    assert_eq!(
+        rows.iter().find(|m| m.id.as_i64() == 4).expect("m4").status,
+        MovementStatus::Missing
+    );
+}
+
+#[tokio::test]
+async fn results_include_ignored_movements() {
+    let t = test_app(default_txs());
+
+    let _ = t
+        .app()
+        .oneshot(post_json("/api/imports/1/reconcile", reconcile_body()))
+        .await
+        .expect("reconcile");
+    let _ = t
+        .app()
+        .oneshot(post_json(
+            "/api/imports/1/movements/4/ignore",
+            serde_json::json!({ "ignored": true }),
+        ))
+        .await
+        .expect("ignore");
+
+    let response = t
+        .app()
         .oneshot(
-            Request::post("/api/imports/1/movements/999/ignore")
+            Request::get("/api/imports/1/results")
                 .body(Body::empty())
                 .unwrap(),
         )
         .await
         .expect("request");
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = read_json(response).await;
+
+    let ignored = json["ignored"].as_array().expect("ignored array");
+    assert_eq!(ignored.len(), 1);
+    assert_eq!(ignored[0]["id"], 4);
+    assert_eq!(ignored[0]["status"], "ignored");
+    // Ignoring never removes the movement from the missing group's source
+    // data — the status filter keeps it out of `missing` only.
+    assert_eq!(json["missing"].as_array().expect("missing").len(), 0);
 }

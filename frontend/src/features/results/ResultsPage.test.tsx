@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, expect, test } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { setupServer } from 'msw/node';
 import { http, HttpResponse } from 'msw';
@@ -74,7 +74,7 @@ test('switching to extra shows duplicate with delete action', async () => {
   await userEvent.click(screen.getByRole('tab', { name: 'Extra (1)' }));
   expect(await screen.findByText('Duplicate A')).toBeInTheDocument();
   expect(screen.getByText('Duplicate')).toBeInTheDocument();
-  expect(screen.getByText('Delete duplicate')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Delete duplicate' })).toBeInTheDocument();
 });
 
 test('missing tab supports select-all and shows personalize/apply buttons', async () => {
@@ -116,4 +116,142 @@ test('virtualizes 1000 matched rows without rendering all', async () => {
   await screen.findByText('Matched (1000)');
   expect(screen.queryByText('m999')).not.toBeInTheDocument();
   expect(document.querySelectorAll('[data-index]').length).toBeLessThan(1000);
+});
+
+test('matched group renders column headers per spec v0.8', async () => {
+  renderResults();
+  await screen.findByText('Matched (1)');
+  expect(screen.getByText('Description (statement)')).toBeInTheDocument();
+  expect(screen.getByText('Description (Firefly III)')).toBeInTheDocument();
+  expect(screen.getAllByText('Amount').length).toBeGreaterThanOrEqual(1);
+  expect(screen.getAllByText('Status').length).toBeGreaterThanOrEqual(1);
+});
+
+test('missing group renders selection/status/actions headers', async () => {
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  expect(screen.getAllByText('Actions').length).toBeGreaterThanOrEqual(1);
+  expect(screen.getAllByText('Status').length).toBeGreaterThanOrEqual(1);
+});
+
+test('apply payload omits counterparty_ff3_id when not personalized', async () => {
+  let body: { movements: { movement_id: number; counterparty_ff3_id?: number }[] } | undefined;
+  server.use(
+    http.post('/api/imports/:id/apply', async ({ request }) => {
+      body = (await request.json()) as typeof body;
+      return HttpResponse.json({
+        reports: [],
+        created_count: 1,
+        already_created_count: 0,
+        failed_count: 0,
+      });
+    }),
+  );
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+  await userEvent.click(screen.getByRole('button', { name: /Create in Firefly III/ }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Create' }));
+  await waitFor(() => {
+    expect(body?.movements[0]).toEqual({ movement_id: expect.any(Number) });
+  });
+});
+
+test('ignored section lists rows with badge and Un-ignore action', async () => {
+  renderResults();
+  await screen.findByText('Matched (1)');
+  expect(screen.getByText('Ignored (1)')).toBeInTheDocument();
+  expect(screen.getByText('Internal transfer')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Un-ignore' })).toBeInTheDocument();
+});
+
+test('ignore button on missing row posts ignored=true', async () => {
+  const bodies: unknown[] = [];
+  server.use(
+    http.post('/api/imports/:bid/movements/:mid/ignore', async ({ request }) => {
+      bodies.push(await request.json());
+      return HttpResponse.json({ movement_id: 12, status: 'ignored' });
+    }),
+  );
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  await userEvent.click(screen.getAllByRole('button', { name: 'Ignore' })[0]);
+  await waitFor(() => expect(bodies[0]).toEqual({ ignored: true }));
+});
+
+test('un-ignore posts ignored=false and refreshes results', async () => {
+  const bodies: unknown[] = [];
+  server.use(
+    http.post('/api/imports/:bid/movements/:mid/ignore', async ({ request }) => {
+      bodies.push(await request.json());
+      return HttpResponse.json({ movement_id: 13, status: 'missing' });
+    }),
+  );
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('button', { name: 'Un-ignore' }));
+  await waitFor(() => expect(bodies[0]).toEqual({ ignored: false }));
+  expect(bodies.length).toBe(1);
+});
+
+test('edit pencil opens dialog and cancel closes it', async () => {
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  await userEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+  expect(await screen.findByText('Edit movement')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  expect(screen.queryByText('Edit movement')).not.toBeInTheDocument();
+});
+
+test('saving customization from dialog closes it and is sent on apply', async () => {
+  let body: { movements: { movement_id: number; description?: string }[] } | undefined;
+  server.use(
+    http.post('/api/imports/:id/apply', async ({ request }) => {
+      body = (await request.json()) as typeof body;
+      return HttpResponse.json({
+        reports: [],
+        created_count: 1,
+        already_created_count: 0,
+        failed_count: 0,
+      });
+    }),
+  );
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  await userEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+  await userEvent.type(await screen.findByLabelText('Description'), ' customized');
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+  expect(screen.queryByText('Edit movement')).not.toBeInTheDocument();
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+  await userEvent.click(screen.getByRole('button', { name: /Create in Firefly III/ }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Create' }));
+  await waitFor(() => {
+    expect(body?.movements[0].description).toContain('customized');
+  });
+});
+
+test('personalize button with single selection opens edit dialog', async () => {
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  await userEvent.click(screen.getAllByRole('checkbox')[1]);
+  await userEvent.click(screen.getByRole('button', { name: /Personalize \(1\)/ }));
+  expect(await screen.findByText('Edit movement')).toBeInTheDocument();
+});
+
+test('closing dialog via X with unsaved changes asks discard confirmation', async () => {
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  await userEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+  await userEvent.type(await screen.findByLabelText('Description'), 'x');
+  await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+  expect(await screen.findByText('Discard changes?')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
+  expect(screen.queryByText('Edit movement')).not.toBeInTheDocument();
 });

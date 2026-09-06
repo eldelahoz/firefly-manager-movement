@@ -9,9 +9,9 @@ import { TagsPicker } from './TagsPicker';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/shared/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 
-export function BulkPersonalizeSheet({
+export function BulkPersonalizeDialog({
   count,
   defaultTag,
   onApply,
@@ -59,20 +59,19 @@ export function BulkPersonalizeSheet({
   }
 
   return (
-    <Sheet
+    <Dialog
       open
       onOpenChange={(o) => {
         if (!o) onClose();
       }}
     >
-      <SheetContent
-        side="right"
+      <DialogContent
         showCloseButton={false}
-        className="w-full gap-4 overflow-y-auto p-4 sm:max-w-md"
+        className="max-h-[85vh] gap-4 overflow-y-auto p-4 sm:max-w-lg"
       >
-        <SheetHeader className="p-0">
-          <SheetTitle>{t('results.bulkTitle', { count })}</SheetTitle>
-        </SheetHeader>
+        <DialogHeader className="p-0">
+          <DialogTitle>{t('results.bulkTitle', { count })}</DialogTitle>
+        </DialogHeader>
         <p className="text-xs text-text-3">{t('results.bulkHint')}</p>
         <div>
           <p className="mb-1 text-sm text-text-2">{t('results.counterparty')}</p>
@@ -153,7 +152,7 @@ export function BulkPersonalizeSheet({
             {t('results.applyToSelection')}
           </Button>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

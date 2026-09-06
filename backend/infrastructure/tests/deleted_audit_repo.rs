@@ -28,5 +28,8 @@ async fn insert_returns_increasing_ids() {
     assert!(id1.as_i64() > 0);
     assert!(id2.as_i64() > id1.as_i64());
 
+    let ids = repo.deleted_ff3_ids().await.expect("deleted_ff3_ids");
+    assert!(ids.contains(&42) && ids.contains(&43));
+
     common::clean(&pool).await;
 }

@@ -33,6 +33,7 @@ export function DeleteDuplicateDialog({
     },
     onError: (e: ApiError) => {
       if (e.status === 404) toast.error(t('deleteDialog.notDeletable'));
+      else toast.error(t('common.error'));
     },
   });
   if (!tx) return null;

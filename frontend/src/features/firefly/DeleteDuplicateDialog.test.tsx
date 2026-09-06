@@ -36,6 +36,27 @@ test('404 on delete shows explanatory toast', async () => {
   ).toBeInTheDocument();
 });
 
+test('non-404 error shows generic error toast', async () => {
+  server.use(
+    http.delete('/api/firefly/transactions/:id', () =>
+      HttpResponse.json({ error: 'FF3 unreachable' }, { status: 502 }),
+    ),
+  );
+  renderWithProviders(
+    <>
+      <DeleteDuplicateDialog
+        tx={{ id: 42, date: '2026-08-01', amount_cents: -4200, description: 'Coffee' }}
+        currency="EUR"
+        onClose={() => {}}
+      />
+      <Toaster />
+    </>,
+  );
+  await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+  expect(await screen.findByText('Something went wrong')).toBeInTheDocument();
+});
+
 test('success closes the dialog', async () => {
   let closed = false;
   renderWithProviders(

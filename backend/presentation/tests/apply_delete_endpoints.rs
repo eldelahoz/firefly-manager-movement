@@ -352,6 +352,7 @@ async fn test_app(fail_amounts: Vec<i64>) -> TestApp {
         deleted_audits: audits.clone(),
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -540,4 +541,40 @@ async fn delete_unknown_tx_is_404() {
         .expect("request");
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
     assert!(t.audits.rows.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn apply_endpoint_creates_without_counterparty() {
+    let t = test_app(vec![]).await;
+
+    let response = t
+        .app()
+        .oneshot(post_json(
+            "/api/imports/1/apply",
+            serde_json::json!({
+                "movements": [
+                    { "movement_id": 1 },
+                    { "movement_id": 2 }
+                ]
+            }),
+        ))
+        .await
+        .expect("request");
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = read_json(response).await;
+    assert_eq!(json["created_count"], 2);
+
+    let created = t.firefly.created.lock().unwrap();
+    let debit = created
+        .iter()
+        .find(|c| c.amount.as_i64() == -5000)
+        .expect("debit");
+    assert_eq!(debit.source_ff3_id, Some(7));
+    assert_eq!(debit.destination_ff3_id, None);
+    let credit = created
+        .iter()
+        .find(|c| c.amount.as_i64() == 3000)
+        .expect("credit");
+    assert_eq!(credit.source_ff3_id, None);
+    assert_eq!(credit.destination_ff3_id, Some(7));
 }
