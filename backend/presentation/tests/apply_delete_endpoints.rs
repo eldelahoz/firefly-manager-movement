@@ -410,11 +410,12 @@ async fn apply_endpoint_creates_and_reports() {
     assert_eq!(json["failed_count"], 0);
     assert!(json["reconciliation_id"].is_u64());
 
-    // FF3 called with origin tag + directions.
+    // FF3 called with origin note + directions.
     let calls = t.firefly.created.lock().unwrap().clone();
     assert_eq!(calls.len(), 2);
     for c in &calls {
-        assert_eq!(c.tags, vec!["ffm:stmt.csv:1".to_string()]);
+        assert_eq!(c.tags, Vec::<String>::new()); // No tags (origin trace is note)
+        assert_eq!(c.notes.as_deref(), Some("ffm:stmt.csv:1"));
     }
 
     // Movements confirmed matched via the incremental run.

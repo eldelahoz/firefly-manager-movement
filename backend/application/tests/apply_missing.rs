@@ -13,6 +13,7 @@ use ffm_application::ports::{
     BatchRepository, CreationRepository, Ff3AccountRepository, Ff3TransactionRepository,
     FireflyClient, MatchRepository, MovementRepository, ReconciliationRepository,
 };
+use ffm_application::use_cases::app_settings::FakeSettings;
 use ffm_application::use_cases::apply_missing::{ApplyMissing, ApplyOutcome, RunPorts};
 
 use ffm_domain::entities::{
@@ -463,6 +464,7 @@ struct Fx {
     creations: Arc<FakeCreationRepo>,
     runs: Arc<FakeRunStore>,
     batches: Arc<FakeBatchRepo>,
+    settings: Arc<FakeSettings>,
 }
 
 fn fx(fail_amounts: Vec<i64>) -> Fx {
@@ -499,6 +501,15 @@ fn fx(fail_amounts: Vec<i64>) -> Fx {
                 created_at: epoch(),
             }],
         }),
+        settings: Arc::new(FakeSettings(std::sync::Mutex::new(Some(
+            ffm_domain::entities::AppSettings {
+                ff3_url: "http://example.com".into(),
+                ff3_token: "token".into(),
+                default_creation_tag: None,
+                enable_origin_trace: true,
+                updated_at: epoch(),
+            },
+        )))),
     }
 }
 
@@ -542,6 +553,7 @@ type ApplyUc = ApplyMissing<
     Arc<FakeRunStore>,
     Arc<FakeRunStore>,
     Arc<FakeRunStore>,
+    Arc<FakeSettings>,
 >;
 
 impl Fx {
@@ -557,6 +569,7 @@ impl Fx {
                 matches: self.runs.clone(),
                 ff3_transactions: self.runs.clone(),
             },
+            self.settings.clone(),
         )
     }
 
@@ -633,7 +646,7 @@ async fn applies_per_movement_customization() {
     assert_eq!(debit.description, "Custom debit");
     assert_eq!(debit.category.as_deref(), Some("Rent"));
     assert_eq!(debit.budget.as_deref(), Some("Housing"));
-    assert_eq!(debit.notes.as_deref(), Some("note-1"));
+    assert_eq!(debit.notes.as_deref(), Some("note-1\n\nffm:stmt.csv:1"));
 
     let credit = calls
         .iter()
@@ -665,25 +678,24 @@ async fn origin_tag_appended_in_addition_to_user_tags() {
 
     let calls = f.firefly.calls();
     assert_eq!(calls.len(), 1);
-    assert_eq!(
-        calls[0].tags,
-        vec!["user-tag".to_string(), "ffm:stmt.csv:1".to_string()]
-    );
+    assert_eq!(calls[0].tags, vec!["user-tag".to_string()]);
+    assert_eq!(calls[0].notes.as_deref(), Some("ffm:stmt.csv:1"));
 }
 
 #[tokio::test]
-async fn origin_tag_appended_when_user_tags_empty() {
+async fn origin_trace_note_appended_when_user_tags_empty() {
     let f = fx(vec![]);
     let input = f.input(vec![ma(1, 42)]);
     let result = f.uc().execute(input).await.expect("apply ok");
     assert_eq!(result.created_count, 1);
 
     let calls = f.firefly.calls();
-    assert_eq!(calls[0].tags, vec!["ffm:stmt.csv:1".to_string()]);
+    assert_eq!(calls[0].tags, Vec::<String>::new()); // No tags (origin trace is note, not tag)
+    assert_eq!(calls[0].notes.as_deref(), Some("ffm:stmt.csv:1"));
 }
 
 #[tokio::test]
-async fn origin_tag_not_duplicated_when_user_includes_it() {
+async fn origin_trace_appended_below_user_notes() {
     let f = fx(vec![]);
     let input = f.input(vec![MovementApply {
         movement_id: MovementId::new(1),
@@ -691,15 +703,19 @@ async fn origin_tag_not_duplicated_when_user_includes_it() {
         description: None,
         category: None,
         budget: None,
-        tags: vec!["ffm:stmt.csv:1".into()],
-        notes: None,
+        tags: vec![],
+        notes: Some("User note here".into()),
         attachment: None,
     }]);
     let result = f.uc().execute(input).await.expect("apply ok");
     assert_eq!(result.created_count, 1);
 
     let calls = f.firefly.calls();
-    assert_eq!(calls[0].tags, vec!["ffm:stmt.csv:1".to_string()]);
+    assert_eq!(calls[0].tags, Vec::<String>::new()); // No tags (origin trace is note, not tag)
+    assert_eq!(
+        calls[0].notes.as_deref(),
+        Some("User note here\n\nffm:stmt.csv:1")
+    );
 }
 
 #[tokio::test]
@@ -799,7 +815,8 @@ async fn apply_creates_with_origin_tag_and_confirms_matched() {
     let calls = f.firefly.calls();
     assert_eq!(calls.len(), 2);
     for c in &calls {
-        assert_eq!(c.tags, vec!["ffm:stmt.csv:1".to_string()]);
+        assert_eq!(c.tags, Vec::<String>::new()); // No tags (origin trace is note)
+        assert_eq!(c.notes.as_deref(), Some("ffm:stmt.csv:1"));
     }
 
     assert_eq!(f.creations.rows.lock().unwrap().len(), 2);

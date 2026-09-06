@@ -38,6 +38,7 @@ impl AppSettingsRepository for FakeSettings {
             ff3_url: s.ff3_url,
             ff3_token: s.ff3_token,
             default_creation_tag: s.default_creation_tag,
+            enable_origin_trace: s.enable_origin_trace,
             updated_at: chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
         };
         *self.0.lock().unwrap() = Some(row.clone());
@@ -114,6 +115,7 @@ fn epoch() -> AppSettings {
         ff3_url: "http://localhost:8080".into(),
         ff3_token: "tok".into(),
         default_creation_tag: None,
+        enable_origin_trace: true,
         updated_at: chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
     }
 }
@@ -167,6 +169,7 @@ async fn save_persists_reconfigures_and_keeps_token_when_omitted() {
             ff3_url: "http://ff3.new".into(),
             ff3_token: None, // keep existing
             default_creation_tag: Some("ffm".into()),
+            enable_origin_trace: true,
         })
         .await
         .unwrap();
@@ -187,6 +190,7 @@ async fn save_replaces_token_when_provided_and_clears_tag() {
             ff3_url: "http://ff3.new".into(),
             ff3_token: Some("  tok2 ".into()),
             default_creation_tag: Some("   ".into()), // blank clears
+            enable_origin_trace: true,
         })
         .await
         .unwrap();
@@ -202,6 +206,7 @@ async fn save_rejects_blank_url() {
             ff3_url: "  ".into(),
             ff3_token: Some("t".into()),
             default_creation_tag: None,
+            enable_origin_trace: true,
         })
         .await
         .unwrap_err();
@@ -216,6 +221,7 @@ async fn save_rejects_non_http_url() {
             ff3_url: "ftp://ff3".into(),
             ff3_token: Some("t".into()),
             default_creation_tag: None,
+            enable_origin_trace: true,
         })
         .await
         .unwrap_err();
@@ -230,6 +236,7 @@ async fn save_without_any_token_is_rejected() {
             ff3_url: "http://x".into(),
             ff3_token: None,
             default_creation_tag: None,
+            enable_origin_trace: true,
         })
         .await
         .unwrap_err();
@@ -249,6 +256,7 @@ async fn save_bootstraps_token_from_env_when_no_row() {
         ff3_url: "http://ff3.new".into(),
         ff3_token: None, // no row to keep from: fall back to env token
         default_creation_tag: None,
+        enable_origin_trace: true,
     })
     .await
     .unwrap();
