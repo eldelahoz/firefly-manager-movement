@@ -4,8 +4,8 @@ use crate::dtos::{
 };
 use crate::error::ApplicationError;
 use crate::ports::{
-    BatchRepository, CreationRepository, Ff3AccountRepository, Ff3TransactionRepository,
-    MatchRepository, MovementRepository, ReconciliationRepository,
+    AppSettingsRepository, BatchRepository, CreationRepository, Ff3AccountRepository,
+    Ff3TransactionRepository, MatchRepository, MovementRepository, ReconciliationRepository,
 };
 use ffm_domain::ids::{MovementId, ReconciliationId};
 use ffm_domain::value_objects::{BatchStatus, MovementStatus};
@@ -45,17 +45,18 @@ pub struct RunPorts<R, M, T> {
 }
 
 /// Use case: batch-create selected missing transactions in Firefly III.
-pub struct ApplyMissing<Firefly, Accounts, Batches, Movements, Creations, R, M, T> {
+pub struct ApplyMissing<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings> {
     firefly: Firefly,
     accounts: Accounts,
     batches: Batches,
     movements: Movements,
     creations: Creations,
     run_ports: RunPorts<R, M, T>,
+    settings: Settings,
 }
 
-impl<Firefly, Accounts, Batches, Movements, Creations, R, M, T>
-    ApplyMissing<Firefly, Accounts, Batches, Movements, Creations, R, M, T>
+impl<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings>
+    ApplyMissing<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings>
 {
     pub fn new(
         firefly: Firefly,
@@ -64,6 +65,7 @@ impl<Firefly, Accounts, Batches, Movements, Creations, R, M, T>
         movements: Movements,
         creations: Creations,
         run_ports: RunPorts<R, M, T>,
+        settings: Settings,
     ) -> Self {
         Self {
             firefly,
@@ -72,12 +74,13 @@ impl<Firefly, Accounts, Batches, Movements, Creations, R, M, T>
             movements,
             creations,
             run_ports,
+            settings,
         }
     }
 }
 
-impl<Firefly, Accounts, Batches, Movements, Creations, R, M, T>
-    ApplyMissing<Firefly, Accounts, Batches, Movements, Creations, R, M, T>
+impl<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings>
+    ApplyMissing<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings>
 where
     Firefly: crate::ports::FireflyClient,
     Accounts: Ff3AccountRepository,
@@ -87,6 +90,7 @@ where
     R: ReconciliationRepository,
     M: MatchRepository,
     T: Ff3TransactionRepository,
+    Settings: AppSettingsRepository,
 {
     pub async fn execute(&self, input: ApplyMissingInput) -> Result<ApplyOutput, ApplicationError> {
         // ── Load batch ────────────────────────────────────────────
@@ -107,6 +111,16 @@ where
             .await?
             .ok_or_else(|| ApplicationError::NotFound("account not found".into()))?;
         let account_ff3_id = account.ff3_id;
+
+        // ── Load settings for default tag and origin trace ──────
+        let settings = self.settings.get().await?;
+        let default_tag = settings
+            .as_ref()
+            .and_then(|s| s.default_creation_tag.clone());
+        let enable_origin_trace = settings
+            .as_ref()
+            .map(|s| s.enable_origin_trace)
+            .unwrap_or(true); // Default: enabled
 
         // ── Load batch movements once ─────────────────────────────
         let batch_movements = self.movements.by_batch(input.batch_id).await?;
@@ -150,9 +164,6 @@ where
             .matches
             .by_reconciliation(previous_run.id)
             .await?;
-
-        // ── Origin tag (RF-11): immutably derived from batch ──────
-        let origin_tag = format!("ffm:{}:{}", batch.filename, input.batch_id.as_i64());
 
         let mut reports = Vec::new();
         let mut created_ff3_ids: Vec<i64> = Vec::new();
@@ -204,11 +215,24 @@ where
                 .map(str::to_string)
                 .unwrap_or_else(|| m.description.clone());
 
-            // ── Tags: user tags + origin (RF-11, deduped) ─────────
-            let mut tags = cust.tags.clone();
-            if !tags.contains(&origin_tag) {
-                tags.push(origin_tag.clone());
-            }
+            // ── Tags: default tag > user tags ─────────────────────────
+            let tags = if cust.tags.is_empty() {
+                default_tag.clone().into_iter().collect()
+            } else {
+                cust.tags.clone()
+            };
+
+            // ── Notes: user note + origin trace (RF-11, configurable) ─────
+            let origin_note = if enable_origin_trace {
+                format!("ffm:{}:{}", batch.filename, input.batch_id.as_i64())
+            } else {
+                String::new()
+            };
+            let notes = match (&cust.notes, &origin_note[..]) {
+                (Some(user_note), "") => user_note.clone(),
+                (None, origin_trace) => origin_trace.to_string(),
+                (Some(user_note), origin_trace) => format!("{}\n\n{}", user_note, origin_trace),
+            };
 
             let creation = NewFf3TransactionCreation {
                 transaction_type: transaction_type.to_string(),
@@ -219,7 +243,7 @@ where
                 destination_ff3_id: destination,
                 category: cust.category.clone().filter(|c| !c.trim().is_empty()),
                 budget: cust.budget.clone().filter(|b| !b.trim().is_empty()),
-                notes: cust.notes.clone().filter(|n| !n.trim().is_empty()),
+                notes: if notes.is_empty() { None } else { Some(notes) },
                 tags,
             };
 
