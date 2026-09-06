@@ -67,7 +67,7 @@ export function ConfirmCreateDialog({
           })}
         </div>
         <p className="text-xs text-text-3">
-          {t('results.originTagNote', { tag: `ffm:${filename}:${batchId}` })}
+          {t('results.originNoteNote', { note: `ffm:${filename}:${batchId}` })}
         </p>
         <DialogFooter>
           <Button variant="cancel" onClick={onClose}>

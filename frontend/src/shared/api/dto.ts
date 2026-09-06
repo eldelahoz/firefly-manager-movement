@@ -142,12 +142,14 @@ export interface SettingsResponse {
   ff3_url: string;
   has_token: boolean;
   default_creation_tag: string | null;
+  enable_origin_trace: boolean;
 }
 
 export interface SettingsPutRequest {
   ff3_url: string;
   ff3_token?: string;
   default_creation_tag?: string | null;
+  enable_origin_trace?: boolean;
 }
 
 export interface VerifyResponse {
