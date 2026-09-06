@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `d734652` · TRD `d734652` · audited 2026-09-03 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `2d7604a` · TRD `2d7604a` · audited 2026-09-03 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
@@ -157,7 +157,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Infra** | `firefly_client.rs::create_transaction_omits_absent_account_side` | FF3 payload omits absent account side (v0.8) |
 | **App** | `apply_missing.rs::apply_creates_with_origin_tag_and_confirms_matched` | Creates in FF3 with origin tag, category, notes |
 | **App** | `apply_missing.rs::origin_tag_appended_in_addition_to_user_tags` | Origin tag merged with user-selected tags |
-| **App** | `apply_missing.rs::origin_tag_appended_when_user_tags_empty` | Origin tag applied when no user tags |
+| **App** | `apply_missing.rs::origin_tag_appended_when_user_tags_empty` | Origin tag when no user tags; default_creation_tag from settings applied when configured |
 | **App** | `apply_missing.rs::origin_tag_not_duplicated_when_user_includes_it` | No duplicate origin tag |
 | **App** | `apply_missing.rs::zero_amount_movement_fails_without_ff3_call` | Zero-amount validation before FF3 call |
 | **App** | `apply_missing.rs::attachment_uploaded_after_creation` | Attachment uploaded after transaction creation |
@@ -217,7 +217,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-11  Created transactions carry origin trace (tag/note: file + batch)
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `2d7604a`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -333,7 +333,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-19  App settings: configure FF3 connection (URL + token), verify connectivity, save; replaces env vars
 
-**Status:** implemented · **Last verified:** 2026-09-04 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-04 · **Spec @** `2d7604a`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -363,6 +363,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **FE** | `SettingsPage.test.tsx::verify connectivity button probes FF3` | Test connection button |
 | **FE** | `SettingsPage.test.tsx::default creation tag dropdown shows tags from FF3` | Tag dropdown from FF3 API |
 | **FE** | `SettingsPage.test.tsx::saves settings with default creation tag` | Settings save with tag |
+| **App** | `apply_missing.rs::origin_tag_appended_when_user_tags_empty` | `default_creation_tag` from settings pre-fills tags when user tags empty |
+| **App** | `apply_missing.rs::apply_creates_with_origin_tag_and_confirms_matched` | Origin tag applied even with default tag configured |
 
 ---
 

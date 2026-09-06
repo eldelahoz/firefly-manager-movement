@@ -61,7 +61,7 @@ Runs Firefly III in Docker at home. Downloads an XLSX from his bank's website ev
 | CU-2 | Map columns (CSV) | If the CSV is not recognized automatically, David maps columns → fields (date, amount, description, and optionally origin account). | RF-02, RF-03 |
 | CU-3 | Run the reconciliation | David launches the reconciliation; the account chosen at import is pre-selected and can still be changed. | RF-04, RF-06, RF-12 |
 | CU-4 | View the results | View in 3 groups: matched / missing in Firefly III / present in Firefly III but absent from the statement; a dedicated section shows ignored movements. | RF-07, RF-10 |
-| CU-5 | Create the missing transactions | David selects all or part of the missing items and either creates them as-is or personalizes them first - individually or in bulk: counterparty account, category, budget, tags (pre-filled with the default tag from settings), attachment, notes. Creation in Firefly III goes through a confirmation modal showing what will be created. | RF-08, RF-11, RF-19 |
+| CU-5 | Create the missing transactions | David selects all or part of the missing items and either creates them as-is or personalizes them first - individually or in bulk: counterparty account, category, budget, tags (pre-filled with the default tag from settings), attachment, notes. Creation in Firefly III goes through a confirmation modal showing what will be created. If origin trace is enabled in settings (RF-11), an origin note is added below user notes. | RF-08, RF-11, RF-19 |
 | CU-6 | Import history | David finds his past imports (batches) and their status. | RF-09 |
 | CU-7 | Browse an account's transactions | David picks a Firefly III account and a period (min / max date) and views his transactions, independently of any import. | RF-14 |
 | CU-8 | Delete a duplicate | David identifies a duplicated transaction in Firefly III (via the reconciliation or the account view) and deletes it after confirmation. | RF-15 |
@@ -183,7 +183,7 @@ The Status column always reflects the movement's real state, including the post-
 - Editable fields before creation: **description** (pre-filled from the statement, editable), category, budget, **tags** (pre-filled with the default creation tag from settings, the user's selection replaces it), **attachment (file upload)**, notes.
 - The system lists existing Firefly III categories, budgets and tags for selection.
 - Movement classification: the amount's sign determines the kind of transaction created - a **negative amount is an expense** (money leaves the account), a **positive amount is an income** (money enters the account). The reconciler only creates expenses and incomes, never internal transfers: a bank statement movement is always money in or out of the reconciled account.
-- Creation calls the Firefly III API (`POST /api/v1/transactions`) with: type, amount, date, description (from the statement), source/destination account, the user's tags (or the default tag), and the origin trace tag/notes (file name + batch id) applied in addition.
+- Creation calls the Firefly III API (`POST /api/v1/transactions`) with: type, amount, date, description (from the statement), source/destination account, the user's tags (or the default tag), notes (origin trace note added below user notes if enabled in settings).
 - After creation, the movement moves to `created` and an incremental re-reconciliation confirms the match.
 - **No creation happens without explicit action.** No automatic mode in v1.
 
@@ -205,7 +205,7 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 | [RF-08](./requirements/rf-08-batch-creation.md) | The user can batch-create the missing transactions in Firefly III, as-is or after personalization - individual or bulk (only filled fields applied). Before creation, each missing movement can be edited: description (pre-filled from the statement), category, budget, tags (pre-filled with the default creation tag), attachment and notes; creation goes through a confirmation modal. | P0 |
 | [RF-09](./requirements/rf-09-batch-history.md) | Each import batch is immutable and viewable a posteriori (history). | P1 |
 | [RF-10](./requirements/rf-10-ignore-movements.md) | The user can manually ignore a movement (`ignored`). Ignored movements are listed in a dedicated table below the results, each showing the `Ignored` status and an Un-ignore action, and can be restored (un-ignored) at any time. Ignoring is a status change only: movements are never removed from the import. | P1 |
-| [RF-11](./requirements/rf-11-origin-trace.md) | Created transactions carry an origin trace (tag or note: file + batch), applied in addition to user-selected or default tags. | P1 |
+| [RF-11](./requirements/rf-11-origin-trace.md) | Created transactions MAY carry an origin trace note (file + batch), configurable in settings. When enabled, added below user notes with line breaks. | P1 |
 | [RF-12](./requirements/rf-12-currencies.md) | The system handles multiple currencies: the statement currency must match the target account's, otherwise a blocking warning. | P1 |
 | [RF-13](./requirements/rf-13-reconciliation-rerun.md) | The user can re-run a reconciliation on an existing batch. | P1 |
 | [RF-14](./requirements/rf-14-account-browse.md) | The system displays the transactions of a selected Firefly III account over a given period (min / max date). | P0 |
@@ -233,7 +233,7 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 > **Amendment (v0.7, 2026-09-02) — creation flow, bulk personalization, account auto-suggestion, default tag**:
 > - Creation flow split into two actions over the missing-movements selection: "personalize transactions" (inline or bulk panel) and "create in Firefly III" preceded by a confirmation modal summarizing what will be created; movements can be created as-is or personalized first (RF-08).
 > - Bulk personalization applies only the filled fields; empty fields leave each movement's values untouched (RF-08).
-> - The tags field is pre-filled with a default creation tag configured in settings - a dropdown of the existing Firefly III tags; the user's selection replaces it. The origin trace tag (`ffm:...`) is always applied in addition and never replaced (RF-08, RF-11, RF-19).
+> - The tags field is pre-filled with a default creation tag configured in settings - a dropdown of the existing Firefly III tags; the user's selection replaces it. The origin trace note (`ffm:...`) is added below user notes if enabled in settings (RF-08, RF-11, RF-19).
 > - The CSV mapping gains an optional origin-account column; when its values match a single Firefly III asset account (IBAN, account number or name), that account is pre-selected automatically in the wizard - otherwise manual selection with a non-blocking warning listing the distinct values (RF-02, RF-04).
 
 > **Amendment (v0.8, 2026-09-03) — movement classification, creation field requirements, results table layout and ignore UX**:
@@ -292,7 +292,7 @@ Technical details (data model, endpoints, Firefly III API integration) are descr
 | Highly heterogeneous CSV formats across banks | Import failure | Manual mapping + memorization by header signature; extensible library of known formats (RF-02) |
 | Firefly III API pagination/volume on long windows | Slow/incomplete reconciliation | Exhaustive client-side pagination; bounded date window (RF-05) |
 | Legitimate bank-side duplicates (same amount/date) | Incorrect 1-to-1 matching | Chronological pairing + manual review of surplus (RF-06) |
-| Accidental batch creation | Polluting Firefly III | Explicit confirmation, traceability (batch tag), never auto-create (RF-08, RF-11) |
+| Accidental batch creation | Polluting Firefly III | Explicit confirmation, traceability (batch note if enabled), never auto-create (RF-08, RF-11) |
 | Accidental transaction deletion | Data loss in Firefly III | Double confirmation with recap, scope limited to transactions visible in context (reconciliation/period), JSON audit snapshot kept in database (RF-15) |
 | Compromised API token | Full access to Firefly III | Backend-only token, documented rotation (NFR-02) |
 | Duplicate file names | Confusing import history, ambiguous resume | Upload refused with an explicit error before any data is stored (RF-16) |
