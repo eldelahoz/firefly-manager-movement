@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { setupServer } from 'msw/node';
 import { handlers } from '@/test/handlers';
 import { renderWithProviders } from '@/test/utils';
-import { BulkPersonalizeSheet } from './BulkPersonalizeSheet';
+import { BulkPersonalizeDialog } from './BulkPersonalizeDialog';
 
 const server = setupServer(...handlers);
 beforeAll(() => server.listen());
@@ -14,13 +14,14 @@ afterAll(() => server.close());
 test('fill-only: category applied, other fields omitted', async () => {
   let applied: unknown = null;
   renderWithProviders(
-    <BulkPersonalizeSheet
+    <BulkPersonalizeDialog
       count={3}
       defaultTag={null}
       onApply={(f) => (applied = f)}
       onClose={() => {}}
     />,
   );
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
   await userEvent.click(await screen.findByLabelText('Category (optional)'));
   await userEvent.click(await screen.findByRole('option', { name: 'Groceries' }));
   await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
@@ -30,7 +31,7 @@ test('fill-only: category applied, other fields omitted', async () => {
 test('tags untouched when chips not toggled even though pre-filled', async () => {
   let applied: unknown = null;
   renderWithProviders(
-    <BulkPersonalizeSheet
+    <BulkPersonalizeDialog
       count={2}
       defaultTag="ffm-import"
       onApply={(f) => (applied = f)}
@@ -44,7 +45,7 @@ test('tags untouched when chips not toggled even though pre-filled', async () =>
 test('counterparty applied when selected', async () => {
   let applied: unknown = null;
   renderWithProviders(
-    <BulkPersonalizeSheet
+    <BulkPersonalizeDialog
       count={1}
       defaultTag={null}
       onApply={(f) => (applied = f)}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Ff3Account } from '@/shared/api/dto';
 import type { Customization } from './customization';
@@ -17,6 +17,7 @@ export function PersonalizeEditor({
   budgets,
   onSave,
   onCancel,
+  onDirtyChange,
   submitLabel,
 }: {
   initial: Customization;
@@ -28,6 +29,7 @@ export function PersonalizeEditor({
   budgets: string[];
   onSave: (c: Customization) => void;
   onCancel: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
   submitLabel: string;
 }) {
   const { t } = useTranslation();
@@ -42,6 +44,12 @@ export function PersonalizeEditor({
     initial.tags ?? (defaultTag ? [defaultTag] : []),
   );
   const [attachment, setAttachment] = useState(initial.attachment);
+
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    if (dirty) onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+  const touch = () => setDirty(true);
 
   const filteredAccounts =
     direction === 'withdrawal'
@@ -64,7 +72,13 @@ export function PersonalizeEditor({
     <div className="space-y-3 border-t border-border-subtle pt-3">
       <div>
         <p className="mb-1 text-sm text-text-2">{t('results.counterparty')}</p>
-        <Select value={counterpartyId} onValueChange={setCounterpartyId}>
+        <Select
+          value={counterpartyId}
+          onValueChange={(v) => {
+            setCounterpartyId(v);
+            touch();
+          }}
+        >
           <SelectTrigger className="w-full" aria-label={t('results.counterparty')}>
             <SelectValue placeholder="—" />
           </SelectTrigger>
@@ -82,17 +96,33 @@ export function PersonalizeEditor({
         {t('results.descriptionField')}
         <Input
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => {
+            setDescription(e.target.value);
+            touch();
+          }}
           className="mt-1"
         />
       </label>
       <div>
         <p className="mb-1 text-sm text-text-2">{t('results.tags')}</p>
-        <TagsPicker value={selectedTags} options={tags} onChange={setSelectedTags} />
+        <TagsPicker
+          value={selectedTags}
+          options={tags}
+          onChange={(v) => {
+            setSelectedTags(v);
+            touch();
+          }}
+        />
       </div>
       <div>
         <p className="mb-1 text-sm text-text-2">{t('results.category')}</p>
-        <Select value={category} onValueChange={setCategory}>
+        <Select
+          value={category}
+          onValueChange={(v) => {
+            setCategory(v);
+            touch();
+          }}
+        >
           <SelectTrigger className="w-full" aria-label={t('results.category')}>
             <SelectValue placeholder="—" />
           </SelectTrigger>
@@ -108,7 +138,13 @@ export function PersonalizeEditor({
       </div>
       <div>
         <p className="mb-1 text-sm text-text-2">{t('results.budget')}</p>
-        <Select value={budget} onValueChange={setBudget}>
+        <Select
+          value={budget}
+          onValueChange={(v) => {
+            setBudget(v);
+            touch();
+          }}
+        >
           <SelectTrigger className="w-full" aria-label={t('results.budget')}>
             <SelectValue placeholder="—" />
           </SelectTrigger>
@@ -124,7 +160,14 @@ export function PersonalizeEditor({
       </div>
       <label className="block text-sm text-text-2">
         {t('results.notes')}
-        <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1" />
+        <Input
+          value={notes}
+          onChange={(e) => {
+            setNotes(e.target.value);
+            touch();
+          }}
+          className="mt-1"
+        />
       </label>
       <div>
         <p className="mb-1 text-sm text-text-2">{t('results.attachment')}</p>
@@ -133,6 +176,7 @@ export function PersonalizeEditor({
           onChange={(e) => {
             const file = e.target.files?.[0];
             setAttachment(file ? { filename: file.name, file } : undefined);
+            touch();
           }}
           className="text-sm text-text-2"
         />

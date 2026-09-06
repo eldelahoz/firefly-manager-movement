@@ -29,7 +29,8 @@ import { VirtualList } from './VirtualList';
 import { MissingRow } from './MissingRow';
 import { IgnoredRow } from './IgnoredRow';
 import { ExtraRow } from './ExtraRow';
-import { BulkPersonalizeSheet } from './BulkPersonalizeSheet';
+import { BulkPersonalizeDialog } from './BulkPersonalizeDialog';
+import { EditMovementDialog } from './EditMovementDialog';
 import { ConfirmCreateDialog } from './ConfirmCreateDialog';
 import { TableHeader, GRID_COLS, GROUP_ACCENT } from './tableLayout';
 
@@ -219,6 +220,8 @@ export function ResultsPage() {
         customization: customizations[sid] ?? {},
       };
     });
+  const editingMovement =
+    editingId != null ? (results.data.missing.find((m) => m.id === editingId) ?? null) : null;
 
   function handleBulkApply(fields: BulkFields) {
     setCustomizations((prev) => applyBulkFillOnly(prev, activeSelected, fields));
@@ -351,19 +354,8 @@ export function ResultsPage() {
                               s.includes(mid) ? s.filter((x) => x !== mid) : [...s, mid],
                             )
                           }
-                          editing={editingId === m.id}
-                          onEdit={() => setEditingId(editingId === m.id ? null : m.id)}
+                          onEdit={() => setEditingId(m.id)}
                           onIgnore={(mid) => ignore.mutate({ mid, ignored: true })}
-                          accounts={accounts.data ?? []}
-                          tags={tags.data ?? []}
-                          categories={categories.data ?? []}
-                          budgets={budgets.data ?? []}
-                          defaultTag={defaultTag}
-                          onSave={(c) => {
-                            setCustomizations((prev) => ({ ...prev, [m.id]: c }));
-                            setEditingId(null);
-                          }}
-                          onCancel={() => setEditingId(null)}
                         />
                       </>
                     );
@@ -417,8 +409,25 @@ export function ResultsPage() {
           </div>
         )}
       </section>
+      {editingMovement && (
+        <EditMovementDialog
+          movement={editingMovement}
+          initial={customizations[editingMovement.id] ?? {}}
+          defaultTag={defaultTag}
+          currency={currency}
+          accounts={accounts.data ?? []}
+          tags={tags.data ?? []}
+          categories={categories.data ?? []}
+          budgets={budgets.data ?? []}
+          onSave={(c) => {
+            setCustomizations((prev) => ({ ...prev, [editingMovement.id]: c }));
+            setEditingId(null);
+          }}
+          onClose={() => setEditingId(null)}
+        />
+      )}
       {bulkOpen && tab === 'missing' && (
-        <BulkPersonalizeSheet
+        <BulkPersonalizeDialog
           count={activeSelected.length}
           defaultTag={defaultTag}
           onApply={handleBulkApply}

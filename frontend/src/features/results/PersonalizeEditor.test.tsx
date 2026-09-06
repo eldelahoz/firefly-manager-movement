@@ -78,3 +78,24 @@ test('withdrawal direction lists expense and asset accounts', async () => {
   expect(screen.getByRole('option', { name: /Groceries/ })).toBeInTheDocument();
   expect(screen.queryByRole('option', { name: /Salary/ })).not.toBeInTheDocument();
 });
+
+test('reports dirty state when a field changes', async () => {
+  const dirtyStates: boolean[] = [];
+  renderWithProviders(
+    <PersonalizeEditor
+      initial={{}}
+      defaultTag={null}
+      direction="withdrawal"
+      accounts={accounts}
+      tags={[]}
+      categories={[]}
+      budgets={[]}
+      onDirtyChange={(d) => dirtyStates.push(d)}
+      onSave={() => {}}
+      onCancel={() => {}}
+      submitLabel="Save"
+    />,
+  );
+  await userEvent.type(screen.getByLabelText('Description'), 'x');
+  expect(dirtyStates).toEqual([true]);
+});

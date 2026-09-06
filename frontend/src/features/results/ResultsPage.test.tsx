@@ -196,3 +196,62 @@ test('un-ignore posts ignored=false and refreshes results', async () => {
   await waitFor(() => expect(bodies[0]).toEqual({ ignored: false }));
   expect(bodies.length).toBe(1);
 });
+
+test('edit pencil opens dialog and cancel closes it', async () => {
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  await userEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+  expect(await screen.findByText('Edit movement')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  expect(screen.queryByText('Edit movement')).not.toBeInTheDocument();
+});
+
+test('saving customization from dialog closes it and is sent on apply', async () => {
+  let body: { movements: { movement_id: number; description?: string }[] } | undefined;
+  server.use(
+    http.post('/api/imports/:id/apply', async ({ request }) => {
+      body = (await request.json()) as typeof body;
+      return HttpResponse.json({
+        reports: [],
+        created_count: 1,
+        already_created_count: 0,
+        failed_count: 0,
+      });
+    }),
+  );
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  await userEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+  await userEvent.type(await screen.findByLabelText('Description'), ' customized');
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+  expect(screen.queryByText('Edit movement')).not.toBeInTheDocument();
+  await userEvent.click(screen.getAllByRole('checkbox')[0]);
+  await userEvent.click(screen.getByRole('button', { name: /Create in Firefly III/ }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Create' }));
+  await waitFor(() => {
+    expect(body?.movements[0].description).toContain('customized');
+  });
+});
+
+test('personalize button with single selection opens edit dialog', async () => {
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  await userEvent.click(screen.getAllByRole('checkbox')[1]);
+  await userEvent.click(screen.getByRole('button', { name: /Personalize \(1\)/ }));
+  expect(await screen.findByText('Edit movement')).toBeInTheDocument();
+});
+
+test('closing dialog via X with unsaved changes asks discard confirmation', async () => {
+  renderResults();
+  await screen.findByText('Matched (1)');
+  await userEvent.click(screen.getByRole('tab', { name: 'Missing (2)' }));
+  await userEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+  await userEvent.type(await screen.findByLabelText('Description'), 'x');
+  await userEvent.click(screen.getByRole('button', { name: 'Close' }));
+  expect(await screen.findByText('Discard changes?')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
+  expect(screen.queryByText('Edit movement')).not.toBeInTheDocument();
+});
