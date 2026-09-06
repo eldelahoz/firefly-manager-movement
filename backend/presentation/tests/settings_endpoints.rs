@@ -185,6 +185,7 @@ async fn get_settings_returns_url_and_has_token() {
         ff3_url: "http://ff3.local".into(),
         ff3_token: "secret".into(),
         default_creation_tag: Some("ffm".into()),
+        enable_origin_trace: true,
         updated_at: chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
     });
     let state = make_state(
@@ -221,6 +222,7 @@ async fn put_settings_saves_and_reconfigures() {
         ff3_url: "http://old".into(),
         ff3_token: "old_tok".into(),
         default_creation_tag: None,
+        enable_origin_trace: true,
         updated_at: chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
     });
     let manager = FakeSettingsManager::default();
@@ -268,6 +270,7 @@ async fn put_settings_keeps_existing_token_when_omitted() {
         ff3_url: "http://old".into(),
         ff3_token: "keep_me".into(),
         default_creation_tag: None,
+        enable_origin_trace: true,
         updated_at: chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
     });
     let manager = FakeSettingsManager::default();

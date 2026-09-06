@@ -533,6 +533,7 @@ impl AppSettingsRepository for FakeAppSettingsRepository {
             ff3_url: s.ff3_url,
             ff3_token: s.ff3_token,
             default_creation_tag: s.default_creation_tag,
+            enable_origin_trace: s.enable_origin_trace,
             updated_at: chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
         };
         *self.settings.lock().unwrap() = Some(row.clone());

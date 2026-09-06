@@ -17,6 +17,7 @@ pub struct SettingsResponse {
     pub ff3_url: String,
     pub has_token: bool,
     pub default_creation_tag: Option<String>,
+    pub enable_origin_trace: bool,
 }
 
 impl From<SettingsView> for SettingsResponse {
@@ -25,6 +26,7 @@ impl From<SettingsView> for SettingsResponse {
             ff3_url: v.ff3_url,
             has_token: v.has_token,
             default_creation_tag: v.default_creation_tag,
+            enable_origin_trace: v.enable_origin_trace,
         }
     }
 }
@@ -37,6 +39,13 @@ pub struct SaveSettingsRequest {
     pub ff3_token: Option<String>,
     /// null or empty string clears the default tag.
     pub default_creation_tag: Option<String>,
+    /// When false, origin trace notes are not appended to created transactions.
+    #[serde(default = "default_true")]
+    pub enable_origin_trace: Option<bool>,
+}
+
+fn default_true() -> Option<bool> {
+    Some(true)
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -92,6 +101,7 @@ pub async fn save_settings(
         ff3_url: body.ff3_url,
         ff3_token: body.ff3_token,
         default_creation_tag: body.default_creation_tag,
+        enable_origin_trace: body.enable_origin_trace.unwrap_or(true),
     })
     .await
     .map_err(ApiError)?;

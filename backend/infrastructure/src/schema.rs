@@ -8,6 +8,7 @@ diesel::table! {
         ff3_token -> Text,
         #[max_length = 255]
         default_creation_tag -> Nullable<Varchar>,
+        enable_origin_trace -> Bool,
         updated_at -> Datetime,
     }
 }

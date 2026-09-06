@@ -13,6 +13,9 @@ const DOWN_SQL: &str = include_str!("../migrations/2026-09-03-100000-0006_app_se
 // schema matches the current one (0008 widened ff3_token to TEXT).
 const UP_TOKEN_SQL: &str =
     include_str!("../migrations/2026-09-05-100000-0008_ff3_token_text/up.sql");
+const UP_ORIGIN_TRACE_SQL: &str = include_str!(
+    "../migrations/2026-09-06-010721-0000_add_enable_origin_trace_to_app_settings/up.sql"
+);
 
 #[tokio::test]
 async fn app_settings_repo_roundtrip_and_reversible_migration() {
@@ -29,6 +32,7 @@ async fn app_settings_repo_roundtrip_and_reversible_migration() {
             ff3_url: "http://localhost:8080".into(),
             ff3_token: "secret-token".into(),
             default_creation_tag: Some("ffm-import".into()),
+            enable_origin_trace: true,
         })
         .await
         .unwrap();
@@ -42,6 +46,7 @@ async fn app_settings_repo_roundtrip_and_reversible_migration() {
         ff3_url: "http://localhost:8080".into(),
         ff3_token: "secret-token".into(),
         default_creation_tag: None,
+        enable_origin_trace: true,
     })
     .await
     .unwrap();
@@ -60,6 +65,7 @@ async fn app_settings_repo_roundtrip_and_reversible_migration() {
         ff3_url: "http://localhost:8080".into(),
         ff3_token: long_token.clone(),
         default_creation_tag: None,
+        enable_origin_trace: true,
     })
     .await
     .expect("save with 1028-char token");
@@ -74,6 +80,7 @@ async fn app_settings_repo_roundtrip_and_reversible_migration() {
         conn.batch_execute(DOWN_SQL).await.unwrap();
         conn.batch_execute(UP_SQL).await.unwrap();
         conn.batch_execute(UP_TOKEN_SQL).await.unwrap();
+        conn.batch_execute(UP_ORIGIN_TRACE_SQL).await.unwrap();
     }
     assert!(repo.get().await.unwrap().is_none());
 }

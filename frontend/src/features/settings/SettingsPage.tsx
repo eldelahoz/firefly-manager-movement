@@ -5,9 +5,11 @@ import { toast } from 'sonner';
 import { useTheme } from '@/app/ThemeProvider';
 import { getSettings, putSettings, postVerifySettings, getTags } from '@/shared/api/endpoints';
 import { queryKeys } from '@/shared/lib/keys';
+import { queryClient } from '@/shared/lib/queryClient';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
+import { Switch } from '@/shared/ui/switch';
 
 const LANGUAGES = [
   { value: 'en', label: 'English' },
@@ -102,6 +104,22 @@ export function SettingsPage() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-1">
+          <span className="text-sm font-medium">{t('settings.enableOriginTrace')}</span>
+          <Switch
+            checked={settings.data?.enable_origin_trace ?? true}
+            onCheckedChange={(checked) => {
+              putSettings({
+                ff3_url: settings.data?.ff3_url ?? '',
+                default_creation_tag: settings.data?.default_creation_tag,
+                enable_origin_trace: checked,
+              }).then((s) => {
+                queryClient.setQueryData(queryKeys.settings, s);
+              });
+            }}
+          />
         </div>
 
         <div className="flex gap-2 pt-1">

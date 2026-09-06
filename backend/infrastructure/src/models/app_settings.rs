@@ -13,6 +13,7 @@ pub struct AppSettingsModel {
     pub ff3_url: String,
     pub ff3_token: String,
     pub default_creation_tag: Option<String>,
+    pub enable_origin_trace: bool,
     pub updated_at: NaiveDateTime,
 }
 
@@ -22,6 +23,7 @@ impl From<AppSettingsModel> for AppSettings {
             ff3_url: m.ff3_url,
             ff3_token: m.ff3_token,
             default_creation_tag: m.default_creation_tag,
+            enable_origin_trace: m.enable_origin_trace,
             updated_at: m.updated_at,
         }
     }
@@ -34,6 +36,7 @@ pub struct NewAppSettingsModel {
     pub ff3_url: String,
     pub ff3_token: String,
     pub default_creation_tag: Option<String>,
+    pub enable_origin_trace: bool,
 }
 
 impl From<NewAppSettings> for NewAppSettingsModel {
@@ -43,6 +46,7 @@ impl From<NewAppSettings> for NewAppSettingsModel {
             ff3_url: d.ff3_url,
             ff3_token: d.ff3_token,
             default_creation_tag: d.default_creation_tag,
+            enable_origin_trace: d.enable_origin_trace,
         }
     }
 }

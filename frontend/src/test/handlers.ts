@@ -43,6 +43,7 @@ export const fixtures = {
     ff3_url: 'http://localhost:8080',
     has_token: true,
     default_creation_tag: 'ffm-import',
+    enable_origin_trace: true,
   },
   tags: ['ffm-import', 'vacation'],
   categories: ['Groceries'],
