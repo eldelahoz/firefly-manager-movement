@@ -59,15 +59,21 @@ test('language select switches to Spanish', async () => {
   expect(screen.getByRole('heading', { name: 'Ajustes' })).toBeInTheDocument();
 });
 
-test('renders connection section with URL, token, default tag dropdown listing FF3 tags', async () => {
+test('renders connection card with URL and token inputs', async () => {
   renderSettings();
   expect(await screen.findByText('Firefly III connection')).toBeInTheDocument();
   expect(await screen.findByLabelText('Firefly III URL')).toHaveValue('http://localhost:8080');
   // token never echoed: input starts empty
   expect(screen.getByLabelText('API token')).toHaveValue('');
+});
+
+test('renders creation defaults card with default tag dropdown and origin trace switch', async () => {
+  renderSettings();
+  expect(await screen.findByText('Creation defaults')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('combobox', { name: 'Default creation tag' }));
   expect(await screen.findByRole('option', { name: 'ffm-import' })).toBeInTheDocument();
   expect(screen.getByRole('option', { name: 'No default tag' })).toBeInTheDocument();
+  expect(screen.getByText('Include origin trace in notes')).toBeInTheDocument();
 });
 
 test('saving persists url + default tag and shows success', async () => {
@@ -87,7 +93,8 @@ test('saving persists url + default tag and shows success', async () => {
   // change tag to "none"
   await userEvent.click(screen.getByRole('combobox', { name: 'Default creation tag' }));
   await userEvent.click(await screen.findByRole('option', { name: 'No default tag' }));
-  await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+  const saveButtons = screen.getAllByRole('button', { name: 'Save' });
+  await userEvent.click(saveButtons[0]);
   await screen.findByText('Settings saved');
   expect(putBody).toMatchObject({
     ff3_url: 'http://localhost:8080',

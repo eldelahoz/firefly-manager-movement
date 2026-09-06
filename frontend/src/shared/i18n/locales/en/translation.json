@@ -18,9 +18,12 @@
     "connectionOk": "Connection OK (Firefly III {{version}})",
     "save": "Save",
     "saved": "Settings saved",
+    "creationDefaults": "Creation defaults",
     "defaultTag": "Default creation tag",
     "defaultTagNone": "No default tag",
-    "defaultTagHint": "Pre-filled on transaction creation; your selection replaces it"
+    "defaultTagHint": "Pre-filled on transaction creation; your selection replaces it",
+    "enableOriginTrace": "Include origin trace in notes",
+    "enableOriginTraceHint": "Adds source file + batch reference to created transactions"
   },
   "common": {
     "retry": "Retry",

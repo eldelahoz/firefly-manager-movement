@@ -18,9 +18,12 @@
     "connectionOk": "Connexion OK (Firefly III {{version}})",
     "save": "Enregistrer",
     "saved": "Paramètres enregistrés",
+    "creationDefaults": "Valeurs par défaut pour la création",
     "defaultTag": "Tag de création par défaut",
     "defaultTagNone": "Pas de tag par défaut",
-    "defaultTagHint": "Pré-rempli lors de la création de transaction ; votre sélection le remplace"
+    "defaultTagHint": "Pré-rempli lors de la création de transaction ; votre sélection le remplace",
+    "enableOriginTrace": "Inclure la traçabilité d'origine dans les notes",
+    "enableOriginTraceHint": "Ajoute la référence du fichier source + lot aux transactions créées"
   },
   "common": {
     "retry": "Réessayer",
