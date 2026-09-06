@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `d734652` · TRD `d734652` · audited 2026-09-03 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `2d7604a` · TRD `2d7604a` · audited 2026-09-03 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
@@ -217,7 +217,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-11  Created transactions carry origin trace (tag/note: file + batch)
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `2d7604a`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -333,7 +333,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-19  App settings: configure FF3 connection (URL + token), verify connectivity, save; replaces env vars
 
-**Status:** implemented · **Last verified:** 2026-09-04 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-04 · **Spec @** `2d7604a`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
