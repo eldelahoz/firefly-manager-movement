@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useRerun } from '@/app/reconcileContext';
+import { useImportWizard } from '@/app/importWizardContext';
 import { getAccounts, getImports, deleteImport } from '@/shared/api/endpoints';
 import type { BatchSummary } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
@@ -17,7 +18,6 @@ import { Pill, StatusPill } from '@/shared/ui/StatusPill';
 import { Table, Td, Tr } from '@/shared/ui/Table';
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from '@/shared/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { ImportWizard } from './wizard/ImportWizard';
 
 const STATUSES = ['parsed', 'reconciled', 'applied'] as const;
 
@@ -25,12 +25,11 @@ export function ImportsPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const openRerun = useRerun();
+  const openWizard = useImportWizard();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<(typeof STATUSES)[number] | 'all'>('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [resumeBatchId, setResumeBatchId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<BatchSummary | null>(null);
   const del = useMutation({
     mutationFn: () => deleteImport(deleteTarget!.id),
@@ -60,10 +59,10 @@ export function ImportsPage() {
         >
           <RefreshCw className={isFetching ? 'size-4 animate-spin' : 'size-4'} />
         </Button>
-        <Button onClick={() => setWizardOpen(true)}>{t('common.newImport')}</Button>
+        <Button onClick={() => openWizard()}>{t('common.newImport')}</Button>
       </>
     ),
-    [refetch, isFetching, setWizardOpen, t],
+    [refetch, isFetching, openWizard, t],
   );
   usePageHeader({ title: t('imports.title'), actions: headerActions });
   const rows = useMemo(
@@ -174,10 +173,7 @@ export function ImportsPage() {
                       size="icon-sm"
                       aria-label={t('imports.resume')}
                       title={t('imports.resume')}
-                      onClick={() => {
-                        setResumeBatchId(b.id);
-                        setWizardOpen(true);
-                      }}
+                      onClick={() => openWizard(b.id)}
                     >
                       <Play className="size-4" />
                     </Button>
@@ -255,16 +251,6 @@ export function ImportsPage() {
           </div>
         </DialogContent>
       </Dialog>
-      {wizardOpen && (
-        <ImportWizard
-          open
-          onClose={() => {
-            setResumeBatchId(null);
-            setWizardOpen(false);
-          }}
-          resumeBatchId={resumeBatchId}
-        />
-      )}
     </div>
   );
 }
