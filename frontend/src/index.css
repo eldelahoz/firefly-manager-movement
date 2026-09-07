@@ -60,3 +60,25 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+@keyframes progress-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@layer utilities {
+  .animate-progress {
+    animation: progress-shimmer 1.5s ease-in-out infinite;
+    background: linear-gradient(
+      90deg,
+      var(--accent-soft) 0%,
+      var(--accent) 50%,
+      var(--accent-soft) 100%
+    );
+    background-size: 200% 100%;
+  }
+}

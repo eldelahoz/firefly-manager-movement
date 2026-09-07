@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Ff3Account } from '@/shared/api/dto';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { Loader2 } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { WizardFooter } from './WizardShell';
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -103,19 +103,19 @@ export function UploadStep({
           aria-live="polite"
           aria-busy="true"
         >
-          <div className="flex flex-col items-center gap-4 p-6 rounded-xl bg-surface border border-border-subtle shadow-xl animate-in zoom-in-95 fade-in duration-200">
-            <Loader2 className="size-8 text-accent animate-spin" aria-hidden="true" />
+          <div className="flex flex-col items-center gap-4 p-8 rounded-xl bg-surface border border-border-subtle shadow-xl animate-in zoom-in-95 fade-in duration-200">
+            <RefreshCw className="size-10 text-accent animate-spin" aria-hidden="true" />
             <p className="text-base font-semibold text-text-1 text-center">
               {t('wizard.uploading')}
             </p>
             <div
-              className="h-2 w-64 overflow-hidden rounded bg-border-subtle"
+              className="h-2 w-64 overflow-hidden rounded-full bg-border-subtle"
               role="progressbar"
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={50}
             >
-              <div className="h-full bg-accent animate-pulse" style={{ width: '50%' }} />
+              <div className="h-full w-full animate-progress rounded-full" />
             </div>
           </div>
         </div>
