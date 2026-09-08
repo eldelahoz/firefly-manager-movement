@@ -2,6 +2,7 @@ import { useEffect, useReducer } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { LoaderCircle } from 'lucide-react';
 import {
   getAccounts,
   getImport,
@@ -212,16 +213,18 @@ export function ImportWizard({
         )}
         {state.step === 'preview' && !state.probe && (
           <div
-            className="flex flex-1 flex-col items-center justify-center gap-3"
+            className="flex flex-1 flex-col items-center justify-center gap-5"
+            role="status"
             aria-live="polite"
+            aria-busy="true"
           >
-            <p className="text-sm font-semibold">{state.file?.name}</p>
-            <div className="h-2 w-full max-w-md overflow-hidden rounded bg-border-subtle">
-              <div className="h-full w-1/3 animate-pulse rounded bg-accent" />
+            <LoaderCircle className="size-12 text-accent animate-spin" aria-hidden="true" />
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-sm font-semibold">{state.file?.name}</p>
+              <p className="text-xs text-text-2">
+                {t('wizard.parsingFile', { filename: state.file?.name ?? '' })}
+              </p>
             </div>
-            <p className="text-xs text-text-2">
-              {t('wizard.parsingFile', { filename: state.file?.name ?? '' })}
-            </p>
           </div>
         )}
         {state.step === 'preview' && state.probe && (
