@@ -38,6 +38,7 @@ export type WizardAction =
   | { type: 'BACK_FROM_MAPPING' }
   | { type: 'BACK_FROM_RECONCILE' }
   | { type: 'BACK_FROM_PREVIEW' }
+  | { type: 'REMOVE_FILE' }
   | { type: 'RECONCILE_START' }
   | { type: 'RECONCILE_SUCCESS'; batchId: number }
   | { type: 'RECONCILE_ERROR'; message: string }
@@ -73,6 +74,10 @@ export function wizardReducer(s: WizardState, a: WizardAction): WizardState {
     case 'BACK_FROM_MAPPING':
       return { ...s, step: 'preview', error: null };
     case 'BACK_FROM_PREVIEW':
+      // In resume mode (has finalBatchId), don't go back to upload
+      if (s.finalBatchId != null) {
+        return { ...s, step: 'reconcile-config', error: null };
+      }
       return {
         ...s,
         step: 'upload',
@@ -82,6 +87,8 @@ export function wizardReducer(s: WizardState, a: WizardAction): WizardState {
         error: null,
         originNotice: null,
       };
+    case 'REMOVE_FILE':
+      return { ...s, file: null, probe: null, error: null, originNotice: null };
     case 'BACK_FROM_RECONCILE':
       return { ...s, step: s.file ? 'mapping' : 'preview', error: null };
     case 'RESUME_INIT':

@@ -1,7 +1,8 @@
-import { useEffect, useReducer } from 'react';
+import { useCallback, useEffect, useReducer } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { LoaderCircle } from 'lucide-react';
 import {
   getAccounts,
   getImport,
@@ -52,6 +53,8 @@ export function ImportWizard({
   );
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const removeFile = useCallback(() => dispatch({ type: 'REMOVE_FILE' }), []);
+
   const accounts = useQuery({
     queryKey: queryKeys.accounts,
     queryFn: getAccounts,
@@ -205,6 +208,8 @@ export function ImportWizard({
               dispatch({ type: 'UPLOAD_START', file });
               upload.mutate({ file, currency: state.currency });
             }}
+            file={state.file}
+            onRemoveFile={removeFile}
             uploading={upload.isPending}
             onCancel={onClose}
             error={state.error}
@@ -212,16 +217,18 @@ export function ImportWizard({
         )}
         {state.step === 'preview' && !state.probe && (
           <div
-            className="flex flex-1 flex-col items-center justify-center gap-3"
+            className="flex flex-1 flex-col items-center justify-center gap-5"
+            role="status"
             aria-live="polite"
+            aria-busy="true"
           >
-            <p className="text-sm font-semibold">{state.file?.name}</p>
-            <div className="h-2 w-full max-w-md overflow-hidden rounded bg-border-subtle">
-              <div className="h-full w-1/3 animate-pulse rounded bg-accent" />
+            <LoaderCircle className="size-12 text-accent animate-spin" aria-hidden="true" />
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-sm font-semibold">{state.file?.name}</p>
+              <p className="text-xs text-text-2">
+                {t('wizard.parsingFile', { filename: state.file?.name ?? '' })}
+              </p>
             </div>
-            <p className="text-xs text-text-2">
-              {t('wizard.parsingFile', { filename: state.file?.name ?? '' })}
-            </p>
           </div>
         )}
         {state.step === 'preview' && state.probe && (
@@ -234,41 +241,58 @@ export function ImportWizard({
             onClose={onClose}
           />
         )}
-        {state.step === 'mapping' && state.probe && state.file && (
+        {state.step === 'mapping' && state.probe && (
           <MappingStep
             probe={state.probe}
             onMapped={async (columns) => {
               const probeId = state.probe?.batch_id;
               if (probeId == null) return;
-              try {
-                await deleteImport(probeId);
-              } catch (e) {
-                dispatch({ type: 'UPLOAD_ERROR', message: (e as { message: string }).message });
-                return;
-              }
-              upload.mutate(
-                { file: state.file!, currency: state.currency, columns },
-                {
-                  onSuccess: (res) => {
-                    const notice = computeNotice(res as UploadResponse, accounts.data);
-                    if (notice?.kind === 'auto') {
-                      const acct = accounts.data?.find((a) => a.name === notice.accountName);
-                      if (acct)
-                        dispatch({
-                          type: 'SET_ACCOUNT',
-                          accountId: String(acct.id),
-                          currency: acct.currency,
-                        });
-                    }
-                    dispatch({
-                      type: 'MAPPING_SUCCESS',
-                      probe: res as UploadResponse,
-                      originNotice: notice,
-                    });
-                    void qc.invalidateQueries({ queryKey: queryKeys.imports });
+              if (state.file) {
+                // Normal flow: delete probe and re-upload file with mapping
+                try {
+                  await deleteImport(probeId);
+                } catch (e) {
+                  dispatch({ type: 'UPLOAD_ERROR', message: (e as { message: string }).message });
+                  return;
+                }
+                upload.mutate(
+                  { file: state.file, currency: state.currency, columns },
+                  {
+                    onSuccess: (res) => {
+                      const notice = computeNotice(res as UploadResponse, accounts.data);
+                      if (notice?.kind === 'auto') {
+                        const acct = accounts.data?.find((a) => a.name === notice.accountName);
+                        if (acct)
+                          dispatch({
+                            type: 'SET_ACCOUNT',
+                            accountId: String(acct.id),
+                            currency: acct.currency,
+                          });
+                      }
+                      dispatch({
+                        type: 'MAPPING_SUCCESS',
+                        probe: res as UploadResponse,
+                        originNotice: notice,
+                      });
+                      void qc.invalidateQueries({ queryKey: queryKeys.imports });
+                    },
                   },
-                },
-              );
+                );
+              } else {
+                // Resume mode: mapping already saved via putMapping, construct fresh probe
+                const batchId = state.finalBatchId ?? state.probe!.batch_id;
+                const freshProbe: UploadResponse = {
+                  ...state.probe!,
+                  batch_id: batchId,
+                  mapping_used: columns,
+                };
+                dispatch({
+                  type: 'MAPPING_SUCCESS',
+                  probe: freshProbe,
+                  originNotice: state.originNotice,
+                });
+                void qc.invalidateQueries({ queryKey: queryKeys.imports });
+              }
             }}
             onBack={() => dispatch({ type: 'BACK_FROM_MAPPING' })}
             onCancel={onClose}
@@ -287,13 +311,7 @@ export function ImportWizard({
               onClose();
               navigate(`/results/${batchId}`);
             }}
-            onBack={
-              state.probe
-                ? () => dispatch({ type: 'BACK_FROM_RECONCILE' })
-                : state.finalBatchId
-                  ? onClose
-                  : undefined
-            }
+            onBack={state.probe ? () => dispatch({ type: 'BACK_FROM_RECONCILE' }) : undefined}
             onCancel={onClose}
           />
         )}
