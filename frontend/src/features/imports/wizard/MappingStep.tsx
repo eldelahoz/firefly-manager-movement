@@ -20,7 +20,7 @@ export function MappingStep({
   onCancel,
 }: {
   probe: UploadResponse;
-  onMapped: (columns: MappingColumns) => void;
+  onMapped: (columns: MappingColumns, response?: { mapping_id: number }) => void;
   onBack: () => void;
   onCancel: () => void;
 }) {
@@ -109,7 +109,7 @@ export function MappingStep({
         onBack={onBack}
         backLabel={t('common.back')}
         primaryLabel={t('common.next')}
-        onPrimary={() => put.mutate(undefined, { onSuccess: () => onMapped(cols) })}
+        onPrimary={() => put.mutate(undefined, { onSuccess: (res) => onMapped(cols, res) })}
         primaryDisabled={!complete || put.isPending}
       />
     </div>

@@ -146,7 +146,9 @@
     "resumeAccountHint": "Account selected during import (cannot be changed)",
     "originColumn": "Origin account (optional)",
     "originAutoSelected": "Account auto-selected from the origin column: {{account}}",
-    "originWarning": "Origin column values: {{values}}. Pick the account manually."
+    "originWarning": "Origin column values: {{values}}. Pick the account manually.",
+    "changeFile": "Change file",
+    "removeFile": "Remove"
   },
   "results": {
     "title": "Results",

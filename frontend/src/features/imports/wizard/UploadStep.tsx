@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Ff3Account } from '@/shared/api/dto';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
@@ -12,6 +12,8 @@ export function UploadStep({
   accountId,
   onAccount,
   onFile,
+  file,
+  onRemoveFile,
   uploading,
   onCancel,
   error,
@@ -20,6 +22,8 @@ export function UploadStep({
   accountId: string;
   onAccount: (id: string, currency: string) => void;
   onFile: (f: File) => void;
+  file?: File | null;
+  onRemoveFile?: () => void;
   uploading: boolean;
   onCancel: () => void;
   error: string | null;
@@ -30,6 +34,13 @@ export function UploadStep({
   const [dragging, setDragging] = useState(false);
   const currency = accounts?.find((a) => a.id === Number(accountId))?.currency;
   const ready = !!accountId;
+
+  // Reset file input when file is removed so the same file can be re-selected
+  useEffect(() => {
+    if (!file && inputRef.current) {
+      inputRef.current.value = '';
+    }
+  }, [file]);
 
   function handle(f: File | undefined) {
     if (!f || !ready) return;
@@ -73,9 +84,6 @@ export function UploadStep({
         {currency && (
           <p className="mt-1 text-xs text-text-3">{t('wizard.accountCurrency', { currency })}</p>
         )}
-        {!ready && !error && !tooLarge && (
-          <p className="mt-2 text-xs text-text-3">{t('wizard.helperSelectAccount')}</p>
-        )}
       </div>
 
       {error && (
@@ -111,6 +119,38 @@ export function UploadStep({
               </p>
               <p className="text-sm text-text-3 text-center">{t('wizard.uploadingFile')}</p>
             </div>
+          </div>
+        </div>
+      ) : ready && file && !error ? (
+        // File already selected and no error: show file name with change/remove options
+        <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-border-subtle bg-surface p-6 animate-in slide-in-from-bottom-4 fade-in duration-300 ease-out">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl" aria-hidden="true">
+              📄
+            </span>
+            <span className="text-sm font-medium text-text-1">{file.name}</span>
+          </div>
+          <p className="text-xs text-text-3">{(file.size / 1024).toFixed(1)} KB</p>
+          <div className="flex gap-2 mt-2">
+            <button
+              type="button"
+              onClick={pick}
+              className="px-3 py-1.5 text-xs font-medium text-accent bg-accent-soft/60 rounded-md hover:bg-accent-soft transition-colors"
+            >
+              {t('wizard.changeFile')}
+            </button>
+            {onRemoveFile && (
+              <button
+                type="button"
+                onClick={() => {
+                  onRemoveFile();
+                  setTooLarge(false);
+                }}
+                className="px-3 py-1.5 text-xs font-medium text-destructive bg-destructive/10 rounded-md hover:bg-destructive/20 transition-colors"
+              >
+                {t('wizard.removeFile')}
+              </button>
+            )}
           </div>
         </div>
       ) : (

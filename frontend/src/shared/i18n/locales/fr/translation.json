@@ -146,7 +146,9 @@
     "resumeAccountHint": "Compte sélectionné lors de l'importation (ne peut pas être modifié)",
     "originColumn": "Compte d'origine (facultatif)",
     "originAutoSelected": "Compte sélectionné automatiquement depuis la colonne d'origine : {{account}}",
-    "originWarning": "Valeurs de la colonne d'origine : {{values}}. Sélectionnez le compte manuellement."
+    "originWarning": "Valeurs de la colonne d'origine : {{values}}. Sélectionnez le compte manuellement.",
+    "changeFile": "Changer le fichier",
+    "removeFile": "Retirer"
   },
   "results": {
     "title": "Résultats",

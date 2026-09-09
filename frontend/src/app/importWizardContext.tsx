@@ -9,9 +9,11 @@ export const useImportWizard = () => useContext(ImportWizardContext);
 export function ImportWizardProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [resumeBatchId, setResumeBatchId] = useState<number | null>(null);
+  const [wizardKey, setWizardKey] = useState(0);
 
   const openWizard = useCallback((batchId?: number | null) => {
     setResumeBatchId(batchId ?? null);
+    setWizardKey((k) => k + 1);
     setOpen(true);
   }, []);
 
@@ -23,7 +25,12 @@ export function ImportWizardProvider({ children }: { children: React.ReactNode }
   return (
     <ImportWizardContext.Provider value={openWizard}>
       {children}
-      <ImportWizard open={open} onClose={closeWizard} resumeBatchId={resumeBatchId} />
+      <ImportWizard
+        key={wizardKey}
+        open={open}
+        onClose={closeWizard}
+        resumeBatchId={resumeBatchId}
+      />
     </ImportWizardContext.Provider>
   );
 }
