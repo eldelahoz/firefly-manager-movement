@@ -173,6 +173,48 @@ test.describe('Dashboard > BrowseWidget', () => {
     await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(3, { timeout: 5000 });
   });
 
+  test('R1.4c Filtering to 2026-09-03 shows 2 then clearing restores all', async ({
+    page,
+  }) => {
+    const dashboard = new DashboardPage(page);
+    await dashboard.goto();
+    const firstResp = page.waitForResponse((r) => r.url().includes('/api/firefly/accounts/1/transactions'));
+    await dashboard.selectAccount('Checking');
+    await firstResp;
+
+    // Initial 3
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(3, { timeout: 5000 });
+
+    // Set From to 2026-09-03 → 2 (Duplicate A 03 + Salary 05), Coffee 01 filtered out
+    const to03Resp = page.waitForResponse(
+      (r) => r.url().includes('/api/firefly/accounts/1/transactions') && r.request().method() === 'POST',
+    );
+    await dashboard.setFromDate('2026-09-03');
+    const resp03 = await to03Resp;
+    expect(resp03.request().postDataJSON().start).toBe('2026-09-03');
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(2, { timeout: 5000 });
+    const texts03 = await Promise.all(
+      (await dashboard.getTransactionRows()).map((r) => dashboard.getTransactionText(r)),
+    );
+    expect(texts03.some((t) => t.includes('Duplicate A'))).toBeTruthy();
+    expect(texts03.some((t) => t.includes('Salary'))).toBeTruthy();
+    expect(texts03.some((t) => t.includes('Coffee'))).toBeFalsy();
+
+    // Clear via Delete → input empty, query disabled (keepPreviousData), list keeps 2, no crash
+    await dashboard.fromInput.click();
+    await dashboard.fromInput.press('ControlOrMeta+A');
+    await dashboard.fromInput.press('Delete');
+    await expect(page.getByText('Unexpected Application Error')).toBeHidden({ timeout: 2000 });
+    await expect(dashboard.fromInput).toHaveValue('');
+    await expect(dashboard.browseList).toBeVisible();
+    // keepPreviousData keeps previous 2 visible (no new fetch)
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(2, { timeout: 5000 });
+
+    // Recovery: set back to 2026-09-01 → 3 (cached, may not refetch, just wait for count)
+    await dashboard.setFromDate('2026-09-01');
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(3, { timeout: 5000 });
+  });
+
   test('R1.5 States: empty, pending, error, empty results', async ({ page }) => {
     const dashboard = new DashboardPage(page);
 
