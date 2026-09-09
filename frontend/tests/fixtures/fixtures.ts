@@ -1,0 +1,150 @@
+export const fixtures = {
+  accounts: [
+    {
+      id: 1,
+      name: 'Checking',
+      type: 'asset',
+      currency: 'EUR',
+      iban: 'DE44 5001 0517 5407 3249 31',
+      account_number: null,
+    },
+    {
+      id: 2,
+      name: 'Savings USD',
+      type: 'asset',
+      currency: 'USD',
+      iban: null,
+      account_number: null,
+    },
+  ],
+  expenseAccounts: [
+    {
+      id: 51,
+      name: 'Supermarket',
+      type: 'expense',
+      currency: 'EUR',
+      iban: null,
+      account_number: null,
+    },
+  ],
+  revenueAccounts: [
+    {
+      id: 61,
+      name: 'Employer',
+      type: 'revenue',
+      currency: 'EUR',
+      iban: null,
+      account_number: null,
+    },
+  ],
+  settings: {
+    ff3_url: 'http://localhost:8080',
+    has_token: true,
+    default_creation_tag: 'ffm-import',
+    enable_origin_trace: true,
+  },
+  tags: ['ffm-import', 'vacation'],
+  categories: ['Groceries'],
+  budgets: ['Daily'],
+  imports: [
+    {
+      id: 1,
+      filename: 'bank.csv',
+      file_hash: 'h1',
+      format: 'csv',
+      currency: 'EUR',
+      status: 'reconciled',
+      created_at: '2026-08-20T10:00:00Z',
+      account_id: null,
+      account_name: null,
+      movements_count: 2,
+    },
+  ],
+  results: {
+    reconciliation_id: 1,
+    matched: [
+      {
+        movement: {
+          id: 11,
+          line_no: 2,
+          date: '2026-08-01',
+          amount_cents: -4200,
+          description: 'Coffee',
+          status: 'matched',
+        },
+        ff3: {
+          id: 7,
+          ff3_id: 42,
+          date: '2026-08-01',
+          amount_cents: -4200,
+          description: 'Coffee',
+          is_duplicate: false,
+          created_at: '2026-08-01T00:00:00Z',
+        },
+      },
+    ],
+    missing: [
+      {
+        id: 12,
+        line_no: 3,
+        date: '2026-08-02',
+        amount_cents: -9900,
+        description: 'Book',
+        status: 'missing',
+      },
+      {
+        id: 13,
+        line_no: 4,
+        date: '2026-08-05',
+        amount_cents: 250000,
+        description: 'Salary',
+        status: 'missing',
+      },
+    ],
+    ignored: [
+      {
+        id: 13,
+        line_no: 4,
+        date: '2026-08-02',
+        amount_cents: 1500,
+        description: 'Internal transfer',
+        status: 'ignored',
+      },
+    ],
+    extra: [
+      {
+        id: 8,
+        ff3_id: 43,
+        date: '2026-08-03',
+        amount_cents: -1500,
+        description: 'Duplicate A',
+        is_duplicate: true,
+        created_at: '2026-08-03T00:00:00Z',
+      },
+    ],
+  },
+  txs: [
+    {
+      id: 42,
+      date: '2026-09-01',
+      amount_cents: -4200,
+      description: 'Coffee',
+      status: 'matched',
+    },
+    {
+      id: 43,
+      date: '2026-09-03',
+      amount_cents: -1500,
+      description: 'Duplicate A',
+      status: 'duplicate',
+    },
+    {
+      id: 44,
+      date: '2026-09-05',
+      amount_cents: 250000,
+      description: 'Salary',
+      status: null,
+    },
+  ],
+};
+
