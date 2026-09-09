@@ -1,3 +1,12 @@
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+.playwright/
+test-results/
+playwright-report/
+blob-report/
+
 .env
 
 # Obsidian vault over docs/ - everything under docs/.obsidian/ is ignored
