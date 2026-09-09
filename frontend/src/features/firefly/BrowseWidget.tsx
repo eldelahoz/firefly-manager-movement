@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { Ff3TxDTO } from '@/shared/api/dto';
 import { getAccounts, postAccountTransactions } from '@/shared/api/endpoints';
-import { addDays, formatDate, toIsoDate } from '@/shared/lib/dates';
+import { addDays, formatDate, isValidIsoDate, toIsoDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { Button } from '@/shared/ui/button';
@@ -30,8 +30,11 @@ export function BrowseWidget() {
   const txs = useQuery({
     queryKey: queryKeys.accountTxs(accountId, start, end),
     queryFn: () => postAccountTransactions(accountId, start, end),
-    enabled: !!accountId,
+    enabled: !!accountId && isValidIsoDate(start) && isValidIsoDate(end),
+    placeholderData: keepPreviousData,
   });
+  const fromMax = isValidIsoDate(end) ? addDays(end, -1) : undefined;
+  const toMin = isValidIsoDate(start) ? addDays(start, 1) : undefined;
   const currency = useMemo(
     () => accounts.data?.find((a) => a.id === Number(accountId))?.currency ?? 'EUR',
     [accounts.data, accountId],
@@ -62,7 +65,7 @@ export function BrowseWidget() {
             <Input
               type="date"
               value={start}
-              max={addDays(end, -1)}
+              max={fromMax}
               onChange={(e) => setStart(e.target.value)}
               className="w-full"
             />
@@ -72,7 +75,7 @@ export function BrowseWidget() {
             <Input
               type="date"
               value={end}
-              min={addDays(start, 1)}
+              min={toMin}
               onChange={(e) => setEnd(e.target.value)}
               className="w-full"
             />
@@ -88,7 +91,7 @@ export function BrowseWidget() {
           <p role="alert" className="py-4 text-center text-status-extra-txt">
             {t('health.degraded')}
           </p>
-        ) : txs.data.length === 0 ? (
+        ) : !txs.data || txs.data.length === 0 ? (
           <p className="py-8 text-center text-text-3">{t('dashboard.browseEmpty')}</p>
         ) : (
           <ul className="divide-y divide-border-subtle">

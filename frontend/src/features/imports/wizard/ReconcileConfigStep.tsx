@@ -53,7 +53,10 @@ export function ReconcileConfigStep({
   const computedRange = useMemo(() => {
     if (!detail.data || detail.data.movements.length === 0) return null;
     const dates = detail.data.movements.map((m) => m.date).sort();
-    return { start: addDays(dates[0], -7), end: addDays(dates[dates.length - 1], 7) };
+    const start = addDays(dates[0], -7);
+    const end = addDays(dates[dates.length - 1], 7);
+    if (!start || !end) return null;
+    return { start, end };
   }, [detail.data]);
   const currency = detail.data?.batch.currency ?? '';
   const range = rangeOverride ?? computedRange;
