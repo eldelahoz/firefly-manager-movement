@@ -267,18 +267,31 @@ impl FireflyClient for ReqwestFireflyClient {
     ) -> Result<Vec<Ff3TransactionDto>, ApplicationError> {
         let mut all = Vec::new();
         let mut page: u32 = 1;
-        // FF3 requires both start and end when one is present (422 otherwise).
-        // For open ranges, supply a sensible default: start=1970-01-01, end=today.
-        let start_val = start.unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 1).unwrap());
+        // FF3 requires both start and end when one is present (422 otherwise) and
+        // start must be > 1970-01-02 (FF3 error in Spanish otherwise). For open ranges,
+        // supply a sensible default: start=1970-01-03, end=today.
+        let start_val = start.unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 3).unwrap());
         let end_val = end.unwrap_or_else(|| chrono::Utc::now().date_naive());
         let start_str = start_val.format("%Y-%m-%d");
         let end_str = end_val.format("%Y-%m-%d");
         loop {
-            let resp: TransactionsResponse = self
-                .get_json(&format!(
+            let resp: TransactionsResponse = match self
+                .get_json::<TransactionsResponse>(&format!(
                     "/api/v1/accounts/{account_ff3_id}/transactions?start={start_str}&end={end_str}&page={page}"
                 ))
-                .await?;
+                .await
+            {
+                Ok(r) => r,
+                Err(ApplicationError::FireflyClient(msg)) if msg.contains("El campo") => {
+                    // FF3 validation errors come in Spanish (locale-dependent).
+                    // Return an English message that the frontend can i18n.
+                    return Err(ApplicationError::FireflyClient(
+                        "FF3 validation error: start date must be after 1970-01-02 and end date is required when start is present"
+                            .into(),
+                    ));
+                }
+                Err(e) => return Err(e),
+            };
             let total_pages = resp.meta.pagination.total_pages;
             for group in resp.data {
                 if let Some(split) = group.attributes.transactions.first() {
