@@ -200,15 +200,15 @@ test.describe('Dashboard > BrowseWidget', () => {
     expect(texts03.some((t) => t.includes('Salary'))).toBeTruthy();
     expect(texts03.some((t) => t.includes('Coffee'))).toBeFalsy();
 
-    // Clear via Delete → input empty, query disabled (keepPreviousData), list keeps 2, no crash
+    // Clear via Delete → input empty, open range (start=None, end=2026-09-09) → 3, no crash
     await dashboard.fromInput.click();
     await dashboard.fromInput.press('ControlOrMeta+A');
     await dashboard.fromInput.press('Delete');
     await expect(page.getByText('Unexpected Application Error')).toBeHidden({ timeout: 2000 });
     await expect(dashboard.fromInput).toHaveValue('');
     await expect(dashboard.browseList).toBeVisible();
-    // keepPreviousData keeps previous 2 visible (no new fetch)
-    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(2, { timeout: 5000 });
+    // With From empty and To=2026-09-09, open start → all 3 until 09
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(3, { timeout: 5000 });
 
     // Recovery: set back to 2026-09-01 → 3 (cached, may not refetch, just wait for count)
     await dashboard.setFromDate('2026-09-01');
