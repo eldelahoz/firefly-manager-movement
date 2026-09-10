@@ -42,8 +42,8 @@ impl FireflyClient for Arc<dyn FireflyClient> {
     async fn account_transactions(
         &self,
         account_ff3_id: i64,
-        start: NaiveDate,
-        end: NaiveDate,
+        start: Option<NaiveDate>,
+        end: Option<NaiveDate>,
     ) -> Result<Vec<Ff3TransactionDto>, ApplicationError> {
         self.as_ref()
             .account_transactions(account_ff3_id, start, end)

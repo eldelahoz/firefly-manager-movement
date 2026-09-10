@@ -183,7 +183,10 @@ async fn account_transactions_single_page() {
     let client = make_client(&server);
     let start = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
     let end = NaiveDate::from_ymd_opt(2026, 1, 31).unwrap();
-    let txs = client.account_transactions(1, start, end).await.unwrap();
+    let txs = client
+        .account_transactions(1, Some(start), Some(end))
+        .await
+        .unwrap();
 
     assert_eq!(txs.len(), 1);
     assert_eq!(txs[0].ff3_id, 42);
@@ -256,7 +259,10 @@ async fn account_transactions_paginates() {
     let client = make_client(&server);
     let start = NaiveDate::from_ymd_opt(2026, 2, 1).unwrap();
     let end = NaiveDate::from_ymd_opt(2026, 2, 28).unwrap();
-    let txs = client.account_transactions(5, start, end).await.unwrap();
+    let txs = client
+        .account_transactions(5, Some(start), Some(end))
+        .await
+        .unwrap();
 
     assert_eq!(txs.len(), 3);
     assert_eq!(txs[0].description, "salary");
@@ -308,7 +314,10 @@ async fn account_transactions_transfer_sign_follows_queried_account() {
     let client = make_client(&server);
     let start = NaiveDate::from_ymd_opt(2026, 3, 1).unwrap();
     let end = NaiveDate::from_ymd_opt(2026, 3, 31).unwrap();
-    let txs = client.account_transactions(5, start, end).await.unwrap();
+    let txs = client
+        .account_transactions(5, Some(start), Some(end))
+        .await
+        .unwrap();
 
     assert_eq!(txs.len(), 2);
     assert_eq!(txs[0].ff3_id, 21);
@@ -342,7 +351,7 @@ async fn account_transactions_amount_parse_error() {
     let start = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
     let end = NaiveDate::from_ymd_opt(2026, 1, 31).unwrap();
     let err = client
-        .account_transactions(1, start, end)
+        .account_transactions(1, Some(start), Some(end))
         .await
         .unwrap_err();
     match &err {

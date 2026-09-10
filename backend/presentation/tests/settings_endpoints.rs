@@ -57,8 +57,8 @@ impl FireflyClient for FakeVerifyClient {
     async fn account_transactions(
         &self,
         _id: i64,
-        _start: chrono::NaiveDate,
-        _end: chrono::NaiveDate,
+        _start: Option<chrono::NaiveDate>,
+        _end: Option<chrono::NaiveDate>,
     ) -> Result<Vec<Ff3TransactionDto>, ApplicationError> {
         Ok(vec![])
     }

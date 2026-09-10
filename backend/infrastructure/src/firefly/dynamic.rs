@@ -62,8 +62,8 @@ impl FireflyClient for DynamicFireflyClient {
     async fn account_transactions(
         &self,
         account_ff3_id: i64,
-        start: NaiveDate,
-        end: NaiveDate,
+        start: Option<NaiveDate>,
+        end: Option<NaiveDate>,
     ) -> Result<Vec<Ff3TransactionDto>, ApplicationError> {
         self.current()
             .account_transactions(account_ff3_id, start, end)

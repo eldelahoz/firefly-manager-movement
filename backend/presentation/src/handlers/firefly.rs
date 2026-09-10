@@ -20,12 +20,27 @@ use ffm_application::use_cases::list_firefly_accounts::ListFireflyAccounts;
 
 // ── Request / Response DTOs ─────────────────────────────────────────────
 
+fn deserialize_opt_date<'de, D>(deserializer: D) -> Result<Option<NaiveDate>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt = Option::<String>::deserialize(deserializer)?;
+    match opt.as_deref() {
+        None | Some("") => Ok(None),
+        Some(s) => NaiveDate::parse_from_str(s, "%Y-%m-%d")
+            .map(Some)
+            .map_err(serde::de::Error::custom),
+    }
+}
+
 #[derive(Deserialize, ToSchema)]
 pub struct PeriodRequest {
     #[schema(example = "2026-01-01")]
-    pub start: NaiveDate,
+    #[serde(default, deserialize_with = "deserialize_opt_date")]
+    pub start: Option<NaiveDate>,
     #[schema(example = "2026-01-31")]
-    pub end: NaiveDate,
+    #[serde(default, deserialize_with = "deserialize_opt_date")]
+    pub end: Option<NaiveDate>,
 }
 
 #[derive(Serialize, ToSchema)]

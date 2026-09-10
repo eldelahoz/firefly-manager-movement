@@ -262,17 +262,17 @@ impl FireflyClient for ReqwestFireflyClient {
     async fn account_transactions(
         &self,
         account_ff3_id: i64,
-        start: NaiveDate,
-        end: NaiveDate,
+        start: Option<NaiveDate>,
+        end: Option<NaiveDate>,
     ) -> Result<Vec<Ff3TransactionDto>, ApplicationError> {
         let mut all = Vec::new();
         let mut page: u32 = 1;
-        let start_str = start.format("%Y-%m-%d");
-        let end_str = end.format("%Y-%m-%d");
+        let start_q = start.map(|d| format!("&start={}", d.format("%Y-%m-%d"))).unwrap_or_default();
+        let end_q = end.map(|d| format!("&end={}", d.format("%Y-%m-%d"))).unwrap_or_default();
         loop {
             let resp: TransactionsResponse = self
                 .get_json(&format!(
-                    "/api/v1/accounts/{account_ff3_id}/transactions?start={start_str}&end={end_str}&page={page}"
+                    "/api/v1/accounts/{account_ff3_id}/transactions?page={page}{start_q}{end_q}"
                 ))
                 .await?;
             let total_pages = resp.meta.pagination.total_pages;
