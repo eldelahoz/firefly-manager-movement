@@ -267,12 +267,16 @@ impl FireflyClient for ReqwestFireflyClient {
     ) -> Result<Vec<Ff3TransactionDto>, ApplicationError> {
         let mut all = Vec::new();
         let mut page: u32 = 1;
-        let start_q = start.map(|d| format!("&start={}", d.format("%Y-%m-%d"))).unwrap_or_default();
-        let end_q = end.map(|d| format!("&end={}", d.format("%Y-%m-%d"))).unwrap_or_default();
+        // FF3 requires both start and end when one is present (422 otherwise).
+        // For open ranges, supply a sensible default: start=1970-01-01, end=today.
+        let start_val = start.unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 1).unwrap());
+        let end_val = end.unwrap_or_else(|| chrono::Utc::now().date_naive());
+        let start_str = start_val.format("%Y-%m-%d");
+        let end_str = end_val.format("%Y-%m-%d");
         loop {
             let resp: TransactionsResponse = self
                 .get_json(&format!(
-                    "/api/v1/accounts/{account_ff3_id}/transactions?page={page}{start_q}{end_q}"
+                    "/api/v1/accounts/{account_ff3_id}/transactions?start={start_str}&end={end_str}&page={page}"
                 ))
                 .await?;
             let total_pages = resp.meta.pagination.total_pages;
