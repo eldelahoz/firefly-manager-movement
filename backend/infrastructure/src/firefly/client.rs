@@ -283,8 +283,6 @@ impl FireflyClient for ReqwestFireflyClient {
             {
                 Ok(r) => r,
                 Err(ApplicationError::FireflyClient(msg)) if msg.contains("El campo") => {
-                    // FF3 validation errors come in Spanish (locale-dependent).
-                    // Return an English message that the frontend can i18n.
                     return Err(ApplicationError::FireflyClient(
                         "FF3 validation error: start date must be after 1970-01-02 and end date is required when start is present"
                             .into(),

@@ -44,11 +44,6 @@ impl<C: FireflyClient, T: Ff3TransactionRepository + ?Sized, M: MatchRepository 
                 ));
             }
         }
-        if start.is_none() && end.is_none() {
-            return Err(ApplicationError::InvalidState(
-                "at least one of start or end must be provided".into(),
-            ));
-        }
         let txs = self
             .client
             .account_transactions(account_ff3_id, start, end)

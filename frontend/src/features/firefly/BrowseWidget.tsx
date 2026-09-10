@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { LoaderCircle } from 'lucide-react';
 import type { Ff3TxDTO } from '@/shared/api/dto';
 import { getAccounts, postAccountTransactions } from '@/shared/api/endpoints';
 import { addDays, formatDate, isValidIsoDate, toIsoDate } from '@/shared/lib/dates';
@@ -29,11 +30,10 @@ export function BrowseWidget() {
     staleTime: 300_000,
   });
   const isValidOrEmpty = (s: string) => s === '' || isValidIsoDate(s);
-  const hasAtLeastOneBound = isValidIsoDate(start) || isValidIsoDate(end);
   const txs = useQuery({
     queryKey: queryKeys.accountTxs(accountId, start, end),
     queryFn: () => postAccountTransactions(accountId, start || undefined, end || undefined),
-    enabled: !!accountId && isValidOrEmpty(start) && isValidOrEmpty(end) && hasAtLeastOneBound,
+    enabled: !!accountId && isValidOrEmpty(start) && isValidOrEmpty(end),
     placeholderData: keepPreviousData,
   });
   const fromMax = isValidIsoDate(end) ? addDays(end, -1) : undefined;
@@ -95,68 +95,96 @@ export function BrowseWidget() {
             {t('health.degraded')}
           </p>
         ) : !txs.data || txs.data.length === 0 ? (
-          <p className="py-8 text-center text-text-3">{t('dashboard.browseEmpty')}</p>
-        ) : txs.data.length > 50 ? (
-          <VirtualList
-            count={txs.data.length}
-            role="list"
-            itemRole="listitem"
-            estimateSize={() => 48}
-            renderItem={(index) => {
-              const tx = txs.data![index];
-              return (
-                <div className="flex items-center gap-3 py-2.5 border-b border-border-subtle">
-                  <span className="w-20 shrink-0 text-xs text-text-3">
-                    {formatDate(tx.date, i18n.language)}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-sm">{tx.description}</span>
-                  <MoneyText cents={tx.amount_cents} currency={currency} signed colored />
-                  <span className="w-24 shrink-0">
-                    {tx.status && <StatusPill status={tx.status} />}
-                  </span>
-                  <span className="flex w-24 shrink-0 justify-end">
-                    {tx.status === 'duplicate' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-status-extra-txt hover:bg-status-extra-bg hover:text-status-extra-txt"
-                        onClick={() => setPendingDelete(tx)}
-                      >
-                        {t('dashboard.deleteDuplicate')}
-                      </Button>
-                    )}
-                  </span>
-                </div>
-              );
-            }}
-          />
+          <>
+            {txs.isFetching && (
+              <div
+                className="flex items-center justify-center gap-2 py-2"
+                role="status"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                <LoaderCircle className="size-4 animate-spin text-accent" aria-hidden="true" />
+                <span className="text-xs text-text-3">Loading...</span>
+              </div>
+            )}
+            <p className="py-8 text-center text-text-3">{t('dashboard.browseEmpty')}</p>
+          </>
         ) : (
-          <ul className="divide-y divide-border-subtle">
-            {txs.data.map((tx) => (
-              <li key={tx.id} className="flex items-center gap-3 py-2.5">
-                <span className="w-20 shrink-0 text-xs text-text-3">
-                  {formatDate(tx.date, i18n.language)}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-sm">{tx.description}</span>
-                <MoneyText cents={tx.amount_cents} currency={currency} signed colored />
-                <span className="w-24 shrink-0">
-                  {tx.status && <StatusPill status={tx.status} />}
-                </span>
-                <span className="flex w-24 shrink-0 justify-end">
-                  {tx.status === 'duplicate' && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-status-extra-txt hover:bg-status-extra-bg hover:text-status-extra-txt"
-                      onClick={() => setPendingDelete(tx)}
-                    >
-                      {t('dashboard.deleteDuplicate')}
-                    </Button>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <>
+            {txs.isFetching && (
+              <div
+                className="flex items-center justify-center gap-2 py-1"
+                role="status"
+                aria-live="polite"
+                aria-busy="true"
+              >
+                <LoaderCircle className="size-4 animate-spin text-accent" aria-hidden="true" />
+                <span className="text-xs text-text-3">Loading...</span>
+              </div>
+            )}
+            {txs.data.length > 50 ? (
+              <VirtualList
+                count={txs.data.length}
+                role="list"
+                itemRole="listitem"
+                estimateSize={() => 48}
+                renderItem={(index) => {
+                  const tx = txs.data![index];
+                  return (
+                    <div className="flex items-center gap-3 py-2.5 border-b border-border-subtle">
+                      <span className="w-20 shrink-0 text-xs text-text-3">
+                        {formatDate(tx.date, i18n.language)}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm">{tx.description}</span>
+                      <MoneyText cents={tx.amount_cents} currency={currency} signed colored />
+                      <span className="w-24 shrink-0">
+                        {tx.status && <StatusPill status={tx.status} />}
+                      </span>
+                      <span className="flex w-24 shrink-0 justify-end">
+                        {tx.status === 'duplicate' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-status-extra-txt hover:bg-status-extra-bg hover:text-status-extra-txt"
+                            onClick={() => setPendingDelete(tx)}
+                          >
+                            {t('dashboard.deleteDuplicate')}
+                          </Button>
+                        )}
+                      </span>
+                    </div>
+                  );
+                }}
+              />
+            ) : (
+              <ul className="divide-y divide-border-subtle">
+                {txs.data.map((tx) => (
+                  <li key={tx.id} className="flex items-center gap-3 py-2.5">
+                    <span className="w-20 shrink-0 text-xs text-text-3">
+                      {formatDate(tx.date, i18n.language)}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm">{tx.description}</span>
+                    <MoneyText cents={tx.amount_cents} currency={currency} signed colored />
+                    <span className="w-24 shrink-0">
+                      {tx.status && <StatusPill status={tx.status} />}
+                    </span>
+                    <span className="flex w-24 shrink-0 justify-end">
+                      {tx.status === 'duplicate' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-status-extra-txt hover:bg-status-extra-bg hover:text-status-extra-txt"
+                          onClick={() => setPendingDelete(tx)}
+                        >
+                          {t('dashboard.deleteDuplicate')}
+                        </Button>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </div>
       <DeleteDuplicateDialog

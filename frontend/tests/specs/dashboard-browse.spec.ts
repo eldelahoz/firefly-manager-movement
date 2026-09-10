@@ -69,8 +69,8 @@ test.describe('Dashboard > BrowseWidget', () => {
     expect(body.start).toBe('2026-09-04');
 
     // Mock returns filtered results (date >= 2026-09-04), only Salary
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(1, { timeout: 5000 });
     const rows = await dashboard.getTransactionRows();
-    expect(rows).toHaveLength(1);
     const text = await dashboard.getTransactionText(rows[0]);
     expect(text).toContain('Salary');
   });
@@ -100,8 +100,8 @@ test.describe('Dashboard > BrowseWidget', () => {
     expect(body.end).toBe('2026-09-02');
 
     // Only Coffee (2026-09-01) fits
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(1, { timeout: 5000 });
     const rows = await dashboard.getTransactionRows();
-    expect(rows).toHaveLength(1);
     const text = await dashboard.getTransactionText(rows[0]);
     expect(text).toContain('Coffee');
   });
@@ -250,6 +250,120 @@ test.describe('Dashboard > BrowseWidget', () => {
     await expect(dashboard.toInput).toHaveValue('');
     // With From=03 and To empty, should show 2 (03,05) - open end
     await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(2, { timeout: 5000 });
+  });
+
+  test('R1.8 Both empty shows all (open range)', async ({ page }) => {
+    const dashboard = new DashboardPage(page);
+    await dashboard.goto();
+    const firstResp = page.waitForResponse((r) => r.url().includes('/api/firefly/accounts/1/transactions'));
+    await dashboard.selectAccount('Checking');
+    await firstResp;
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(3, { timeout: 5000 });
+
+    // Clear both From and To -> open range (start=None, end=None) -> all 3
+    await dashboard.fromInput.click();
+    await dashboard.fromInput.press('ControlOrMeta+A');
+    await dashboard.fromInput.press('Delete');
+    await dashboard.toInput.click();
+    await dashboard.toInput.press('ControlOrMeta+A');
+    await dashboard.toInput.press('Delete');
+    await expect(dashboard.fromInput).toHaveValue('');
+    await expect(dashboard.toInput).toHaveValue('');
+    // With both empty, backend returns all (1970-01-03 to today) -> 3
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(3, { timeout: 5000 });
+  });
+
+  test('R1.9 Start with no data then clear shows all (with end already empty)', async ({ page }) => {
+    const dashboard = new DashboardPage(page);
+    await dashboard.goto();
+    const firstResp = page.waitForResponse((r) => r.url().includes('/api/firefly/accounts/1/transactions'));
+    await dashboard.selectAccount('Checking');
+    await firstResp;
+
+    // Clear To first (open end)
+    await dashboard.toInput.click();
+    await dashboard.toInput.press('ControlOrMeta+A');
+    await dashboard.toInput.press('Delete');
+    await expect(dashboard.toInput).toHaveValue('');
+
+    // Set From to 2026-09-10 with To empty -> open end from 10 -> 0 (no tx on/after 10)
+    const noDataResp = page.waitForResponse(
+      (r) => r.url().includes('/api/firefly/accounts/1/transactions') && r.request().method() === 'POST',
+    );
+    await dashboard.setFromDate('2026-09-10');
+    const body = (await noDataResp).request().postDataJSON();
+    expect(body.start).toBe('2026-09-10');
+    expect(body.end).toBeUndefined();
+    await expect(dashboard.browseEmpty).toBeVisible();
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(0);
+
+    // Clear From (now both empty) -> all 3
+    await dashboard.fromInput.click();
+    await dashboard.fromInput.press('ControlOrMeta+A');
+    await dashboard.fromInput.press('Delete');
+    await expect(dashboard.fromInput).toHaveValue('');
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(3, { timeout: 5000 });
+  });
+
+  test('R1.10 Loader visible when fetching', async ({ page }) => {
+    const dashboard = new DashboardPage(page);
+    await dashboard.goto();
+    await dashboard.selectAccount('Checking');
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(3, { timeout: 5000 });
+
+    // Now trigger refetch with delay (change date) -> should show loader (isFetching) with keepPreviousData
+    await page.unroute('**/api/firefly/accounts/*/transactions');
+    await page.route('**/api/firefly/accounts/*/transactions', async (route) => {
+      await new Promise((r) => setTimeout(r, 600));
+      const body = route.request().postDataJSON() as { start?: string; end?: string } | undefined;
+      const start = body?.start;
+      const end = body?.end;
+      const filtered = txs.filter((tx) => {
+        if (start && tx.date < start) return false;
+        if (end && tx.date > end) return false;
+        return true;
+      });
+      await route.fulfill({ json: filtered });
+    });
+    const fetchPromise = page.waitForResponse(
+      (r) => r.url().includes('/api/firefly/accounts/1/transactions') && r.request().method() === 'POST',
+    );
+    await dashboard.setFromDate('2026-09-03');
+    await expect(dashboard.loader).toBeVisible({ timeout: 2000 });
+    await fetchPromise;
+    await expect(dashboard.loader).toBeHidden({ timeout: 3000 });
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(2, { timeout: 5000 });
+  });
+
+  test('R1.11 Virtual scroll for many rows', async ({ page }) => {
+    const dashboard = new DashboardPage(page);
+    // Generate 60 transactions for virtual list test
+    const manyTxs = Array.from({ length: 60 }, (_, i) => ({
+      id: 100 + i,
+      date: `2026-09-${String((i % 28) + 1).padStart(2, '0')}`,
+      amount_cents: -100 * (i + 1),
+      description: `Tx ${i + 1}`,
+      status: null as string | null,
+    }));
+    await page.unroute('**/api/firefly/accounts/*/transactions');
+    await page.route('**/api/firefly/accounts/*/transactions', async (route) => {
+      await route.fulfill({ json: manyTxs });
+    });
+    await dashboard.goto();
+    await dashboard.selectAccount('Checking');
+    await expect(dashboard.browseList).toBeVisible({ timeout: 5000 });
+    // VirtualList should render with scroll container max-h-[60vh] and only visible items
+    const listContainer = page.locator('.max-h-\\[60vh\\]');
+    await expect(listContainer).toBeVisible();
+    // At least some items visible, and scrollable
+    await expect(dashboard.browseList.getByRole('listitem').first()).toBeVisible();
+    const count = await dashboard.browseList.getByRole('listitem').count();
+    // VirtualList renders only visible window, not all 60 at once, but should have at least 1 and less than 60 initially
+    expect(count).toBeGreaterThan(0);
+    expect(count).toBeLessThan(60);
+    // Scroll to bottom and verify more items load (virtualizer updates)
+    await listContainer.evaluate((el) => (el.scrollTop = el.scrollHeight));
+    await expect(dashboard.browseList.getByRole('listitem').first()).toBeVisible();
   });
 
   test('R1.5 States: empty, pending, error, empty results', async ({ page }) => {

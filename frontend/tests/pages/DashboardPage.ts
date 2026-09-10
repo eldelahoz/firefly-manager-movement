@@ -10,6 +10,7 @@ export class DashboardPage {
   readonly browseSelectAccount: Locator;
   readonly statusAlert: Locator;
   readonly skeleton: Locator;
+  readonly loader: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -23,6 +24,7 @@ export class DashboardPage {
     this.browseSelectAccount = page.getByText('Select an account').last();
     this.statusAlert = page.getByRole('alert');
     this.skeleton = page.locator('[aria-busy="true"]');
+    this.loader = page.getByRole('status').filter({ hasText: 'Loading' });
   }
 
   async goto() {
