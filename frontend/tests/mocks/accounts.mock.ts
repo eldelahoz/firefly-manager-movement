@@ -10,12 +10,16 @@ interface AccountsMockOptions {
   accountsError?: boolean;
 }
 
-/** Filter transactions by date range (start ≤ date ≤ end). */
+/** Filter transactions by date range (open-ended: undefined = no bound). */
 export function filterByDate(
-  start: string,
-  end: string,
+  start?: string,
+  end?: string,
 ): typeof txs {
-  return txs.filter((tx) => tx.date >= start && tx.date <= end);
+  return txs.filter((tx) => {
+    if (start && tx.date < start) return false;
+    if (end && tx.date > end) return false;
+    return true;
+  });
 }
 
 function parsePostBody(request: Request): { start?: string; end?: string } {
@@ -61,7 +65,7 @@ export async function mockAccountTxs(
     }
     if (filtered) {
       const { start, end } = parsePostBody(route.request());
-      if (start && end) {
+      if (start || end) {
         await route.fulfill({ json: filterByDate(start, end) });
         return;
       }

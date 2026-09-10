@@ -215,6 +215,43 @@ test.describe('Dashboard > BrowseWidget', () => {
     await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(3, { timeout: 5000 });
   });
 
+  test('R1.7 Open range: From empty + To shows all until To', async ({ page }) => {
+    const dashboard = new DashboardPage(page);
+    await dashboard.goto();
+    const firstResp = page.waitForResponse((r) => r.url().includes('/api/firefly/accounts/1/transactions'));
+    await dashboard.selectAccount('Checking');
+    await firstResp;
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(3, { timeout: 5000 });
+
+    // Clear From (open start) and set To to 2026-09-03 → 2 (Coffee 01 + Duplicate 03)
+    await dashboard.fromInput.click();
+    await dashboard.fromInput.press('ControlOrMeta+A');
+    await dashboard.fromInput.press('Delete');
+    await expect(dashboard.fromInput).toHaveValue('');
+    const to03Resp = page.waitForResponse(
+      (r) => r.url().includes('/api/firefly/accounts/1/transactions') && r.request().method() === 'POST',
+    );
+    await dashboard.setToDate('2026-09-03');
+    const resp = await to03Resp;
+    const body = resp.request().postDataJSON();
+    expect(body.start).toBeUndefined();
+    expect(body.end).toBe('2026-09-03');
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(2, { timeout: 5000 });
+    const texts = await Promise.all((await dashboard.getTransactionRows()).map((r) => dashboard.getTransactionText(r)));
+    expect(texts.some((t) => t.includes('Coffee'))).toBeTruthy();
+    expect(texts.some((t) => t.includes('Duplicate A'))).toBeTruthy();
+    expect(texts.some((t) => t.includes('Salary'))).toBeFalsy();
+
+    // Open end: From 2026-09-03 + To empty → 2 (Duplicate 03 + Salary 05)
+    await dashboard.fromInput.fill('2026-09-03');
+    await dashboard.toInput.click();
+    await dashboard.toInput.press('ControlOrMeta+A');
+    await dashboard.toInput.press('Delete');
+    await expect(dashboard.toInput).toHaveValue('');
+    // With From=03 and To empty, should show 2 (03,05) - open end
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(2, { timeout: 5000 });
+  });
+
   test('R1.5 States: empty, pending, error, empty results', async ({ page }) => {
     const dashboard = new DashboardPage(page);
 

@@ -6,12 +6,16 @@ export function VirtualList({
   renderItem,
   estimateSize = () => 56,
   header,
+  role = 'presentation',
+  itemRole = 'presentation',
 }: {
   count: number;
   renderItem: (index: number) => React.ReactNode;
   estimateSize?: (index: number) => number;
   /** Rendered as a sticky row inside the scroll container so columns share the rows' width exactly. */
   header?: React.ReactNode;
+  role?: string;
+  itemRole?: string;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
@@ -20,7 +24,7 @@ export function VirtualList({
     estimateSize,
   });
   return (
-    <div ref={parentRef} role="presentation" className="max-h-[60vh] overflow-y-auto">
+    <div ref={parentRef} role={role} className="max-h-[60vh] overflow-y-auto">
       {header && (
         <div role="presentation" className="sticky top-0 z-10 bg-surface">
           {header}
@@ -30,7 +34,7 @@ export function VirtualList({
         {virtualizer.getVirtualItems().map((v) => (
           <div
             key={v.key}
-            role="presentation"
+            role={itemRole}
             ref={virtualizer.measureElement}
             data-index={v.index}
             style={{

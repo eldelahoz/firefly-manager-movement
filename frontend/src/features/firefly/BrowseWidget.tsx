@@ -12,6 +12,7 @@ import { StatusPill } from '@/shared/ui/StatusPill';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { DeleteDuplicateDialog } from './DeleteDuplicateDialog';
+import { VirtualList } from '@/features/results/VirtualList';
 
 export function BrowseWidget() {
   const { t, i18n } = useTranslation();
@@ -27,10 +28,12 @@ export function BrowseWidget() {
     queryFn: getAccounts,
     staleTime: 300_000,
   });
+  const isValidOrEmpty = (s: string) => s === '' || isValidIsoDate(s);
+  const hasAtLeastOneBound = isValidIsoDate(start) || isValidIsoDate(end);
   const txs = useQuery({
     queryKey: queryKeys.accountTxs(accountId, start, end),
-    queryFn: () => postAccountTransactions(accountId, start, end),
-    enabled: !!accountId && isValidIsoDate(start) && isValidIsoDate(end),
+    queryFn: () => postAccountTransactions(accountId, start || undefined, end || undefined),
+    enabled: !!accountId && isValidOrEmpty(start) && isValidOrEmpty(end) && hasAtLeastOneBound,
     placeholderData: keepPreviousData,
   });
   const fromMax = isValidIsoDate(end) ? addDays(end, -1) : undefined;
@@ -93,6 +96,40 @@ export function BrowseWidget() {
           </p>
         ) : !txs.data || txs.data.length === 0 ? (
           <p className="py-8 text-center text-text-3">{t('dashboard.browseEmpty')}</p>
+        ) : txs.data.length > 50 ? (
+          <VirtualList
+            count={txs.data.length}
+            role="list"
+            itemRole="listitem"
+            estimateSize={() => 48}
+            renderItem={(index) => {
+              const tx = txs.data![index];
+              return (
+                <div className="flex items-center gap-3 py-2.5 border-b border-border-subtle">
+                  <span className="w-20 shrink-0 text-xs text-text-3">
+                    {formatDate(tx.date, i18n.language)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm">{tx.description}</span>
+                  <MoneyText cents={tx.amount_cents} currency={currency} signed colored />
+                  <span className="w-24 shrink-0">
+                    {tx.status && <StatusPill status={tx.status} />}
+                  </span>
+                  <span className="flex w-24 shrink-0 justify-end">
+                    {tx.status === 'duplicate' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-status-extra-txt hover:bg-status-extra-bg hover:text-status-extra-txt"
+                        onClick={() => setPendingDelete(tx)}
+                      >
+                        {t('dashboard.deleteDuplicate')}
+                      </Button>
+                    )}
+                  </span>
+                </div>
+              );
+            }}
+          />
         ) : (
           <ul className="divide-y divide-border-subtle">
             {txs.data.map((tx) => (

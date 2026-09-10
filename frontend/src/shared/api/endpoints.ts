@@ -43,8 +43,14 @@ export const deleteImport = (id: number) =>
 export const getAccounts = () => api.get<Ff3Account[]>('/api/firefly/accounts');
 export const getAccountsByType = (type: 'asset' | 'expense' | 'revenue') =>
   api.get<Ff3Account[]>(`/api/firefly/accounts?type=${type}`);
-export const postAccountTransactions = (id: string, start: string, end: string) =>
-  api.post<Ff3TxDTO[]>(`/api/firefly/accounts/${id}/transactions`, { start, end });
+export const postAccountTransactions = (id: string, start?: string, end?: string) =>
+  api.post<Ff3TxDTO[]>(
+    `/api/firefly/accounts/${id}/transactions`,
+    {
+      ...(start ? { start } : {}),
+      ...(end ? { end } : {}),
+    },
+  );
 export const deleteTransaction = (id: number) =>
   api.del<{ ff3_id: number; status: 'deleted' }>(`/api/firefly/transactions/${id}`);
 export const getSettings = () => api.get<SettingsResponse>('/api/settings');
