@@ -8,6 +8,8 @@ export class SettingsPage {
   readonly tokenKeepHint: Locator;
   readonly testConnectionButton: Locator;
   readonly saveButtons: Locator;
+  readonly saveConnectionButton: Locator;
+  readonly saveCreationButton: Locator;
   readonly appearanceHeading: Locator;
   readonly themeLightButton: Locator;
   readonly themeDarkButton: Locator;
@@ -25,6 +27,8 @@ export class SettingsPage {
     this.tokenKeepHint = page.getByText(/Leave empty to keep|Dejar vacío para conservar|Laisser vide pour conserver/);
     this.testConnectionButton = page.getByRole('button', { name: /Test connection|Probar conexión|Tester la connexion/ });
     this.saveButtons = page.getByRole('button', { name: /Save|Guardar|Sauvegarder/ });
+    this.saveConnectionButton = this.saveButtons.first();
+    this.saveCreationButton = this.saveButtons.last();
     this.appearanceHeading = page.getByRole('heading', { name: /Appearance|Apariencia|Apparence/ });
     this.themeLightButton = page.getByRole('button', { name: /Light|Claro|Clair/ });
     this.themeDarkButton = page.getByRole('button', { name: /Dark|Oscuro|Sombre/ });

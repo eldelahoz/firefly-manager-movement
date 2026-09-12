@@ -54,7 +54,7 @@ test.describe('Settings > Connection', () => {
     const putPromise = page.waitForResponse(
       (r) => r.url().includes('/api/settings') && r.request().method() === 'PUT',
     );
-    await settings.saveButtons.first().click();
+    await settings.saveConnectionButton.click();
     const putReq = await putPromise;
     expect(putReq.request().postDataJSON()).toMatchObject({ ff3_url: 'http://ff3.new' });
     await settings.expectToast('Settings saved');
@@ -68,7 +68,7 @@ test.describe('Settings > Connection', () => {
     const putPromise = page.waitForResponse(
       (r) => r.url().includes('/api/settings') && r.request().method() === 'PUT',
     );
-    await settings.saveButtons.first().click();
+    await settings.saveConnectionButton.click();
     const req = await putPromise;
     const body = req.request().postDataJSON() as Record<string, unknown>;
     expect(body.ff3_token).toBeUndefined();

@@ -23,7 +23,7 @@ test.describe('Settings > Creation defaults', () => {
     const putPromise = page.waitForResponse(
       (r) => r.url().includes('/api/settings') && r.request().method() === 'PUT',
     );
-    await settings.saveButtons.first().click();
+    await settings.saveCreationButton.click();
     const body = (await putPromise).request().postDataJSON() as Record<string, unknown>;
     expect(body.default_creation_tag).toBe('vacation');
     await settings.expectToast('Settings saved');
@@ -41,7 +41,7 @@ test.describe('Settings > Creation defaults', () => {
     const putPromise = page.waitForResponse(
       (r) => r.url().includes('/api/settings') && r.request().method() === 'PUT',
     );
-    await settings.saveButtons.first().click();
+    await settings.saveCreationButton.click();
     const body = (await putPromise).request().postDataJSON() as Record<string, unknown>;
     expect(body.default_creation_tag).toBeNull();
     await settings.expectToast('Settings saved');
@@ -55,7 +55,7 @@ test.describe('Settings > Creation defaults', () => {
     const putPromise = page.waitForResponse(
       (r) => r.url().includes('/api/settings') && r.request().method() === 'PUT',
     );
-    await settings.saveButtons.first().click();
+    await settings.saveCreationButton.click();
     const body = (await putPromise).request().postDataJSON() as Record<string, unknown>;
     expect(body.enable_origin_trace).toBe(!initial);
     await settings.expectToast('Settings saved');
