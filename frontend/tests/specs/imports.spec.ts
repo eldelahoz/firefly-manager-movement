@@ -55,7 +55,7 @@ const baseImports = [
 
 test.describe('Imports > Page', () => {
   test('I1 renders table with mixed statuses', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: baseImports as any });
+    await mockImportsPage({ imports: baseImports });
     const importsPage = new ImportsPage(page);
     await importsPage.goto();
     await expect(importsPage.table).toBeVisible();
@@ -66,7 +66,7 @@ test.describe('Imports > Page', () => {
   });
 
   test('I2 search filters by filename', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: baseImports as any });
+    await mockImportsPage({ imports: baseImports });
     const importsPage = new ImportsPage(page);
     await importsPage.goto();
     await expect(importsPage.rows).toHaveCount(4);
@@ -80,7 +80,7 @@ test.describe('Imports > Page', () => {
   });
 
   test('I3 status filter', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: baseImports as any });
+    await mockImportsPage({ imports: baseImports });
     const importsPage = new ImportsPage(page);
     await importsPage.goto();
     await importsPage.filterStatus('Parsed');
@@ -93,7 +93,7 @@ test.describe('Imports > Page', () => {
   });
 
   test('I4 date filters', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: baseImports as any });
+    await mockImportsPage({ imports: baseImports });
     const importsPage = new ImportsPage(page);
     await importsPage.goto();
     await importsPage.setFrom('2026-08-15');
@@ -110,7 +110,7 @@ test.describe('Imports > Page', () => {
   });
 
   test('I5 combined filters', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: baseImports as any });
+    await mockImportsPage({ imports: baseImports });
     const importsPage = new ImportsPage(page);
     await importsPage.goto();
     await importsPage.search('bank');
@@ -120,7 +120,7 @@ test.describe('Imports > Page', () => {
   });
 
   test('I6 resume shows for parsed>0', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: baseImports as any });
+    await mockImportsPage({ imports: baseImports });
     const importsPage = new ImportsPage(page);
     await importsPage.goto();
     await expect(importsPage.getActionButton('bank.csv', 'resume')).toBeVisible();
@@ -129,7 +129,7 @@ test.describe('Imports > Page', () => {
   });
 
   test('I7 viewResults + rerun for reconciled/applied', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: baseImports as any });
+    await mockImportsPage({ imports: baseImports });
     const importsPage = new ImportsPage(page);
     await importsPage.goto();
     await expect(importsPage.getActionButton('recon.csv', 'view')).toBeVisible();
@@ -140,7 +140,7 @@ test.describe('Imports > Page', () => {
   });
 
   test('I8 delete only for parsed', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: baseImports as any });
+    await mockImportsPage({ imports: baseImports });
     const importsPage = new ImportsPage(page);
     await importsPage.goto();
     await expect(importsPage.getActionButton('bank.csv', 'delete')).toBeVisible();
@@ -150,7 +150,7 @@ test.describe('Imports > Page', () => {
   });
 
   test('I9 delete dialog confirms and deletes', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: baseImports as any });
+    await mockImportsPage({ imports: baseImports });
     const importsPage = new ImportsPage(page);
     await importsPage.goto();
     await importsPage.getActionButton('bank.csv', 'delete').click();
@@ -166,7 +166,7 @@ test.describe('Imports > Page', () => {
   });
 
   test('I10 delete 400 for non-parsed', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: baseImports as any });
+    await mockImportsPage({ imports: baseImports });
     await page.goto('/imports');
     const status = await page.evaluate(async () => {
       const resp = await fetch('/api/imports/3', { method: 'DELETE' });
@@ -176,7 +176,7 @@ test.describe('Imports > Page', () => {
   });
 
   test('I10b delete 404 for not found', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: baseImports as any });
+    await mockImportsPage({ imports: baseImports });
     await page.goto('/imports');
     const status = await page.evaluate(async () => {
       const resp = await fetch('/api/imports/999', { method: 'DELETE' });
@@ -186,7 +186,7 @@ test.describe('Imports > Page', () => {
   });
 
   test('I11 cancel delete', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: baseImports as any });
+    await mockImportsPage({ imports: baseImports });
     const importsPage = new ImportsPage(page);
     await importsPage.goto();
     await importsPage.getActionButton('bank.csv', 'delete').click();
@@ -197,7 +197,7 @@ test.describe('Imports > Page', () => {
   });
 
   test('I12 empty state', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: [] as any });
+    await mockImportsPage({ imports: [] });
     const importsPage = new ImportsPage(page);
     await importsPage.goto();
     await expect(importsPage.emptyState).toBeVisible();
@@ -225,7 +225,7 @@ test.describe('Imports > Page', () => {
   });
 
   test('I14 header refresh', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: baseImports as any });
+    await mockImportsPage({ imports: baseImports });
     const importsPage = new ImportsPage(page);
     await importsPage.goto();
     await expect(importsPage.rows).toHaveCount(4);
@@ -238,7 +238,7 @@ test.describe('Imports > Page', () => {
         return;
       }
       if (route.request().method() === 'GET') {
-        await route.fulfill({ json: baseImports.slice(0, 1) as any });
+        await route.fulfill({ json: baseImports.slice(0, 1) });
       } else await route.fallback();
     });
     await importsPage.page.getByRole('button').filter({ has: page.locator('.lucide-refresh-cw') }).first().click();
@@ -246,7 +246,7 @@ test.describe('Imports > Page', () => {
   });
 
   test('I15 new import', async ({ page, mockImportsPage }) => {
-    await mockImportsPage({ imports: baseImports as any });
+    await mockImportsPage({ imports: baseImports });
     const importsPage = new ImportsPage(page);
     await importsPage.goto();
     await expect(importsPage.newImportButton).toBeVisible();

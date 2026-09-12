@@ -66,12 +66,6 @@ export class ImportsPage {
 
   getActionButton(filename: string, action: 'resume' | 'view' | 'rerun' | 'delete'): Locator {
     const row = this.getRowByFilename(filename);
-    const map: Record<string, string> = {
-      resume: 'Play',
-      view: 'Eye',
-      rerun: 'Repeat',
-      delete: 'Trash',
-    };
     // Use aria-label which is translated, but icons are inside buttons with title
     const labelMap: Record<string, RegExp> = {
       resume: /Resume|Reanudar/,

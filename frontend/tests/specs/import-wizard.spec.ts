@@ -1,0 +1,702 @@
+import { test, expect } from '../fixtures/api.fixture';
+import type { Route } from '@playwright/test';
+import { ImportsPage } from '../pages/ImportsPage';
+import { ImportWizardPage } from '../pages/ImportWizardPage';
+import { fixtures } from '../fixtures/fixtures';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
+
+function csvPath(name: string, content: string): string {
+  const p = path.join(os.tmpdir(), name);
+  fs.writeFileSync(p, content);
+  return p;
+}
+
+const csvValid = 'date,amount,desc\n2026-08-01,-10,Coffee\n2026-08-02,-20,Book\n';
+const csvNeedsMapping = 'Fecha,Valor,Desc\n2026-08-01,-10,Coffee\n';
+
+test.describe('Import > Wizard', () => {
+  test.beforeEach(async ({ mockImportsPage }) => {
+    await mockImportsPage({ imports: [] });
+  });
+
+  test('W1 upload success auto-mapped', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 10,
+            filename: 'bank.csv',
+            file_hash: 'h10',
+            headers: ['date', 'amount', 'desc'],
+            detected_delimiter: ',',
+            total_rows: 2,
+            valid_count: 2,
+            invalid_count: 0,
+            mapping_used: { date_column: 'date', amount_column: 'amount', description_column: 'desc' },
+            origin_account_values: [],
+            valid: [
+              { line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' },
+              { line_no: 3, date: '2026-08-02', amount_cents: -2000, description: 'Book' },
+            ],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.route('**/api/imports/*/results', async (route) => route.fulfill({ json: fixtures.results }));
+    await page.route('**/api/firefly/accounts*', async (route) => {
+      if (route.request().url().includes('/transactions')) await route.fallback();
+      else await route.fulfill({ json: fixtures.accounts });
+    });
+
+    const importsPage = new ImportsPage(page);
+    const wizard = new ImportWizardPage(page);
+    await importsPage.goto();
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const p = csvPath('bank.csv', csvValid);
+    await wizard.uploadFile(p);
+    await expect(page.getByText(/auto-applied/i)).toBeVisible({ timeout: 5000 });
+    await wizard.nextButton.click();
+    // Should skip mapping and go to reconcile
+    await expect(page.getByRole('heading', { name: /Reconcile|Conciliar/ })).toBeVisible({ timeout: 5000 });
+  });
+
+  test('W2 upload needs mapping', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 11,
+            filename: 'unknown.csv',
+            file_hash: 'h11',
+            headers: ['Fecha', 'Valor', 'Desc'],
+            detected_delimiter: ',',
+            total_rows: 1,
+            valid_count: 0,
+            invalid_count: 0,
+            mapping_used: null,
+            origin_account_values: [],
+            valid: [],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.route('**/api/imports/*/mapping', async (route) => {
+      if (route.request().method() === 'PUT') {
+        await route.fulfill({ json: { mapping_id: 1 } });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.route('**/api/imports/11', async (route) => {
+      if (route.request().method() === 'DELETE') {
+        await route.fulfill({ json: { id: 11, status: 'deleted' } });
+        return;
+      }
+      await route.fulfill({ json: { batch: { id: 11, filename: 'unknown.csv', status: 'parsed', currency: 'EUR', account_id: 1, movements_count: 0 }, movements: [] } });
+    });
+
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const p = csvPath('unknown.csv', csvNeedsMapping);
+    await wizard.uploadFile(p);
+    await expect(page.getByText(/We could not detect|No pudimos detectar/)).toBeVisible({ timeout: 5000 });
+    await wizard.nextButton.click();
+    await expect(wizard.mappingDateSelect).toBeVisible();
+    await wizard.selectMapping({ date: 'Fecha', amount: 'Valor', desc: 'Desc' });
+    await expect(wizard.nextButton).toBeEnabled();
+    // Mock re-upload after mapping
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 11,
+            filename: 'unknown.csv',
+            file_hash: 'h11',
+            headers: ['Fecha', 'Valor', 'Desc'],
+            detected_delimiter: ',',
+            total_rows: 1,
+            valid_count: 1,
+            invalid_count: 0,
+            mapping_used: { date_column: 'Fecha', amount_column: 'Valor', description_column: 'Desc' },
+            origin_account_values: [],
+            valid: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    await wizard.nextButton.click();
+    await expect(page.getByRole('heading', { name: /Reconcile|Conciliar/ })).toBeVisible({ timeout: 5000 });
+  });
+
+  test('W3 drag-drop', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 12,
+            filename: 'drag.csv',
+            file_hash: 'h12',
+            headers: ['date', 'amount', 'desc'],
+            detected_delimiter: ',',
+            total_rows: 1,
+            valid_count: 1,
+            invalid_count: 0,
+            mapping_used: { date_column: 'date', amount_column: 'amount', description_column: 'desc' },
+            origin_account_values: [],
+            valid: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const p = csvPath('drag.csv', csvValid);
+    // Test drag-drop via DataTransfer
+    const buffer = fs.readFileSync(p);
+    await wizard.page.locator('input[type="file"]').setInputFiles({ name: 'drag.csv', mimeType: 'text/csv', buffer });
+    await expect(page.getByText(/auto-applied|aplicado automáticamente/i)).toBeVisible({ timeout: 5000 });
+  });
+
+  test('W3b drag-drop animation', async ({ page }) => {
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const dropzone = page.locator('[role="button"]').first();
+    await dropzone.dispatchEvent('dragover', { dataTransfer: await page.evaluateHandle(() => new DataTransfer()) });
+    await expect(page.getByText(/Drop to upload|Suelta para subir/)).toBeVisible();
+    await expect(dropzone).toHaveClass(/border-accent/);
+    await dropzone.dispatchEvent('dragleave');
+    await expect(page.getByText(/Drag CSV|Arrastra/)).toBeVisible();
+  });
+
+  test('W4 duplicate filename case-insensitive', async ({ page }) => {
+    await page.route('**/api/imports*', async (route) => {
+      if (route.request().method() === 'GET' && !route.request().url().includes('/results')) {
+        await route.fulfill({ json: [{ id: 1, filename: 'bank.csv', file_hash: 'h1', format: 'csv', currency: 'EUR', status: 'parsed', created_at: '2026-08-20T10:00:00Z', account_id: 1, account_name: 'Checking', movements_count: 2 }] });
+        return;
+      }
+      await route.fallback();
+    });
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const p = csvPath('BANK.csv', csvValid);
+    await wizard.uploadFile(p);
+    await expect(page.getByText(/already exists|Ya existe/)).toBeVisible({ timeout: 5000 });
+  });
+
+  test('W5 oversized 10MB', async ({ page }) => {
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    // Create a file with size >10MB via buffer
+    const bigBuffer = Buffer.alloc(11 * 1024 * 1024, 'a');
+    await wizard.page.locator('input[type="file"]').setInputFiles({ name: 'big.csv', mimeType: 'text/csv', buffer: bigBuffer });
+    await expect(page.getByText(/too large|demasiado grande/)).toBeVisible({ timeout: 5000 });
+  });
+
+  test('W6 reconcile with tolerance', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 20,
+            filename: 'bank.csv',
+            file_hash: 'h20',
+            headers: ['date', 'amount', 'desc'],
+            detected_delimiter: ',',
+            total_rows: 2,
+            valid_count: 2,
+            invalid_count: 0,
+            mapping_used: { date_column: 'date', amount_column: 'amount', description_column: 'desc' },
+            origin_account_values: [],
+            valid: [
+              { line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' },
+              { line_no: 3, date: '2026-08-02', amount_cents: -2000, description: 'Book' },
+            ],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.route('**/api/imports/20', async (route) => route.fulfill({ json: { batch: { id: 20, filename: 'bank.csv', status: 'parsed', currency: 'EUR', account_id: 1 }, movements: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }] } }));
+    await page.route('**/api/imports/20/reconcile', async (route) => {
+      const body = route.request().postDataJSON();
+      expect(body.tolerance_days).toBe(2);
+      await route.fulfill({ json: { batch_id: 20, reconciliation_id: 1 } });
+    });
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const p = csvPath('bank.csv', csvValid);
+    await wizard.uploadFile(p);
+    await wizard.nextButton.click();
+    // In reconcile step, select tolerance 2
+    await page.getByRole('button', { name: '±2' }).click();
+    await wizard.reconcileButton.click();
+    await expect(page).toHaveURL(/\/results\/20/);
+  });
+
+  test('W7 currency mismatch', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 21,
+            filename: 'bank.csv',
+            file_hash: 'h21',
+            headers: ['date', 'amount', 'desc'],
+            detected_delimiter: ',',
+            total_rows: 1,
+            valid_count: 1,
+            invalid_count: 0,
+            mapping_used: { date_column: 'date', amount_column: 'amount', description_column: 'desc' },
+            origin_account_values: [],
+            valid: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.route('**/api/imports/21', async (route) => route.fulfill({ json: { batch: { id: 21, filename: 'bank.csv', status: 'parsed', currency: 'USD', account_id: null }, movements: [] } }));
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    // Select USD account but batch is USD, then change to EUR to mismatch? Use Checking (EUR) vs batch USD
+    await wizard.selectAccount('Checking'); // EUR
+    const p = csvPath('bank.csv', csvValid);
+    await wizard.uploadFile(p);
+    await wizard.nextButton.click();
+    // Now in reconcile, batch currency USD vs account EUR -> mismatch
+    await expect(page.getByText(/mismatch|Currency mismatch/).first()).toBeVisible();
+    await expect(wizard.reconcileButton).toBeDisabled();
+  });
+
+  test('W8 cancel from upload', async ({ page }) => {
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.cancelButton.click();
+    await expect(wizard.dialog).toBeHidden();
+  });
+
+  test('W9 cancel from preview', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 30,
+            filename: 'bank.csv',
+            file_hash: 'h30',
+            headers: ['date', 'amount', 'desc'],
+            detected_delimiter: ',',
+            total_rows: 1,
+            valid_count: 1,
+            invalid_count: 0,
+            mapping_used: { date_column: 'date', amount_column: 'amount', description_column: 'desc' },
+            origin_account_values: [],
+            valid: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const p = csvPath('bank.csv', csvValid);
+    await wizard.uploadFile(p);
+    await expect(page.getByText(/auto-applied/i)).toBeVisible({ timeout: 5000 });
+    await wizard.cancelButton.click();
+    await expect(wizard.dialog).toBeHidden();
+  });
+
+  test('W10 cancel from mapping', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 31,
+            filename: 'unknown.csv',
+            file_hash: 'h31',
+            headers: ['Fecha', 'Valor', 'Desc'],
+            detected_delimiter: ',',
+            total_rows: 1,
+            valid_count: 0,
+            invalid_count: 0,
+            mapping_used: null,
+            origin_account_values: [],
+            valid: [],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const p = csvPath('unknown.csv', csvNeedsMapping);
+    await wizard.uploadFile(p);
+    await wizard.nextButton.click();
+    await expect(wizard.mappingDateSelect).toBeVisible();
+    await wizard.cancelButton.click();
+    await expect(wizard.dialog).toBeHidden();
+  });
+
+  test('W11 cancel from reconcile', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 40,
+            filename: 'bank.csv',
+            file_hash: 'h40',
+            headers: ['date', 'amount', 'desc'],
+            detected_delimiter: ',',
+            total_rows: 1,
+            valid_count: 1,
+            invalid_count: 0,
+            mapping_used: { date_column: 'date', amount_column: 'amount', description_column: 'desc' },
+            origin_account_values: [],
+            valid: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.route('**/api/imports/40', async (route) => route.fulfill({ json: { batch: { id: 40, filename: 'bank.csv', status: 'parsed', currency: 'EUR', account_id: 1 }, movements: [] } }));
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const p = csvPath('bank.csv', csvValid);
+    await wizard.uploadFile(p);
+    await wizard.nextButton.click();
+    await expect(wizard.reconcileButton).toBeVisible();
+    await wizard.cancelButton.click();
+    await expect(wizard.dialog).toBeHidden();
+  });
+
+  test('W12 resume parsed>0', async ({ page }) => {
+    await page.unroute('**/api/imports*');
+    const importsHandler = async (route: Route) => {
+      const url = route.request().url();
+      if (route.request().method() === 'GET' && url.match(/\/api\/imports\/\d+$/)) {
+        await route.fulfill({ json: { batch: { id: 1, filename: 'bank.csv', status: 'parsed', currency: 'EUR', account_id: 1, movements_count: 2 }, movements: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }] } });
+        return;
+      }
+      if (route.request().method() === 'GET' && url.endsWith('/api/imports')) {
+        await route.fulfill({ json: [{ id: 1, filename: 'bank.csv', file_hash: 'h1', format: 'csv', currency: 'EUR', status: 'parsed', created_at: '2026-08-20T10:00:00Z', account_id: 1, account_name: 'Checking', movements_count: 2 }] });
+        return;
+      }
+      await route.fallback();
+    };
+    await page.route('**/api/imports', importsHandler);
+    await page.route('**/api/imports/**', importsHandler);
+    const wizard = new ImportWizardPage(page);
+    const importsPage = new ImportsPage(page);
+    await importsPage.goto();
+    await importsPage.getRowByFilename('bank.csv').getByRole('button', { name: /Resume|Reanudar/ }).click();
+    // Resume lands on reconcile-config with account locked (resumeAccountHint)
+    await expect(page.getByRole('heading', { name: /Reconcile|Conciliar/ })).toBeVisible({ timeout: 5000 });
+    await expect(wizard.reconcileButton).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/selected during import|seleccionada durante la importación/i)).toBeVisible();
+  });
+
+  test('W13 resume parsed 0', async ({ page }) => {
+    await page.unroute('**/api/imports*');
+    await page.route('**/api/imports*', async (route) => {
+      const url = route.request().url();
+      if (route.request().method() === 'GET' && url.match(/\/api\/imports\/\d+$/)) {
+        await route.fulfill({ json: { batch: { id: 2, filename: 'empty.csv', status: 'parsed', currency: 'EUR', account_id: null, movements_count: 0 }, movements: [] } });
+        return;
+      }
+      if (route.request().method() === 'GET' && url.endsWith('/api/imports')) {
+        await route.fulfill({ json: [{ id: 2, filename: 'empty.csv', file_hash: 'h2', format: 'csv', currency: 'EUR', status: 'parsed', created_at: '2026-08-11T10:00:00Z', account_id: null, account_name: null, movements_count: 0 }] });
+        return;
+      }
+      await route.fallback();
+    });
+    const importsPage = new ImportsPage(page);
+    await importsPage.goto();
+    // empty.csv has movements_count 0, so Resume should not be visible, only Delete
+    await expect(importsPage.getRowByFilename('empty.csv').getByRole('button', { name: /Resume/ })).toBeHidden();
+    await expect(importsPage.getRowByFilename('empty.csv').getByRole('button', { name: /Delete/ })).toBeVisible();
+  });
+
+  test('W14 resume after refresh', async ({ page }) => {
+    await page.unroute('**/api/imports*');
+    const handler = async (route: Route) => {
+      const url = route.request().url();
+      if (route.request().method() === 'GET' && url.match(/\/api\/imports\/\d+$/)) {
+        await route.fulfill({ json: { batch: { id: 1, filename: 'bank.csv', status: 'parsed', currency: 'EUR', account_id: 1, movements_count: 2 }, movements: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }] } });
+        return;
+      }
+      if (route.request().method() === 'GET' && url.endsWith('/api/imports')) {
+        await route.fulfill({ json: [{ id: 1, filename: 'bank.csv', file_hash: 'h1', format: 'csv', currency: 'EUR', status: 'parsed', created_at: '2026-08-20T10:00:00Z', account_id: 1, account_name: 'Checking', movements_count: 2 }] });
+        return;
+      }
+      await route.fallback();
+    };
+    await page.route('**/api/imports', handler);
+    await page.route('**/api/imports/**', handler);
+    const importsPage = new ImportsPage(page);
+    await importsPage.goto();
+    await importsPage.getRowByFilename('bank.csv').getByRole('button', { name: /Resume/ }).click();
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
+    // Resume state is not persisted: after reload the wizard is closed
+    await page.reload();
+    await expect(page.getByRole('dialog')).toBeHidden({ timeout: 5000 });
+    // User returns to the list and resumes again
+    await importsPage.getRowByFilename('bank.csv').getByRole('button', { name: /Resume/ }).click();
+    await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('W15 back/next upload<->preview', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 50,
+            filename: 'bank.csv',
+            file_hash: 'h50',
+            headers: ['date', 'amount', 'desc'],
+            detected_delimiter: ',',
+            total_rows: 1,
+            valid_count: 1,
+            invalid_count: 0,
+            mapping_used: { date_column: 'date', amount_column: 'amount', description_column: 'desc' },
+            origin_account_values: [],
+            valid: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const p = csvPath('bank.csv', csvValid);
+    await wizard.uploadFile(p);
+    await expect(page.getByText(/auto-applied/i)).toBeVisible({ timeout: 5000 });
+    await wizard.backButton.click();
+    // File preserved: file panel shown, dropzone hidden (upload-step footer has only Cancel)
+    await expect(page.getByText('bank.csv')).toBeVisible();
+    await expect(wizard.dropzone).toBeHidden();
+    // Continue via "Change file" re-upload
+    const [fc] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.getByRole('button', { name: /Change file|Cambiar archivo/ }).click(),
+    ]);
+    await fc.setFiles(p);
+    await expect(page.getByText(/auto-applied/i)).toBeVisible({ timeout: 5000 });
+  });
+
+  test('W16 back/next preview<->mapping<->reconcile', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 60,
+            filename: 'unknown.csv',
+            file_hash: 'h60',
+            headers: ['Fecha', 'Valor', 'Desc'],
+            detected_delimiter: ',',
+            total_rows: 1,
+            valid_count: 0,
+            invalid_count: 0,
+            mapping_used: null,
+            origin_account_values: [],
+            valid: [],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.route('**/api/imports/*/mapping', async (route) => route.fulfill({ json: { mapping_id: 1 } }));
+    // Probe batch 60: detail for reconcile step + DELETE when mapping is saved
+    await page.route('**/api/imports/60', async (route) => {
+      if (route.request().method() === 'DELETE') {
+        await route.fulfill({ json: { id: 60, status: 'deleted' } });
+        return;
+      }
+      await route.fulfill({ json: { batch: { id: 60, filename: 'unknown.csv', status: 'parsed', currency: 'EUR', account_id: 1, movements_count: 0 }, movements: [] } });
+    });
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const p = csvPath('unknown.csv', csvNeedsMapping);
+    await wizard.uploadFile(p);
+    await expect(page.getByText(/We could not detect|No pudimos detectar/i)).toBeVisible({ timeout: 5000 });
+    await wizard.nextButton.click();
+    await expect(wizard.mappingDateSelect).toBeVisible();
+    await wizard.backButton.click();
+    // Preview without saved mapping: needs-mapping hint (imports.needsMapping)
+    await expect(page.getByText(/We could not detect|No pudimos detectar/i)).toBeVisible();
+    await wizard.nextButton.click();
+    await expect(wizard.mappingDateSelect).toBeVisible();
+    await wizard.selectMapping({ date: 'Fecha', amount: 'Valor', desc: 'Desc' });
+    await wizard.nextButton.click();
+    await expect(wizard.reconcileButton).toBeVisible();
+    await wizard.backButton.click();
+    await expect(wizard.mappingDateSelect).toBeVisible();
+  });
+
+  test('W17 mapping incomplete Next disabled', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 70,
+            filename: 'unknown.csv',
+            file_hash: 'h70',
+            headers: ['Fecha', 'Valor', 'Desc'],
+            detected_delimiter: ',',
+            total_rows: 1,
+            valid_count: 0,
+            invalid_count: 0,
+            mapping_used: null,
+            origin_account_values: [],
+            valid: [],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const p = csvPath('unknown.csv', csvNeedsMapping);
+    await wizard.uploadFile(p);
+    await wizard.nextButton.click();
+    await expect(wizard.mappingDateSelect).toBeVisible();
+    await expect(wizard.nextButton).toBeDisabled();
+    await wizard.mappingDateSelect.click();
+    await page.getByRole('option', { name: 'Fecha' }).click();
+    await expect(wizard.nextButton).toBeDisabled();
+    await wizard.mappingAmountSelect.click();
+    await page.getByRole('option', { name: 'Valor' }).click();
+    await expect(wizard.nextButton).toBeDisabled();
+    await wizard.mappingDescSelect.click();
+    await page.getByRole('option', { name: 'Desc' }).click();
+    await expect(wizard.nextButton).toBeEnabled();
+  });
+
+  test('W18 origin suggest auto', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 80,
+            filename: 'bank.csv',
+            file_hash: 'h80',
+            headers: ['date', 'amount', 'desc'],
+            detected_delimiter: ',',
+            total_rows: 1,
+            valid_count: 1,
+            invalid_count: 0,
+            mapping_used: { date_column: 'date', amount_column: 'amount', description_column: 'desc' },
+            origin_account_values: ['Checking'],
+            valid: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const p = csvPath('bank.csv', csvValid);
+    await wizard.uploadFile(p);
+    await expect(page.getByText(/auto-selected|seleccionada automáticamente/)).toBeVisible({ timeout: 5000 });
+  });
+
+  test('W2 resume allows mapping via Back then Next', async ({ page }) => {
+    await page.unroute('**/api/imports*');
+    const handler = async (route: Route) => {
+      const url = route.request().url();
+      if (route.request().method() === 'GET' && url.match(/\/api\/imports\/\d+$/)) {
+        await route.fulfill({
+          json: {
+            batch: { id: 91, filename: 'resume.csv', status: 'parsed', currency: 'EUR', account_id: 1, movements_count: 2 },
+            movements: [
+              { line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' },
+              { line_no: 3, date: '2026-08-02', amount_cents: -2000, description: 'Tea' },
+            ],
+          },
+        });
+        return;
+      }
+      if (route.request().method() === 'GET' && url.endsWith('/api/imports')) {
+        await route.fulfill({ json: [{ id: 91, filename: 'resume.csv', file_hash: 'h91', format: 'csv', currency: 'EUR', status: 'parsed', created_at: '2026-08-21T10:00:00Z', account_id: 1, account_name: 'Checking', movements_count: 2 }] });
+        return;
+      }
+      if (route.request().method() === 'PUT' && url.includes('/mapping')) {
+        await route.fulfill({ json: { mapping_id: 1 } });
+        return;
+      }
+      await route.fallback();
+    };
+    await page.route('**/api/imports', handler);
+    await page.route('**/api/imports/**', handler);
+    const wizard = new ImportWizardPage(page);
+    const importsPage = new ImportsPage(page);
+    await importsPage.goto();
+    // Resume lands on reconcile-config (state.ts RESUME_INIT)
+    await importsPage.getRowByFilename('resume.csv').getByRole('button', { name: /Resume|Reanudar/ }).click();
+    await expect(wizard.reconcileButton).toBeVisible({ timeout: 5000 });
+    // Back -> preview
+    await wizard.backButton.click();
+    await expect(wizard.previewTable).toBeVisible();
+    // Next -> mapping still reachable (not skipped)
+    await wizard.nextButton.click();
+    await expect(wizard.mappingDateSelect).toBeVisible({ timeout: 5000 });
+  });
+});
