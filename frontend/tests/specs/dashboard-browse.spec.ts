@@ -370,20 +370,27 @@ test.describe('Dashboard > BrowseWidget', () => {
     const dashboard = new DashboardPage(page);
 
     // 1. No account selected → shows "Select an account" paragraph
-    await page.route('**/api/firefly/accounts', (route) =>
+    await page.route('**/api/firefly/accounts*', (route) =>
       route.fulfill({ json: fixtures.accounts }),
     );
-    await page.route('**/api/firefly/accounts/*/transactions', (route) =>
+    await page.route('**/api/firefly/accounts/*/transactions*', (route) =>
       route.fulfill({ json: txs }),
     );
-    await page.route('**/health', (route) => route.fulfill({ json: { status: 'ok' } }));
-    await page.route('**/api/imports', (route) => route.fulfill({ json: fixtures.imports }));
+    await page.route('**/health*', (route) => route.fulfill({ json: { status: 'ok' } }));
+    await page.route('**/api/imports*', async (route) => {
+      const url = route.request().url();
+      if (url.includes('/results')) {
+        await route.fulfill({ json: fixtures.results });
+      } else {
+        await route.fulfill({ json: fixtures.imports });
+      }
+    });
     await dashboard.goto();
     await expect(dashboard.browseSelectAccount).toBeVisible();
 
     // 2. Loading state → shows TableSkeleton with aria-busy
-    await page.unroute('**/api/firefly/accounts/*/transactions');
-    await page.route('**/api/firefly/accounts/*/transactions', async (route) => {
+    await page.unroute('**/api/firefly/accounts/*/transactions*');
+    await page.route('**/api/firefly/accounts/*/transactions*', async (route) => {
       await new Promise((r) => setTimeout(r, 500));
       await route.fulfill({ json: txs });
     });
@@ -397,8 +404,8 @@ test.describe('Dashboard > BrowseWidget', () => {
     await expect(dashboard.skeleton).toBeHidden();
 
     // 3. Error state → shows alert with degraded message
-    await page.unroute('**/api/firefly/accounts/*/transactions');
-    await page.route('**/api/firefly/accounts/*/transactions', (route) =>
+    await page.unroute('**/api/firefly/accounts/*/transactions*');
+    await page.route('**/api/firefly/accounts/*/transactions*', (route) =>
       route.fulfill({ status: 500, json: { error: 'Internal Server Error' } }),
     );
     // Navigate to fresh page to reset query state
@@ -407,8 +414,8 @@ test.describe('Dashboard > BrowseWidget', () => {
     await expect(dashboard.statusAlert).toBeVisible();
 
     // 4. Empty results → shows "No transactions in this range"
-    await page.unroute('**/api/firefly/accounts/*/transactions');
-    await page.route('**/api/firefly/accounts/*/transactions', (route) =>
+    await page.unroute('**/api/firefly/accounts/*/transactions*');
+    await page.route('**/api/firefly/accounts/*/transactions*', (route) =>
       route.fulfill({ json: [] }),
     );
     await dashboard.goto();

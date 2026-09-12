@@ -10,7 +10,7 @@ export async function mockHealth(
 ): Promise<void> {
   const { status = 'ok' } = opts;
 
-  await page.route('**/health', async (route: Route) => {
+  await page.route('**/health*', async (route: Route) => {
     await route.fulfill({ json: { status } });
   });
 }

@@ -38,6 +38,26 @@ export async function mockAccounts(
   const { accountsDelay = 0, accountsError = false } = opts;
 
   await page.route('**/api/firefly/accounts', async (route: Route) => {
+    // Don't intercept transactions endpoint (contains /transactions)
+    if (route.request().url().includes('/transactions')) {
+      await route.fallback();
+      return;
+    }
+    if (accountsDelay > 0) {
+      await new Promise((r) => setTimeout(r, accountsDelay));
+    }
+    if (accountsError) {
+      await route.fulfill({ status: 500, json: { error: 'Internal Server Error' } });
+      return;
+    }
+    await route.fulfill({ json: accounts });
+  });
+  // Also handle with query string ?type=asset etc.
+  await page.route('**/api/firefly/accounts?*', async (route: Route) => {
+    if (route.request().url().includes('/transactions')) {
+      await route.fallback();
+      return;
+    }
     if (accountsDelay > 0) {
       await new Promise((r) => setTimeout(r, accountsDelay));
     }
@@ -55,7 +75,7 @@ export async function mockAccountTxs(
 ): Promise<void> {
   const { delay = 0, error = false, filtered = true } = opts;
 
-  await page.route('**/api/firefly/accounts/*/transactions', async (route: Route) => {
+  await page.route('**/api/firefly/accounts/*/transactions*', async (route: Route) => {
     if (delay > 0) {
       await new Promise((r) => setTimeout(r, delay));
     }
