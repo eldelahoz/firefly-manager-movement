@@ -228,10 +228,13 @@ test.describe('Dashboard > BrowseWidget', () => {
     await dashboard.fromInput.press('ControlOrMeta+A');
     await dashboard.fromInput.press('Delete');
     await expect(dashboard.fromInput).toHaveValue('');
+    // Wait for the refetch after clearing From (open start, end still 2026-09-12 -> 3)
+    await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(3, { timeout: 5000 });
     const to03Resp = page.waitForResponse(
       (r) => r.url().includes('/api/firefly/accounts/1/transactions') && r.request().method() === 'POST',
     );
     await dashboard.setToDate('2026-09-03');
+    await expect(dashboard.toInput).toHaveValue('2026-09-03');
     const resp = await to03Resp;
     const body = resp.request().postDataJSON();
     expect(body.start).toBeUndefined();
