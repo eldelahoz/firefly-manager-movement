@@ -14,4 +14,9 @@ pub struct Batch {
     pub account_id: Option<Ff3AccountId>,
     pub status: BatchStatus,
     pub created_at: NaiveDateTime,
+    /// CSV header row, persisted so an unfinished import can be resumed
+    /// with its original mapping columns (RF-02, RF-18).
+    pub headers: Vec<String>,
+    /// Delimiter detected at upload time (single char as string).
+    pub detected_delimiter: String,
 }

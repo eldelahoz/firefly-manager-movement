@@ -109,6 +109,8 @@ where
                 currency: input.currency,
                 account_id: None,
                 status: BatchStatus::Parsed,
+                headers: headers.clone(),
+                detected_delimiter: delimiter.to_string(),
             })
             .await?;
 

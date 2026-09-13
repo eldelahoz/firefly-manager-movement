@@ -19,6 +19,8 @@ async fn insert_get_list_update_batch() {
             currency: "EUR".into(),
             account_id: None,
             status: BatchStatus::Parsed,
+            headers: vec!["Fecha".into(), "Valor".into(), "Desc".into()],
+            detected_delimiter: ";".into(),
         })
         .await
         .expect("insert");
@@ -29,6 +31,8 @@ async fn insert_get_list_update_batch() {
     assert_eq!(got.currency, "EUR");
     assert_eq!(got.status, BatchStatus::Parsed);
     assert!(got.account_id.is_none());
+    assert_eq!(got.headers, vec!["Fecha", "Valor", "Desc"]);
+    assert_eq!(got.detected_delimiter, ";");
 
     let list = repo.list().await.expect("list");
     assert_eq!(list.len(), 1);
@@ -56,6 +60,8 @@ async fn find_by_filename_and_delete_batch() {
             currency: "EUR".into(),
             account_id: None,
             status: BatchStatus::Parsed,
+            headers: vec![],
+            detected_delimiter: ",".into(),
         })
         .await
         .expect("insert");

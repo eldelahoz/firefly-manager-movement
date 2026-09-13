@@ -19,6 +19,8 @@ async fn insert_batch(pool: &common::DbPool) -> BatchId {
             currency: "EUR".into(),
             account_id: None,
             status: BatchStatus::Parsed,
+            headers: vec![],
+            detected_delimiter: ",".into(),
         })
         .await
         .expect("insert batch")

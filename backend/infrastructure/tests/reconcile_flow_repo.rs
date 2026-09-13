@@ -37,6 +37,8 @@ async fn reconcile_flow_ff3_transactions_matches_creations() {
             currency: "EUR".into(),
             account_id: None,
             status: BatchStatus::Parsed,
+            headers: vec![],
+            detected_delimiter: ",".into(),
         })
         .await
         .expect("insert batch");
@@ -184,6 +186,8 @@ async fn save_run_persists_whole_run_atomically() {
             currency: "EUR".into(),
             account_id: None,
             status: BatchStatus::Parsed,
+            headers: vec![],
+            detected_delimiter: ",".into(),
         })
         .await
         .expect("insert batch");
@@ -309,6 +313,8 @@ async fn latest_by_ff3_id_returns_most_recent_cached_row() {
             currency: "EUR".into(),
             account_id: None,
             status: BatchStatus::Parsed,
+            headers: vec![],
+            detected_delimiter: ",".into(),
         })
         .await
         .expect("insert batch");

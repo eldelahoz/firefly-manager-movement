@@ -8,8 +8,8 @@ diesel::table! {
         ff3_token -> Text,
         #[max_length = 255]
         default_creation_tag -> Nullable<Varchar>,
-        enable_origin_trace -> Bool,
         updated_at -> Datetime,
+        enable_origin_trace -> Bool,
     }
 }
 
@@ -28,6 +28,9 @@ diesel::table! {
         #[max_length = 20]
         status -> Varchar,
         created_at -> Datetime,
+        headers_json -> Json,
+        #[max_length = 8]
+        detected_delimiter -> Varchar,
     }
 }
 

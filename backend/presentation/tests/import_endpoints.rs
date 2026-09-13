@@ -63,6 +63,8 @@ impl BatchRepository for FakeBatchRepo {
             currency: batch.currency,
             account_id: batch.account_id,
             status: batch.status,
+            headers: batch.headers,
+            detected_delimiter: batch.detected_delimiter,
             created_at: epoch(),
         });
         Ok(batch_id)
@@ -423,6 +425,12 @@ async fn get_import_returns_batch_and_movements() {
     assert_eq!(value["movements"].as_array().unwrap().len(), 2);
     assert_eq!(value["movements"][0]["amount_cents"], 10000);
     assert_eq!(value["movements"][1]["amount_cents"], -5000);
+    // persisted headers + delimiter (resume mapping, RF-02/RF-18)
+    assert_eq!(
+        value["headers"],
+        serde_json::json!(["Date", "Amount", "Description"])
+    );
+    assert_eq!(value["detected_delimiter"], ",");
 }
 
 fn multipart(filename: &str, csv: &str) -> (String, String) {

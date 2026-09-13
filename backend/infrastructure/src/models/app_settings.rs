@@ -13,8 +13,8 @@ pub struct AppSettingsModel {
     pub ff3_url: String,
     pub ff3_token: String,
     pub default_creation_tag: Option<String>,
-    pub enable_origin_trace: bool,
     pub updated_at: NaiveDateTime,
+    pub enable_origin_trace: bool,
 }
 
 impl From<AppSettingsModel> for AppSettings {

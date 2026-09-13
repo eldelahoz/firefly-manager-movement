@@ -14,6 +14,8 @@ pub struct NewBatch {
     pub currency: String,
     pub account_id: Option<Ff3AccountId>,
     pub status: BatchStatus,
+    pub headers: Vec<String>,
+    pub detected_delimiter: String,
 }
 
 #[derive(Debug, Clone)]
