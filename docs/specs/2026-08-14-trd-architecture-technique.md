@@ -58,6 +58,8 @@ erDiagram
         bigint account_id FK
         varchar status
         datetime created_at
+        json headers_json "CSV header row, persisted at upload (resume mapping)"
+        varchar detected_delimiter
     }
     MOVEMENTS {
         bigint id PK
@@ -166,6 +168,7 @@ Notes:
 - Batch currency (`POST /api/imports`, `currency` field): since frontend v1.5, it is **derived from the FF3 account selected** in the import wizard and transmitted as-is; the backend keeps its `EUR` default if the field is absent (contract unchanged).
 - **Duplicate file names**: `POST /api/imports` refuses a file whose name already exists in an existing batch — `find_by_filename` check before insertion (RF-16, case-insensitive via MySQL collation). The wizard also pre-checks client-side against the batch list and blocks the upload with an inline error.
 - **Mapping probe flow**: when no mapping is memorized or auto-detected, the wizard performs a "probe" upload (headers only, 0 movements, batch in `parsed` status). Upon mapping confirmation, the probe is deleted (`DELETE /api/imports/{id}`) and the file is re-uploaded with the confirmed columns — no orphan batches.
+- **Persisted CSV headers** (2026-09-13): `batches.headers_json` + `batches.detected_delimiter` store the header row and delimiter detected at upload; `GET /api/imports/{id}` returns them (`headers`, `detected_delimiter`) so the mapping step lists the original columns when resuming an incomplete import (RF-02, RF-18).
 - `POST /apply` is idempotent per movement: before each creation, check the existence of a row in `creations` (`UNIQUE(movement_id)`, NFR-05); skip already-created movements.
 - `POST /apply` body (v0.8): for each selected movement, the **resolved** customization — counterparty account (optional, PRD v0.8), and optionally description, category, budget, tags, notes, attachment. Bulk-panel merging (fill-only) and default-tag pre-fill are resolved client-side; the tags sent are the user's final selection. The backend **appends the origin trace note** (`ffm:<filename>:<batchId>`, RF-11) to the notes field if `enable_origin_trace` is set in app settings (RF-19), with line breaks (`\n\n`) separating it from any user note.
 - Firefly III API errors during a batch `apply`: handled per movement, the batch continues, final report per movement (success/failure/reason).

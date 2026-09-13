@@ -22,6 +22,8 @@ async fn insert_batch_and_by_batch_movements() {
             currency: "EUR".into(),
             account_id: None,
             status: BatchStatus::Parsed,
+            headers: vec![],
+            detected_delimiter: ",".into(),
         })
         .await
         .expect("insert batch");
@@ -87,6 +89,8 @@ async fn delete_by_batch_removes_movements() {
             currency: "EUR".into(),
             account_id: None,
             status: BatchStatus::Parsed,
+            headers: vec![],
+            detected_delimiter: ",".into(),
         })
         .await
         .expect("insert batch");

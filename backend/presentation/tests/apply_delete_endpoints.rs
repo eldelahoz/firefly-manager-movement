@@ -320,6 +320,8 @@ async fn test_app(fail_amounts: Vec<i64>) -> TestApp {
             currency: "EUR".into(),
             account_id: Some(ffm_domain::ids::Ff3AccountId::new(1)),
             status: BatchStatus::Reconciled,
+            headers: vec![],
+            detected_delimiter: ",".into(),
             created_at: epoch(),
         }]),
     });

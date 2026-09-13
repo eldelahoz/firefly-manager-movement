@@ -89,6 +89,10 @@ pub struct MovementResponse {
 pub struct GetImportResponse {
     pub batch: BatchResponse,
     pub movements: Vec<MovementResponse>,
+    /// CSV header row persisted at upload — used to resume the mapping step (RF-02, RF-18).
+    pub headers: Vec<String>,
+    /// Delimiter detected at upload time.
+    pub detected_delimiter: String,
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -386,6 +390,8 @@ pub async fn get_import(
                 status: m.status.as_str().to_string(),
             })
             .collect(),
+        headers: batch.headers,
+        detected_delimiter: batch.detected_delimiter,
     }))
 }
 

@@ -498,6 +498,8 @@ fn fx(fail_amounts: Vec<i64>) -> Fx {
                 currency: "EUR".into(),
                 account_id: Some(Ff3AccountId::new(1)),
                 status: BatchStatus::Reconciled,
+                headers: vec![],
+                detected_delimiter: ",".into(),
                 created_at: epoch(),
             }],
         }),

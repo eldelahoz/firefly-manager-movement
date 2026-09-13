@@ -158,6 +158,8 @@ impl BatchRepository for FakeBatchRepo {
             currency: batch.currency,
             account_id: batch.account_id,
             status: batch.status,
+            headers: batch.headers,
+            detected_delimiter: batch.detected_delimiter,
             created_at: epoch(),
         });
         Ok(batch_id)
@@ -440,6 +442,8 @@ fn fixture_eur() -> Fixture {
         currency: "EUR".into(),
         account_id: None,
         status: BatchStatus::Parsed,
+        headers: vec![],
+        detected_delimiter: ",".into(),
         created_at: epoch(),
     }));
     let movements = Arc::new(FakeMovementRepo::new().seed(vec![

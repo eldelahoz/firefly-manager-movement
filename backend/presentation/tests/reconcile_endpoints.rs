@@ -298,6 +298,8 @@ fn test_app(transactions: Vec<Ff3TransactionDto>) -> TestApp {
             currency: "EUR".into(),
             account_id: None,
             status: BatchStatus::Parsed,
+            headers: vec![],
+            detected_delimiter: ",".into(),
             created_at: epoch(),
         }]),
     });

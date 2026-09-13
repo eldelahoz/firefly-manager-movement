@@ -48,6 +48,9 @@ export interface BatchSummary {
 export interface ImportDetail {
   batch: BatchSummary;
   movements: MovementDTO[];
+  /** CSV header row persisted at upload — feeds the mapping step on resume (RF-02, RF-18). */
+  headers: string[];
+  detected_delimiter: string;
 }
 
 export interface Ff3Account {

@@ -60,6 +60,8 @@ impl BatchRepository for FakeBatchRepo {
             currency: batch.currency,
             account_id: batch.account_id,
             status: batch.status,
+            headers: batch.headers,
+            detected_delimiter: batch.detected_delimiter,
             created_at: epoch(),
         });
         Ok(batch_id)
@@ -366,6 +368,37 @@ async fn upload_import_no_mapping_returns_headers_only() {
     // no movements inserted
     let movements = movement_repo.movements.lock().unwrap();
     assert!(movements.is_empty());
+}
+
+#[tokio::test]
+async fn upload_import_persists_headers_and_delimiter_on_batch() {
+    // semicolon-separated unknown headers: no mapping, headers-only probe
+    let csv = b"col1;col2;col3\nv1;v2;v3".to_vec();
+    let decoder = FakeCsvDecoder;
+    let batch_repo = Arc::new(FakeBatchRepo::new());
+    let movement_repo = Arc::new(FakeMovementRepo::new());
+    let mapping_repo = Arc::new(FakeCsvMappingRepo::new());
+
+    let uc = UploadImport::new(
+        decoder,
+        batch_repo.clone(),
+        movement_repo.clone(),
+        mapping_repo.clone(),
+    );
+
+    let result = uc
+        .execute(UploadImportInput {
+            filename: "persist.csv".into(),
+            bytes: csv,
+            currency: "EUR".into(),
+            mapping: None,
+        })
+        .await
+        .unwrap();
+
+    let stored = batch_repo.get(result.batch_id).await.unwrap();
+    assert_eq!(stored.headers, vec!["col1", "col2", "col3"]);
+    assert_eq!(stored.detected_delimiter, ";");
 }
 
 #[tokio::test]

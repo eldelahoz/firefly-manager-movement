@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
+use serde_json::Value as JsonValue;
 
 use ffm_application::dtos::NewBatch;
 use ffm_domain::entities::Batch;
@@ -21,6 +22,8 @@ pub struct BatchModel {
     pub account_id: Option<i64>,
     pub status: String,
     pub created_at: NaiveDateTime,
+    pub headers_json: JsonValue,
+    pub detected_delimiter: String,
 }
 
 impl From<BatchModel> for Batch {
@@ -34,6 +37,8 @@ impl From<BatchModel> for Batch {
             account_id: m.account_id.map(Ff3AccountId::new),
             status: BatchStatus::from_str(&m.status).unwrap_or(BatchStatus::Parsed),
             created_at: m.created_at,
+            headers: serde_json::from_value(m.headers_json).unwrap_or_default(),
+            detected_delimiter: m.detected_delimiter,
         }
     }
 }
@@ -47,6 +52,8 @@ pub struct NewBatchModel {
     pub currency: String,
     pub account_id: Option<i64>,
     pub status: String,
+    pub headers_json: JsonValue,
+    pub detected_delimiter: String,
 }
 
 impl From<NewBatch> for NewBatchModel {
@@ -58,6 +65,8 @@ impl From<NewBatch> for NewBatchModel {
             currency: d.currency,
             account_id: d.account_id.map(Ff3AccountId::as_i64),
             status: d.status.as_str().to_string(),
+            headers_json: serde_json::to_value(&d.headers).unwrap_or(JsonValue::Null),
+            detected_delimiter: d.detected_delimiter,
         }
     }
 }

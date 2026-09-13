@@ -56,7 +56,8 @@ export function wizardReducer(s: WizardState, a: WizardAction): WizardState {
     case 'SET_ACCOUNT':
       return { ...s, accountId: a.accountId, currency: a.currency };
     case 'UPLOAD_START':
-      return { ...s, file: a.file, step: 'preview', probe: null, error: null };
+      // Stage the file only: stay on upload; the parse runs on explicit Next (RF-01 v0.1)
+      return { ...s, file: a.file, probe: null, error: null, originNotice: null };
     case 'UPLOAD_SUCCESS':
       return { ...s, step: 'preview', probe: a.probe, originNotice: a.originNotice ?? null };
     case 'UPLOAD_ERROR':

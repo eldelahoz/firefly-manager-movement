@@ -177,6 +177,8 @@ fn fx() -> Fx {
                 currency: "EUR".into(),
                 account_id: None,
                 status: BatchStatus::Reconciled,
+                headers: vec![],
+                detected_delimiter: ",".into(),
                 created_at: epoch(),
             }]),
         },

@@ -23,7 +23,9 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-01  CSV upload (max 10 MB); XLSX → CSV by user
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-12 · **Spec @** `95378a6`
+
+> **v0.1 amendment delta (2026-09-12, explicit-Next)**: file selection/drop only stages the file (no request, wizard stays on step 1); upload+parse runs only on Next; Next disabled until a file is staged; Back from preview keeps the staged file and Next re-parses (previous probe batch deleted first); Remove and Change file delete the previous probe batch (no orphan batches). Backend upload/parse semantics unchanged.
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -33,7 +35,11 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `upload_import.rs::upload_import_rejects_duplicate_filename` | 409 Conflict before any data stored (also RF-16) |
 | **App** | `csv.rs` (multiple) | CSV parsing, delimiter detection, encoding |
 | **Infra** | `csv_decoder.rs` | Low-level CSV decode, delimiter sniffing |
-| **FE** | `pending (Playwright gap)` → `tests/specs/import-wizard.spec.ts` (gap `imports-upload-mapping-reconcile`) | 10 MB guard, drag-drop, error banner — pending, see plan 2026-09-09 |
+| **FE** | `import-wizard.spec.ts` W5 | Oversize guard: inline error, no upload request attempted |
+| **FE** | `import-wizard.spec.ts` W3, W3b | Drag-and-drop parity with the picker + dragover animation |
+| **FE** | `import-wizard.spec.ts` W4 | Duplicate filename refused at staging (case-insensitive), Next stays disabled |
+| **FE** | `import-wizard.spec.ts` W19 | Explicit-Next (v0.1): staging sends no request and stays on step 1; Next disabled without file; confirm parses exactly once |
+| **FE** | `import-wizard.spec.ts` W20 | Remove after a parse deletes the probe batch (no orphans); Remove without parse sends no request |
 
 **No XLSX tests** — by design (RF-01: user converts to CSV).
 
@@ -41,7 +47,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-02  CSV parsing with manual mapping; memorize by header signature
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-13 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -51,9 +57,13 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `upload_import.rs::upload_import_extracts_origin_account_values` | Origin-account column values parsed into movements |
 | **App** | `upload_import.rs::upload_import_empty_origin_account_values_when_no_column` | No origin column → `origin_account` is `None` |
 | **App** | `upload_import.rs::upload_import_auto_detects_spanish_headers_valor` | Known header layouts auto-detected |
+| **App** | `upload_import.rs::upload_import_persists_headers_and_delimiter_on_batch` | Headers + delimiter persisted on the batch (resume mapping source) |
 | **App** | `save_csv_mapping.rs` | `PUT /mapping` persists mapping by signature |
 | **Infra** | `csv_mapping_repo.rs` | `CsvMappingRepository` CRUD + `by_signature` |
-| **FE** | `pending (Playwright gap)` → `tests/specs/import-wizard.spec.ts` (gap `imports-upload-mapping-reconcile`) | Manual mapping, memorize by signature, origin suggest — pending |
+| **Infra** | `batch_repo.rs::insert_get_list_update_batch` | Headers/delimiter JSON roundtrip in MySQL |
+| **Pres** | `import_endpoints.rs::get_import_returns_batch_and_movements` | `GET /{id}` returns persisted `headers` + `detected_delimiter` |
+| **FE** | `import-wizard.spec.ts` W2, W16 | Manual mapping flow: probe → map → re-upload with columns |
+| **FE** | `import-wizard.spec.ts` W22 | Resume: mapping step lists the persisted CSV columns |
 
 ---
 
@@ -293,12 +303,17 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-18  Resume incomplete import: wizard reopens at first pending step (reconcile); free back/forward navigation
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-13 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `imports_listing.rs` | Batches with status `Parsed` listed as resumable |
-| **FE** | `pending (Playwright gap)` → `tests/specs/imports-resume-delete.spec.ts` (gap `imports-resume-delete`) | Resume incomplete import, back/forward — pending |
+| **Pres** | `import_endpoints.rs::get_import_returns_batch_and_movements` | Detail feeds the resume probe (batch + movements + persisted headers) |
+| **FE** | `import-wizard.spec.ts` W12 | Resume opens at reconcile-config with the import account locked |
+| **FE** | `import-wizard.spec.ts` W13 | Probe batches (0 movements) not offered for resume |
+| **FE** | `import-wizard.spec.ts` W14 | Wizard state does not persist across reload (fresh resume works) |
+| **FE** | `import-wizard.spec.ts` W2-resume | Back → preview → Next → mapping reachable on resume |
+| **FE** | `import-wizard.spec.ts` W22 | Mapping step lists the persisted CSV columns on resume |
 
 ---
 

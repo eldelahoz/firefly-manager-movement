@@ -62,12 +62,21 @@ export class ImportWizardPage {
     await this.page.getByRole('option', { name }).click();
   }
 
-  async uploadFile(path: string) {
-    // Use file chooser for hidden input
+  async selectFile(path: string) {
+    // Stage the file only (file chooser for hidden input) — does NOT confirm the upload
     const fileChooserPromise = this.page.waitForEvent('filechooser');
     await this.dropzone.click();
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(path);
+  }
+
+  async confirmUpload() {
+    await this.nextButton.click();
+  }
+
+  async uploadFile(path: string) {
+    await this.selectFile(path);
+    await this.confirmUpload();
   }
 
   async selectMapping(columns: { date: string; amount: string; desc: string; origin?: string }) {

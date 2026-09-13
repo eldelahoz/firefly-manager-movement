@@ -48,6 +48,8 @@ impl BatchRepository for FakeBatchRepo {
             currency: batch.currency,
             account_id: batch.account_id,
             status: batch.status,
+            headers: batch.headers,
+            detected_delimiter: batch.detected_delimiter,
             created_at: epoch(),
         });
         Ok(batch_id)
@@ -163,6 +165,8 @@ async fn seed_parsed_batch(
             currency: "EUR".into(),
             account_id: None,
             status: BatchStatus::Parsed,
+            headers: vec![],
+            detected_delimiter: ",".into(),
         })
         .await
         .unwrap();
