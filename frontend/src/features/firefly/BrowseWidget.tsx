@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { LoaderCircle } from 'lucide-react';
 import type { Ff3TxDTO } from '@/shared/api/dto';
 import { getAccounts, postAccountTransactions } from '@/shared/api/endpoints';
-import { addDays, formatDate, toIsoDate } from '@/shared/lib/dates';
+import { addDays, formatDate, isValidIsoDate, toIsoDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { Button } from '@/shared/ui/button';
@@ -12,6 +13,7 @@ import { StatusPill } from '@/shared/ui/StatusPill';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { DeleteDuplicateDialog } from './DeleteDuplicateDialog';
+import { VirtualList } from '@/features/results/VirtualList';
 
 export function BrowseWidget() {
   const { t, i18n } = useTranslation();
@@ -27,11 +29,15 @@ export function BrowseWidget() {
     queryFn: getAccounts,
     staleTime: 300_000,
   });
+  const isValidOrEmpty = (s: string) => s === '' || isValidIsoDate(s);
   const txs = useQuery({
     queryKey: queryKeys.accountTxs(accountId, start, end),
-    queryFn: () => postAccountTransactions(accountId, start, end),
-    enabled: !!accountId,
+    queryFn: () => postAccountTransactions(accountId, start || undefined, end || undefined),
+    enabled: !!accountId && isValidOrEmpty(start) && isValidOrEmpty(end),
+    placeholderData: keepPreviousData,
   });
+  const fromMax = isValidIsoDate(end) ? addDays(end, -1) : undefined;
+  const toMin = isValidIsoDate(start) ? addDays(start, 1) : undefined;
   const currency = useMemo(
     () => accounts.data?.find((a) => a.id === Number(accountId))?.currency ?? 'EUR',
     [accounts.data, accountId],
@@ -62,7 +68,7 @@ export function BrowseWidget() {
             <Input
               type="date"
               value={start}
-              max={addDays(end, -1)}
+              max={fromMax}
               onChange={(e) => setStart(e.target.value)}
               className="w-full"
             />
@@ -72,14 +78,25 @@ export function BrowseWidget() {
             <Input
               type="date"
               value={end}
-              min={addDays(start, 1)}
+              min={toMin}
               onChange={(e) => setEnd(e.target.value)}
               className="w-full"
             />
           </label>
         </div>
       </div>
-      <div className="mt-4">
+      <div className="relative mt-4 min-h-[120px]">
+        {txs.isFetching && !txs.isPending && (
+          <div
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-surface/80 backdrop-blur-[1px]"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+          >
+            <LoaderCircle className="size-10 animate-spin text-accent" aria-hidden="true" />
+            <span className="text-sm font-medium text-text-2">Loading...</span>
+          </div>
+        )}
         {!accountId ? (
           <p className="py-8 text-center text-text-3">{t('dashboard.browseSelectAccount')}</p>
         ) : txs.isPending ? (
@@ -88,8 +105,42 @@ export function BrowseWidget() {
           <p role="alert" className="py-4 text-center text-status-extra-txt">
             {t('health.degraded')}
           </p>
-        ) : txs.data.length === 0 ? (
+        ) : !txs.data || txs.data.length === 0 ? (
           <p className="py-8 text-center text-text-3">{t('dashboard.browseEmpty')}</p>
+        ) : txs.data.length > 50 ? (
+          <VirtualList
+            count={txs.data.length}
+            role="list"
+            itemRole="listitem"
+            estimateSize={() => 48}
+            renderItem={(index) => {
+              const tx = txs.data![index];
+              return (
+                <div className="flex items-center gap-3 py-2.5 border-b border-border-subtle">
+                  <span className="w-20 shrink-0 text-xs text-text-3">
+                    {formatDate(tx.date, i18n.language)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm">{tx.description}</span>
+                  <MoneyText cents={tx.amount_cents} currency={currency} signed colored />
+                  <span className="w-24 shrink-0">
+                    {tx.status && <StatusPill status={tx.status} />}
+                  </span>
+                  <span className="flex w-24 shrink-0 justify-end">
+                    {tx.status === 'duplicate' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-status-extra-txt hover:bg-status-extra-bg hover:text-status-extra-txt"
+                        onClick={() => setPendingDelete(tx)}
+                      >
+                        {t('dashboard.deleteDuplicate')}
+                      </Button>
+                    )}
+                  </span>
+                </div>
+              );
+            }}
+          />
         ) : (
           <ul className="divide-y divide-border-subtle">
             {txs.data.map((tx) => (

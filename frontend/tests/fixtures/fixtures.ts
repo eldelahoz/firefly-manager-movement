@@ -1,5 +1,3 @@
-import { http, HttpResponse } from 'msw';
-
 export const fixtures = {
   accounts: [
     {
@@ -128,21 +126,21 @@ export const fixtures = {
   txs: [
     {
       id: 42,
-      date: '2026-08-01',
+      date: '2026-09-01',
       amount_cents: -4200,
       description: 'Coffee',
       status: 'matched',
     },
     {
       id: 43,
-      date: '2026-08-03',
+      date: '2026-09-03',
       amount_cents: -1500,
       description: 'Duplicate A',
       status: 'duplicate',
     },
     {
       id: 44,
-      date: '2026-08-05',
+      date: '2026-09-05',
       amount_cents: 250000,
       description: 'Salary',
       status: null,
@@ -150,47 +148,3 @@ export const fixtures = {
   ],
 };
 
-function accountsForType(type?: string | null) {
-  if (!type || type === 'asset') return fixtures.accounts;
-  if (type === 'expense') return fixtures.expenseAccounts;
-  if (type === 'revenue') return fixtures.revenueAccounts;
-  return [];
-}
-
-export const handlers = [
-  http.get('/health', () => HttpResponse.json({ status: 'ok' })),
-  http.get('/api/imports', () => HttpResponse.json(fixtures.imports)),
-  http.get('/api/imports/:id', () =>
-    HttpResponse.json({ batch: fixtures.imports[0], movements: fixtures.results.missing }),
-  ),
-  http.get('/api/imports/:id/results', () => HttpResponse.json(fixtures.results)),
-  http.get('/api/firefly/accounts', ({ request }) => {
-    const url = new URL(request.url);
-    const type = url.searchParams.get('type');
-    return HttpResponse.json(accountsForType(type));
-  }),
-  http.post('/api/firefly/accounts/:id/transactions', () => HttpResponse.json(fixtures.txs)),
-  http.delete('/api/firefly/transactions/:id', () =>
-    HttpResponse.json({ ff3_id: 42, status: 'deleted' }),
-  ),
-  http.post('/api/imports/:id/movements/:mid/ignore', ({ params }) =>
-    HttpResponse.json({ movement_id: Number(params.mid), status: 'ignored' }),
-  ),
-  http.post('/api/imports/:id/apply', () =>
-    HttpResponse.json({
-      reports: [],
-      created_count: 0,
-      already_created_count: 0,
-      failed_count: 0,
-    }),
-  ),
-  http.delete('/api/imports/:id', ({ params }) =>
-    HttpResponse.json({ id: Number(params.id), status: 'deleted' }),
-  ),
-  http.get('/api/settings', () => HttpResponse.json(fixtures.settings)),
-  http.put('/api/settings', () => HttpResponse.json(fixtures.settings)),
-  http.post('/api/settings/verify', () => HttpResponse.json({ version: '6.1.36' })),
-  http.get('/api/firefly/tags', () => HttpResponse.json(fixtures.tags)),
-  http.get('/api/firefly/categories', () => HttpResponse.json(fixtures.categories)),
-  http.get('/api/firefly/budgets', () => HttpResponse.json(fixtures.budgets)),
-];

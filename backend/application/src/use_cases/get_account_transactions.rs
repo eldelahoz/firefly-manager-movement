@@ -34,13 +34,15 @@ impl<C: FireflyClient, T: Ff3TransactionRepository + ?Sized, M: MatchRepository 
     pub async fn execute(
         &self,
         account_ff3_id: i64,
-        start: NaiveDate,
-        end: NaiveDate,
+        start: Option<NaiveDate>,
+        end: Option<NaiveDate>,
     ) -> Result<Vec<BrowseTxDto>, ApplicationError> {
-        if start > end {
-            return Err(ApplicationError::InvalidState(
-                "start date must not be after end date".into(),
-            ));
+        if let (Some(s), Some(e)) = (start, end) {
+            if s > e {
+                return Err(ApplicationError::InvalidState(
+                    "start date must not be after end date".into(),
+                ));
+            }
         }
         let txs = self
             .client

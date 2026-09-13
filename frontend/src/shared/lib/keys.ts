@@ -5,7 +5,8 @@ export const queryKeys = {
   imports: ['imports'] as const,
   import: (id: number) => ['import', id] as const,
   results: (batchId: number) => ['results', batchId] as const,
-  accountTxs: (id: string, start: string, end: string) => ['account-txs', id, start, end] as const,
+  accountTxs: (id: string, start?: string, end?: string) =>
+    ['account-txs', id, start ?? '', end ?? ''] as const,
   settings: ['settings'] as const,
   tags: ['tags'] as const,
   categories: ['categories'] as const,

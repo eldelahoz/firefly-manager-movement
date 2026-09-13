@@ -2,14 +2,14 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `2d7604a` · TRD `2d7604a` · audited 2026-09-03 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `2d7604a` · TRD `2d7604a` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
 > - **App** → `backend/application/tests/*.rs` (use cases with fake repos)
 > - **Infra** → `backend/infrastructure/tests/*.rs` (Diesel repos, Firefly client)
 > - **Pres** → `backend/presentation/tests/*.rs` (axum HTTP handlers)
-> - **FE** → `frontend/src/**/*.test.tsx` (React + Vitest + MSW)
+> - **FE** → `frontend/tests/specs/**/*.spec.ts` (Playwright, `page.route` mocks — Vitest/MSW purged 2026-09-09; see `docs/superpowers/plans/2026-09-09-purge-vitest-only-playwright.md` for gaps)
 
 > **Status** reflects the real implementation state against the *current* spec (including amendments), not just test existence:
 > - `implemented` — matches the current spec
@@ -23,7 +23,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-01  CSV upload (max 10 MB); XLSX → CSV by user
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -33,9 +33,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `upload_import.rs::upload_import_rejects_duplicate_filename` | 409 Conflict before any data stored (also RF-16) |
 | **App** | `csv.rs` (multiple) | CSV parsing, delimiter detection, encoding |
 | **Infra** | `csv_decoder.rs` | Low-level CSV decode, delimiter sniffing |
-| **FE** | `ImportWizard.test.tsx::oversize file shows inline error` | Client-side 10 MB guard, no upload attempted |
-| **FE** | `ImportWizard.test.tsx::drop fires upload` | Drag-drop parity with picker |
-| **FE** | `ImportWizard.test.tsx::parse error shows banner` | Server error surfaced, dropzone reset |
+| **FE** | `pending (Playwright gap)` → `tests/specs/import-wizard.spec.ts` (gap `imports-upload-mapping-reconcile`) | 10 MB guard, drag-drop, error banner — pending, see plan 2026-09-09 |
 
 **No XLSX tests** — by design (RF-01: user converts to CSV).
 
@@ -43,7 +41,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-02  CSV parsing with manual mapping; memorize by header signature
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -55,17 +53,13 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `upload_import.rs::upload_import_auto_detects_spanish_headers_valor` | Known header layouts auto-detected |
 | **App** | `save_csv_mapping.rs` | `PUT /mapping` persists mapping by signature |
 | **Infra** | `csv_mapping_repo.rs` | `CsvMappingRepository` CRUD + `by_signature` |
-| **FE** | `ImportWizard.test.tsx::unknown mapping: preview then mapping step` | Wizard shows mapping UI when `mapping_used=null` |
-| **FE** | `ImportWizard.test.tsx::known mapping: preview then straight to reconcile config` | Auto-applied mapping skips mapping step |
-| **FE** | `MappingStep.test.tsx` | Column select UI, validation, origin-account mapping |
-| **FE** | `ImportWizard.test.tsx::mapping confirm deletes probe batch before re-upload` | Probe (0 movements) deleted, file re-uploaded with confirmed mapping |
-| **FE** | `originSuggest.test.ts` | Origin auto-detect by known Spanish headers (`Fecha;Valor`) |
+| **FE** | `pending (Playwright gap)` → `tests/specs/import-wizard.spec.ts` (gap `imports-upload-mapping-reconcile`) | Manual mapping, memorize by signature, origin suggest — pending |
 
 ---
 
 ## RF-03  Detect and report invalid lines without blocking; keep valid
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -77,7 +71,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-04  List FF3 asset accounts; select target at import; pre-select at reconcile
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -85,17 +79,13 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Infra** | `ff3_account_repo.rs` | `Ff3AccountRepository` upsert + query (includes IBAN/number) |
 | **Infra** | `firefly_client.rs` | `asset_accounts()` calls `GET /api/v1/accounts?type=asset` |
 | **Pres** | `firefly_endpoints.rs` | `GET /api/firefly/accounts` returns cached asset accounts |
-| **FE** | `ImportWizard.test.tsx` (multiple) | Account selector in step 1, pre-selected in reconcile step |
-| **FE** | `ReconcileConfigStep.test.tsx` | Account pre-selected, editable |
-| **FE** | `BrowseWidget.test.tsx` | Account picker for period browse (RF-14) |
-| **FE** | `originSuggest.test.ts` | Origin-account auto-suggestion: unique match pre-selects, no/multiple shows warning |
-| **FE** | `ImportWizard.test.tsx::origin account pre-selects matching asset` | Origin column value auto-selects matching asset account |
+| **FE** | `pending (Playwright gap)` → `tests/specs/import-wizard.spec.ts` + `tests/specs/dashboard-browse.spec.ts` ✅ (BrowseWidget) | Account select at import, origin suggest — partially pending (BrowseWidget ✅) |
 
 ---
 
 ## RF-05  Fetch target account transactions via FF3 API over date window
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -109,7 +99,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-06  Reconciliation engine with configurable date tolerance
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -126,7 +116,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-07  Results in 3 groups (matched / missing / extras) with visual gap highlighting
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `d734652`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `d734652`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -135,19 +125,13 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `get_results.rs` | `GetResults` use case returns 3 groups + ignored |
 | **Infra** | `reconciliation_repo.rs` | `ReconciliationRepository` saves run with snapshot |
 | **Pres** | `reconcile_endpoints.rs` | `GET /api/imports/{id}/results` returns grouped DTOs |
-| **FE** | `ResultsPage.test.tsx` | Three tabs/sections: Matched, Missing, Extras |
-| **FE** | `ResultsPage.test.tsx::matched group renders column headers per spec v0.8` | Column headers per group per table layout (v0.8) |
-| **FE** | `ResultsPage.test.tsx::missing group renders selection/status/actions headers` | Missing group columns: Selection, Date, Description, Amount, Status, Actions |
-| **FE** | `MissingRow.test.tsx` | Row rendering, checkbox, editable fields |
-| **FE** | `MissingRow.test.tsx::renders grid columns with status pill and actions` | Status column reflects real state incl. post-apply pills (v0.8) |
-| **FE** | `ExtraRow.test.tsx` | Duplicate flag display |
-| **FE** | `VirtualList.test.tsx` | Large list performance |
+| **FE** | `pending (Playwright gap)` → `tests/specs/results-groups.spec.ts` + `tests/specs/virtual-list.spec.ts` (gaps `results-matched-missing-extra`, `virtual-list`) | 3 groups, headers, VirtualList — pending |
 
 ---
 
 ## RF-08  Batch-create missing; edit description/category/budget/tags/attachment/notes
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `ae8790d`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `ae8790d`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -169,20 +153,13 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Pres** | `apply_delete_endpoints.rs::apply_endpoint_creates_without_counterparty` | Apply endpoint creates without counterparty (v0.8) |
 | **Pres** | `apply_delete_endpoints.rs::apply_partial_failure_continues_and_reports_reason` | Partial failure reporting |
 | **Pres** | `apply_delete_endpoints.rs::apply_retry_endpoint_is_idempotent` | Retry returns same results |
-| **FE** | `ResultsPage.test.tsx` | Two-action flow (Personalize + Apply), selection, confirm modal |
-| **FE** | `ResultsPage.test.tsx::apply payload omits counterparty_ff3_id when not personalized` | Apply payload omits counterparty when not set (v0.8) |
-| **FE** | `MissingRow.test.tsx` | Row rendering, inline edit (PersonalizeEditor), failure/already-created pills |
-| **FE** | `PersonalizeEditor.test.tsx` | Per-movement fields: counterparty, description, tags, category, budget, notes |
-| **FE** | `BulkPersonalizeSheet.test.tsx` | Bulk fill-only panel for shared fields |
-| **FE** | `ConfirmCreateDialog.test.tsx` | Confirmation dialog with per-movement summary |
-| **FE** | `ConfirmCreateDialog.test.tsx::confirm enabled without counterparty (optional field)` | Confirm dialog enables without counterparty (v0.8) |
-| **FE** | `customization.test.ts` | `applyBulkFillOnly()` pure logic |
+| **FE** | `pending (Playwright gap)` → `tests/specs/results-apply.spec.ts` (gap `results-apply-personalize`) | Batch-create missing, edit fields, origin tag — pending |
 
 ---
 
 ## RF-09  Each import batch immutable and viewable a posteriori (history)
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -190,13 +167,13 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `upload_import.rs` (batch created with `status=Parsed`) | Batch persisted with all metadata |
 | **Infra** | `batch_repo.rs` | `BatchRepository` CRUD + `find_by_filename` |
 | **Pres** | `import_endpoints.rs` | `GET /api/imports` + `GET /api/imports/{id}` |
-| **FE** | `ImportsPage.test.tsx` | History table with status badges, resume/delete actions |
+| **FE** | `pending (Playwright gap)` → `tests/specs/imports-resume-delete.spec.ts` (gap `imports-resume-delete`) | History table, status badges — pending |
 
 ---
 
 ## RF-10  Manual ignore / un-ignore; dedicated table below the results
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `d734652`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `d734652`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -209,15 +186,13 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Pres** | `reconcile_endpoints.rs::results_include_ignored_movements` | Endpoint returns ignored movements in results |
 | **Pres** | `reconcile_endpoints.rs` | Ignore endpoint sets the ignored state |
 | **Pres** | `reconcile_endpoints.rs::un_ignore_endpoint_restores_latest_run_status` | Un-ignore endpoint restores status per latest run |
-| **FE** | `ResultsPage.test.tsx::ignored section lists rows with badge and Un-ignore action` | Ignored table below results with `Ignored` badge and Un-ignore button (v0.8) |
-| **FE** | `ResultsPage.test.tsx::ignore button on missing row posts ignored=true` | Ignore action on missing rows |
-| **FE** | `ResultsPage.test.tsx::un-ignore posts ignored=false and refreshes results` | Un-ignore action restores group and refreshes results |
+| **FE** | `pending (Playwright gap)` → `tests/specs/results-ignore.spec.ts` (gap `results-ignore-unignore`) | Ignore/un-ignore, dedicated section — pending |
 
 ---
 
 ## RF-11  Created transactions carry origin trace (tag/note: file + batch)
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `2d7604a`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `2d7604a`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -226,19 +201,19 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `apply_missing.rs::origin_tag_appended_when_user_tags_empty` | Origin tag applied even with empty user tags |
 | **App** | `apply_missing.rs::origin_tag_not_duplicated_when_user_includes_it` | No duplicate when user includes origin tag |
 | **App** | `apply_missing.rs::apply_retry_creates_nothing_nfr05` | Origin tag consistent on retry |
-| **FE** | `ConfirmCreateDialog.test.tsx` | Shows origin tag format `ffm:{filename}:{batchId}` in summary |
+| **FE** | `pending (Playwright gap)` → `tests/specs/results-apply.spec.ts` (gap `results-apply-personalize`) | Origin trace tag format — pending |
 
 ---
 
 ## RF-12  Multiple currencies: statement currency from FF3 account; blocking warning on mismatch
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `reconcile_batch.rs::reconcile_currency_mismatch_is_blocked` | Batch `currency` (derived from FF3 account) ≠ account currency → `InvalidState` |
 | **App** | `upload_import.rs` | Currency passed from frontend (derived from selected account) |
-| **FE** | `ImportWizard.test.tsx` | Account selector shows currency; frontend sends account currency |
+| **FE** | `pending (Playwright gap)` → `tests/specs/import-wizard.spec.ts` (gap `imports-upload-mapping-reconcile`) | Account currency derived, mismatch warning — pending |
 
 > **Amendment v0.4**: Currency no longer manually selected at import; derived from FF3 account.
 
@@ -246,33 +221,33 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-13  Re-run reconciliation on existing batch
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `reconcile_batch.rs::reconcile_rerun_creates_new_reconciliation` | Second run creates new `Reconciliation` row, updates movement statuses |
 | **App** | `get_results.rs` | Can fetch latest or specific run |
 | **Pres** | `reconcile_endpoints.rs` | `POST /api/imports/{id}/reconcile` idempotent (creates new run) |
-| **FE** | `ReconcileConfigStep.test.tsx` | "Re-run" button on already-reconciled batch |
+| **FE** | `pending (Playwright gap)` → `tests/specs/import-wizard.spec.ts` (gap `imports-upload-mapping-reconcile`) | Re-run reconciliation — pending |
 
 ---
 
 ## RF-14  Browse FF3 account transactions by period (min/max date)
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `get_account_transactions.rs` | `GetAccountTransactions` use case with start/end |
 | **Infra** | `firefly_client.rs` | Pagination with `start`/`end` query params |
 | **Pres** | `firefly_endpoints.rs` | `QUERY /api/firefly/accounts/{id}/transactions` with body |
-| **FE** | `BrowseWidget.test.tsx` | Date pickers, account selector, transaction table |
+| **FE** | `pending (Playwright gap)` → `tests/specs/dashboard-browse.spec.ts` ✅ (gap `dashboard-browse`) | Browse by period — ✅ covered (6 tests) |
 
 ---
 
 ## RF-15  Flag duplicates; delete with double confirmation + audit snapshot
 
-**Status:** implemented · **Last verified:** 2026-09-04 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -284,14 +259,13 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Infra** | `deleted_audit_repo.rs::insert_returns_increasing_ids` | `DeletedAuditRepository` inserts snapshot + `deleted_ff3_ids` lists deleted ids |
 | **Infra** | `firefly_client.rs::delete_transaction_not_found_maps_to_not_found` | Already-deleted FF3 tx → `NotFound` (API 404, spec exception reported) |
 | **Pres** | `apply_delete_endpoints.rs` | `DELETE /api/firefly/transactions/{id}` with confirmation |
-| **FE** | `DeleteDuplicateDialog.test.tsx` | Double confirmation dialog, recap, snapshot preview; 404 → explanatory toast, other errors → generic toast |
-| **FE** | `ResultsPage.test.tsx` / `ExtraRow.test.tsx` | Duplicate badge, delete button |
+| **FE** | `pending (Playwright gap)` → `tests/specs/browse-delete-duplicate.spec.ts` (gap `browse-delete-duplicate`) | Duplicate delete double confirm + audit — pending |
 
 ---
 
 ## RF-16  Refuse duplicate filename upload (409 before storage)
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -299,13 +273,13 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `imports_listing.rs` | `find_by_filename` used for check |
 | **Infra** | `batch_repo.rs` | `BatchRepository.find_by_filename` (case-insensitive via MySQL collation) |
 | **Pres** | `import_endpoints.rs` | `POST /api/imports` returns 409 before insert |
-| **FE** | `ImportWizard.test.tsx::duplicate filename is blocked before upload` | Client fetches imports list, blocks upload if filename exists, no POST sent |
+| **FE** | `pending (Playwright gap)` → `tests/specs/import-wizard.spec.ts` (gap `imports-upload-mapping-reconcile`) | Duplicate filename 409 guard — pending |
 
 ---
 
 ## RF-17  Delete `parsed` batch after explicit confirmation (file name + count); irreversible; refused for `reconciled`/`applied`
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -313,27 +287,24 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `delete_import.rs::delete_import_rejects_non_parsed_batch` | `Reconciled`/`Applied` → `InvalidState`, nothing deleted |
 | **App** | `delete_import.rs::delete_import_missing_batch_is_not_found` | Non-existent → `NotFound` |
 | **Pres** | `import_endpoints.rs` | `DELETE /api/imports/{id}` returns 409 if not `Parsed` |
-| **FE** | `ImportsPage.test.tsx` | Delete button only on `Parsed` rows, confirmation modal with filename + movement count |
+| **FE** | `pending (Playwright gap)` → `tests/specs/imports-resume-delete.spec.ts` (gap `imports-resume-delete`) | Delete parsed batch confirm — pending |
 
 ---
 
 ## RF-18  Resume incomplete import: wizard reopens at first pending step (reconcile); free back/forward navigation
 
-**Status:** implemented · **Last verified:** 2026-09-03 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `imports_listing.rs` | Batches with status `Parsed` listed as resumable |
-| **FE** | `ImportWizard.test.tsx::resumeBatchId initializes wizard at reconcile-config step` | `resumeBatchId` prop skips to step 2 (reconcile config) |
-| **FE** | `ImportWizard.test.tsx` (multiple) | Back/Next buttons work between steps |
-| **FE** | `ImportWizard.test.tsx` | State resets on every open (no stale step) |
-| **FE** | `WizardShell.test.tsx` | Step navigation logic |
+| **FE** | `pending (Playwright gap)` → `tests/specs/imports-resume-delete.spec.ts` (gap `imports-resume-delete`) | Resume incomplete import, back/forward — pending |
 
 ---
 
 ## RF-19  App settings: configure FF3 connection (URL + token), verify connectivity, save; replaces env vars
 
-**Status:** implemented · **Last verified:** 2026-09-04 · **Spec @** `2d7604a`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `2d7604a`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -359,10 +330,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Pres** | `settings_endpoints.rs::verify_bad_url_returns_400` | Invalid URL → 400 |
 | **Pres** | `settings_endpoints.rs::verify_unreachable_returns_502` | Unreachable → 502 |
 | **Pres** | `settings_endpoints.rs::get_settings_empty_when_no_row` | Empty state (no row, no env token) |
-| **FE** | `SettingsPage.test.tsx::shows connection status after save` | Connection form with URL input, save, status display |
-| **FE** | `SettingsPage.test.tsx::verify connectivity button probes FF3` | Test connection button |
-| **FE** | `SettingsPage.test.tsx::default creation tag dropdown shows tags from FF3` | Tag dropdown from FF3 API |
-| **FE** | `SettingsPage.test.tsx::saves settings with default creation tag` | Settings save with tag |
+| **FE** | `pending (Playwright gap)` → `tests/specs/settings-*.spec.ts` (gaps `settings-appearance`, `settings-language`, `settings-connection-verify`, `settings-creation-defaults`) | FF3 connection, verify, creation defaults — pending |
 | **App** | `apply_missing.rs::origin_tag_appended_when_user_tags_empty` | `default_creation_tag` from settings pre-fills tags when user tags empty |
 | **App** | `apply_missing.rs::apply_creates_with_origin_tag_and_confirms_matched` | Origin tag applied even with default tag configured |
 
@@ -450,43 +418,43 @@ cargo test -p ffm-presentation    # HTTP endpoints
 
 # Frontend
 cd frontend
-pnpm test                         # Vitest + MSW (no backend needed)
+pnpm e2e                          # Playwright (tests/specs/** via page.route, no backend needed)
 
 # Full CI gate
 cargo fmt --all && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace
-cd ../frontend && pnpm lint && pnpm test && pnpm build
+cd ../frontend && pnpm lint && pnpm build && pnpm e2e
 ```
 
 ---
 
-## Coverage Summary (as of 2026-09-03)
+## Coverage Summary (as of 2026-09-09 — purge Vitest, solo Playwright)
 
-All RFs are now implemented. The per-layer columns show test existence; the **Status** column confirms implementation.
+All RFs are backend-implemented; FE now solo Playwright. `⏳` = pending Playwright gap (see plan 2026-09-09).
 
 | RF | Domain | App | Infra | Pres | FE | Status |
 | --- | :---: | :---: | :---: | :---: | :---: | --- |
-| 01 | — | ✅ | ✅ | ✅ | ✅ | implemented |
-| 02 | — | ✅ | ✅ | ✅ | ✅ | implemented |
+| 01 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `imports-upload-mapping-reconcile`) |
+| 02 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `imports-upload-mapping-reconcile`) |
 | 03 | — | ✅ | ✅ | — | — | implemented |
-| 04 | — | ✅ | ✅ | ✅ | ✅ | implemented |
-| 05 | — | ✅ | ✅ | ✅ | ✅ | implemented |
+| 04 | — | ✅ | ✅ | ✅ | ⏳/✅ | implemented (FE BrowseWidget ✅, resto pending) |
+| 05 | — | ✅ | ✅ | ✅ | — | implemented |
 | 06 | ✅ | ✅ | — | — | — | implemented |
-| 07 | ✅ | ✅ | ✅ | ✅ | ✅ | implemented |
-| 08 | — | ✅ | ✅ | ✅ | ✅ | implemented |
-| 09 | — | ✅ | ✅ | ✅ | ✅ | implemented |
-| 10 | — | ✅ | ✅ | ✅ | ✅ | implemented |
-| 11 | — | ✅ | — | — | ✅ | implemented |
-| 12 | — | ✅ | — | — | ✅ | implemented |
-| 13 | — | ✅ | — | ✅ | ✅ | implemented |
-| 14 | — | ✅ | ✅ | ✅ | ✅ | implemented |
-| 15 | ✅ | ✅ | ✅ | ✅ | ✅ | implemented |
-| 16 | — | ✅ | ✅ | ✅ | ✅ | implemented |
-| 17 | — | ✅ | — | ✅ | ✅ | implemented |
-| 18 | — | ✅ | — | — | ✅ | implemented |
-| 19 | — | ✅ | ✅ | ✅ | ✅ | implemented |
+| 07 | ✅ | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `results-matched-missing-extra`/`virtual-list`) |
+| 08 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `results-apply-personalize`) |
+| 09 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `imports-resume-delete`) |
+| 10 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `results-ignore-unignore`) |
+| 11 | — | ✅ | — | — | ⏳ | implemented (FE pending `results-apply-personalize`) |
+| 12 | — | ✅ | — | — | ⏳ | implemented (FE pending `imports-upload-mapping-reconcile`) |
+| 13 | — | ✅ | — | ✅ | ⏳ | implemented (FE pending `imports-upload-mapping-reconcile`) |
+| 14 | — | ✅ | ✅ | ✅ | ✅ | implemented (FE ✅ `dashboard-browse` 6 tests) |
+| 15 | ✅ | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `browse-delete-duplicate`) |
+| 16 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `imports-upload-mapping-reconcile`) |
+| 17 | — | ✅ | — | ✅ | ⏳ | implemented (FE pending `imports-resume-delete`) |
+| 18 | — | ✅ | — | — | ⏳ | implemented (FE pending `imports-resume-delete`) |
+| 19 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `settings-*`) |
 
-**✅ = covered; — = not applicable**
+**✅ = covered; ⏳ = pending Playwright gap; — = not applicable**
 
 ---
 
-*Generated from PRD v0.8 / TRD v0.7 and the current test suite. Status audited 2026-09-03.*
+*Generated from PRD v0.8 / TRD v0.7 and the current test suite. Status audited 2026-09-09 — purge Vitest, solo Playwright.*

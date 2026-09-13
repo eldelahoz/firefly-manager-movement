@@ -35,8 +35,8 @@ impl FireflyClient for FakeClient {
     async fn account_transactions(
         &self,
         _account_ff3_id: i64,
-        _start: NaiveDate,
-        _end: NaiveDate,
+        _start: Option<NaiveDate>,
+        _end: Option<NaiveDate>,
     ) -> Result<Vec<Ff3TransactionDto>, ApplicationError> {
         Ok(self.txs.clone())
     }
@@ -178,7 +178,10 @@ async fn enriches_status_from_cache() {
         ],
         HashSet::from([1, 2]),
     );
-    let txs = uc.execute(9, d(2026, 8, 1), d(2026, 8, 31)).await.unwrap();
+    let txs = uc
+        .execute(9, Some(d(2026, 8, 1)), Some(d(2026, 8, 31)))
+        .await
+        .unwrap();
     assert_eq!(txs.len(), 5);
     assert_eq!(status_of(&txs, 1), Some(Ff3TxStatus::Matched));
     assert_eq!(status_of(&txs, 2), Some(Ff3TxStatus::Duplicate));
@@ -190,6 +193,8 @@ async fn enriches_status_from_cache() {
 #[tokio::test]
 async fn keeps_validation_of_period() {
     let uc = use_case(vec![], vec![], HashSet::new());
-    let err = uc.execute(9, d(2026, 8, 31), d(2026, 8, 1)).await;
+    let err = uc
+        .execute(9, Some(d(2026, 8, 31)), Some(d(2026, 8, 1)))
+        .await;
     assert!(matches!(err, Err(ApplicationError::InvalidState(_))));
 }

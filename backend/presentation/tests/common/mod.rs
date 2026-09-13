@@ -94,8 +94,8 @@ impl FireflyClient for FakeFireflyClient {
     async fn account_transactions(
         &self,
         _account_ff3_id: i64,
-        _start: NaiveDate,
-        _end: NaiveDate,
+        _start: Option<NaiveDate>,
+        _end: Option<NaiveDate>,
     ) -> Result<Vec<Ff3TransactionDto>, ApplicationError> {
         if self.fail {
             Err(ApplicationError::FireflyClient("FF3 unreachable".into()))

@@ -28,8 +28,8 @@ pub trait FireflyClient: Send + Sync {
     async fn account_transactions(
         &self,
         account_ff3_id: i64,
-        start: NaiveDate,
-        end: NaiveDate,
+        start: Option<NaiveDate>,
+        end: Option<NaiveDate>,
     ) -> Result<Vec<Ff3TransactionDto>, ApplicationError>;
     async fn create_transaction(
         &self,

@@ -133,7 +133,11 @@ where
         // Fetch the FF3 window and the batch movements (ignored excluded).
         let ff3_txs = self
             .firefly
-            .account_transactions(input.ff3_account_id, input.window_start, input.window_end)
+            .account_transactions(
+                input.ff3_account_id,
+                Some(input.window_start),
+                Some(input.window_end),
+            )
             .await?;
 
         let movements: Vec<_> = self
