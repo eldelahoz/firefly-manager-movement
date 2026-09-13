@@ -12,6 +12,7 @@ export function UploadStep({
   accountId,
   onAccount,
   onFile,
+  onNext,
   file,
   onRemoveFile,
   uploading,
@@ -22,6 +23,7 @@ export function UploadStep({
   accountId: string;
   onAccount: (id: string, currency: string) => void;
   onFile: (f: File) => void;
+  onNext: () => void;
   file?: File | null;
   onRemoveFile?: () => void;
   uploading: boolean;
@@ -213,7 +215,9 @@ export function UploadStep({
         cancelLabel={t('common.cancel')}
         backLabel={t('common.back')}
         primaryLabel={t('common.next')}
-        primaryDisabled
+        onPrimary={onNext}
+        primaryDisabled={!file || uploading}
+        primaryHelper={file ? null : t('wizard.selectFileFirst')}
       />
     </div>
   );

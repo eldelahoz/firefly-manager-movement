@@ -148,7 +148,8 @@
     "originAutoSelected": "Cuenta seleccionada automáticamente desde la columna de origen: {{account}}",
     "originWarning": "Valores de la columna de origen: {{values}}. Selecciona la cuenta manualmente.",
     "changeFile": "Cambiar archivo",
-    "removeFile": "Eliminar"
+    "removeFile": "Eliminar",
+    "selectFileFirst": "Selecciona un archivo CSV para continuar"
   },
   "results": {
     "title": "Resultados",

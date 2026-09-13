@@ -2,7 +2,6 @@ import { useCallback, useEffect, useReducer } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LoaderCircle } from 'lucide-react';
 import {
   getAccounts,
   getImport,
@@ -53,7 +52,19 @@ export function ImportWizard({
   );
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const removeFile = useCallback(() => dispatch({ type: 'REMOVE_FILE' }), []);
+  const removeFile = useCallback(async () => {
+    // Discarding a parsed file cleans up its probe batch (no orphans)
+    if (state.probe) {
+      try {
+        await deleteImport(state.probe.batch_id);
+      } catch (e) {
+        dispatch({ type: 'UPLOAD_ERROR', message: (e as { message: string }).message });
+        return;
+      }
+      void qc.invalidateQueries({ queryKey: queryKeys.imports });
+    }
+    dispatch({ type: 'REMOVE_FILE' });
+  }, [state.probe, qc]);
 
   const accounts = useQuery({
     queryKey: queryKeys.accounts,
@@ -77,8 +88,9 @@ export function ImportWizard({
       batch_id: batch.id,
       filename: batch.filename,
       file_hash: batch.file_hash,
-      headers: [],
-      detected_delimiter: ',',
+      // Persisted at upload: the mapping step lists these columns on resume (RF-02, RF-18)
+      headers: resumeDetail.data.headers,
+      detected_delimiter: resumeDetail.data.detected_delimiter,
       total_rows: movements.length,
       valid_count: batch.movements_count,
       invalid_count: 0,
@@ -197,7 +209,7 @@ export function ImportWizard({
             accounts={accounts.data}
             accountId={state.accountId}
             onAccount={(id, currency) => dispatch({ type: 'SET_ACCOUNT', accountId: id, currency })}
-            onFile={(file) => {
+            onFile={async (file) => {
               const dup = (imports.data ?? []).some(
                 (b) => b.filename.toLowerCase() === file.name.toLowerCase(),
               );
@@ -205,8 +217,31 @@ export function ImportWizard({
                 dispatch({ type: 'UPLOAD_ERROR', message: t('imports.duplicateFilename') });
                 return;
               }
+              // Replacing a parsed file cleans up its probe batch first (no orphans)
+              if (state.probe) {
+                try {
+                  await deleteImport(state.probe.batch_id);
+                } catch (e) {
+                  dispatch({ type: 'UPLOAD_ERROR', message: (e as { message: string }).message });
+                  return;
+                }
+                void qc.invalidateQueries({ queryKey: queryKeys.imports });
+              }
+              // Stage only — the upload/parse runs on Next (RF-01 v0.1)
               dispatch({ type: 'UPLOAD_START', file });
-              upload.mutate({ file, currency: state.currency });
+            }}
+            onNext={async () => {
+              if (!state.file) return;
+              // Re-parse always: delete a previous probe batch first (RF-16/RF-17-safe)
+              if (state.probe) {
+                try {
+                  await deleteImport(state.probe.batch_id);
+                } catch (e) {
+                  dispatch({ type: 'UPLOAD_ERROR', message: (e as { message: string }).message });
+                  return;
+                }
+              }
+              upload.mutate({ file: state.file, currency: state.currency });
             }}
             file={state.file}
             onRemoveFile={removeFile}
@@ -214,22 +249,6 @@ export function ImportWizard({
             onCancel={onClose}
             error={state.error}
           />
-        )}
-        {state.step === 'preview' && !state.probe && (
-          <div
-            className="flex flex-1 flex-col items-center justify-center gap-5"
-            role="status"
-            aria-live="polite"
-            aria-busy="true"
-          >
-            <LoaderCircle className="size-12 text-accent animate-spin" aria-hidden="true" />
-            <div className="flex flex-col items-center gap-1">
-              <p className="text-sm font-semibold">{state.file?.name}</p>
-              <p className="text-xs text-text-2">
-                {t('wizard.parsingFile', { filename: state.file?.name ?? '' })}
-              </p>
-            </div>
-          </div>
         )}
         {state.step === 'preview' && state.probe && (
           <PreviewStep
