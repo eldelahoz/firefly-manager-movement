@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `2d7604a` · TRD `220ea85` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `4d18eeb` · TRD `22dad7d` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
@@ -81,7 +81,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-04  List FF3 asset accounts; select target at import; locked at reconcile
 
-**Status:** implemented · **Last verified:** 2026-09-13 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-13 · **Spec @** `4d18eeb`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -221,7 +221,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-12  Multiple currencies: statement currency from FF3 account; blocking warning on mismatch
 
-**Status:** implemented · **Last verified:** 2026-09-13 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-13 · **Spec @** `4d18eeb`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
