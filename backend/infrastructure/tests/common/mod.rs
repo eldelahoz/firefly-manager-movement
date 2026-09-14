@@ -54,3 +54,8 @@ pub async fn clean(db: &DbPool) {
         .await
         .expect("enable fk");
 }
+
+/// Tests within one binary run in parallel threads against the same dev MySQL,
+/// so tests that assert on table-wide state (e.g. `list()`) must serialize.
+#[allow(dead_code)] // not every test binary asserts on table-wide state
+pub static DB_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());

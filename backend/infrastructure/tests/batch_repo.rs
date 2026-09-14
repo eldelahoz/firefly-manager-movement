@@ -7,6 +7,7 @@ use ffm_infrastructure::persistence::repositories::batch::MysqlBatchRepository;
 
 #[tokio::test]
 async fn insert_get_list_update_batch() {
+    let _db = common::DB_LOCK.lock().await;
     let pool = common::setup_pool().await;
     common::clean(&pool).await;
     let repo = MysqlBatchRepository::new(pool.clone());
@@ -48,6 +49,7 @@ async fn insert_get_list_update_batch() {
 
 #[tokio::test]
 async fn find_by_filename_and_delete_batch() {
+    let _db = common::DB_LOCK.lock().await;
     let pool = common::setup_pool().await;
     common::clean(&pool).await;
     let repo = MysqlBatchRepository::new(pool.clone());
