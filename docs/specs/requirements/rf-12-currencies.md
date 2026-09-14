@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Version | v0.4 (integrates v0.4 amendment) |
+| Version | v0.5 (integrates v0.4 + v0.5 amendments) |
 | Priority | P1 |
 | Use cases | CU-1, CU-3 |
 | Depends on | RF-04 (account selection) |
@@ -35,7 +35,7 @@ The system handles multiple currencies with a single derivation rule:
 
 ## Exceptions
 
-- **Switching accounts at reconcile time**: allowed only within the same currency; otherwise blocked (the blocking warning of the original RF).
+- **Switching accounts at reconcile time**: not offered by the UI — the import-time account is displayed locked at reconciliation (RF-04 v0.8). The API still refuses a run whose target account currency differs from the batch currency.
 - **Default**: if no currency is provided at upload, `EUR` applies (compatibility default).
 
 ## Acceptance criteria
@@ -46,4 +46,5 @@ The system handles multiple currencies with a single derivation rule:
 ## Notes
 
 - Integrates v0.4 amendment: currency derived from the FF3 account, not manually selected.
+- v0.5 (2026-09-13): reconciles the exception wording with RF-04 v0.8 (locked account at reconciliation); the blocking rule is unchanged.
 - The batch currency is stored on the batch (TRD section 2).

@@ -12,7 +12,6 @@ export class ImportWizardPage {
   readonly mappingAmountSelect: Locator;
   readonly mappingDescSelect: Locator;
   readonly mappingOriginSelect: Locator;
-  readonly reconcileAccountSelect: Locator;
   readonly toleranceButtons: Locator;
   readonly reconcileButton: Locator;
   readonly cancelButton: Locator;
@@ -33,7 +32,6 @@ export class ImportWizardPage {
     this.mappingAmountSelect = page.getByRole('combobox', { name: /Amount column|Columna de importe/ });
     this.mappingDescSelect = page.getByRole('combobox', { name: /Description column|Columna de descripción/ });
     this.mappingOriginSelect = page.getByRole('combobox', { name: /Origin column|Columna de origen/ });
-    this.reconcileAccountSelect = page.getByRole('combobox', { name: /Firefly III account|Cuenta de Firefly/ }).last();
     this.toleranceButtons = page.getByRole('button', { name: /^0$|±1|±2|±3/ });
     this.reconcileButton = page.getByRole('button', { name: /Reconcile|Conciliar/ });
     this.cancelButton = page.getByRole('button', { name: /Cancel|Cancelar/ });

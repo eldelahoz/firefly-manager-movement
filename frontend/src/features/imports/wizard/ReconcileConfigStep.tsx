@@ -6,7 +6,6 @@ import { addDays } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { WizardFooter } from './WizardShell';
 
@@ -40,9 +39,9 @@ export function ReconcileConfigStep({
     queryFn: () => getImport(batchId!),
     enabled: batchId !== null,
   });
-  const [accountId, setAccountId] = useState<string>(
-    initialAccountId ?? String(detail.data?.batch.account_id ?? ''),
-  );
+  // Locked account (RF-04 v0.8): decided at import, never editable here.
+  // `||` (not `??`) so an empty-string wizard state falls back to the persisted batch account.
+  const accountId = initialAccountId || String(detail.data?.batch.account_id ?? '');
   const [tolerance, setTolerance] = useState(0);
   const [rangeOverride, setRangeOverride] = useState<{ start: string; end: string } | null>(null);
   const accounts = useQuery({
@@ -81,50 +80,26 @@ export function ReconcileConfigStep({
     onError: (e: { message: string }) => onError(e.message),
   });
   if (detail.isPending && batchId !== null) return <TableSkeleton rows={2} cols={2} />;
-  const isResume = !!detail.data?.batch.account_id;
   const ready = !!accountId && !!range && !currencyMismatch && !submitting;
-  const helper = !accountId
-    ? t('wizard.helperSelectAccount')
-    : currencyMismatch
-      ? t('wizard.helperMismatch')
-      : error
-        ? t('wizard.helperError')
-        : null;
+  const helper = currencyMismatch
+    ? t('wizard.helperMismatch')
+    : error
+      ? t('wizard.helperError')
+      : null;
   return (
     <div className="flex h-full flex-col">
       <div className="space-y-5">
-        {!isResume && (
-          <div>
-            <p className="mb-1 text-[13px] text-text-2">{t('wizard.account')}</p>
-            <Select
-              value={accountId === '' ? 'none' : accountId}
-              onValueChange={(v) => setAccountId(v === 'none' ? '' : v)}
-            >
-              <SelectTrigger className="w-full max-w-[480px]" aria-label={t('wizard.account')}>
-                <SelectValue placeholder="—" />
-              </SelectTrigger>
-              <SelectContent position="popper">
-                <SelectItem value="none">—</SelectItem>
-                {accounts.data?.map((a) => (
-                  <SelectItem key={a.id} value={String(a.id)}>
-                    {a.name} ({a.currency})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-        {isResume && selectedAccount && (
-          <div>
-            <p className="mb-1 text-[13px] text-text-2">{t('wizard.account')}</p>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-text-1">{selectedAccount.name}</span>
+        <div>
+          <p className="mb-1 text-[13px] text-text-2">{t('wizard.account')}</p>
+          {selectedAccount && (
+            <p className="flex items-center gap-2 text-sm text-text-1">
+              {selectedAccount.name}
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-text-2">
-                {t('wizard.resumeAccountHint')}
+                {t('wizard.accountLockedHint')}
               </span>
-            </div>
-          </div>
-        )}
+            </p>
+          )}
+        </div>
         <div>
           <p className="mb-1 text-[13px] text-text-2">{t('wizard.tolerance')}</p>
           <div className="flex max-w-[480px]">
