@@ -10,6 +10,12 @@ export type MockImportsOptions = {
 
 export async function mockImports(page: Page, opts: MockImportsOptions = {}): Promise<void> {
   const data = opts.imports ?? imports;
+  // Results has two path segments after /imports — neither `**/api/imports/*`
+  // nor `**/api/imports*` matches it, and an unmocked 502 fires a sonner error
+  // toast (queryCache.onError) whose <ol> breaks getByRole('list') strictness.
+  await page.route('**/api/imports/*/results*', async (route: Route) => {
+    await route.fulfill({ json: fixtures.results });
+  });
   // Handle DELETE separately with more specific pattern
   await page.route('**/api/imports/*', async (route: Route) => {
     const url = route.request().url();

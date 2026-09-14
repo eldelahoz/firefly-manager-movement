@@ -12,7 +12,7 @@ use ffm_application::ports::{
 use ffm_application::use_cases::upload_import::{UploadImport, UploadImportInput};
 
 use ffm_domain::entities::{Batch, CsvMapping, Movement};
-use ffm_domain::ids::{BatchId, CsvMappingId, MovementId};
+use ffm_domain::ids::{BatchId, CsvMappingId, Ff3AccountId, MovementId};
 use ffm_domain::value_objects::{BatchStatus, HeaderSignature, MovementStatus};
 
 // ── Fakes ───────────────────────────────────────────────────────────────
@@ -239,6 +239,7 @@ async fn upload_import_parses_valid_csv() {
             filename: "test.csv".into(),
             bytes: csv,
             currency: "EUR".into(),
+            account_id: None,
             mapping: None,
         })
         .await
@@ -281,6 +282,7 @@ async fn upload_import_keeps_invalid_lines() {
             filename: "test.csv".into(),
             bytes: csv,
             currency: "EUR".into(),
+            account_id: None,
             mapping: None,
         })
         .await
@@ -315,6 +317,7 @@ async fn upload_import_uses_provided_mapping() {
             filename: "test.csv".into(),
             bytes: csv,
             currency: "EUR".into(),
+            account_id: None,
             mapping: Some(ColumnMapping {
                 date_column: "D".into(),
                 amount_column: "M".into(),
@@ -349,6 +352,7 @@ async fn upload_import_no_mapping_returns_headers_only() {
             filename: "test.csv".into(),
             bytes: csv,
             currency: "EUR".into(),
+            account_id: None,
             mapping: None,
         })
         .await
@@ -391,6 +395,7 @@ async fn upload_import_persists_headers_and_delimiter_on_batch() {
             filename: "persist.csv".into(),
             bytes: csv,
             currency: "EUR".into(),
+            account_id: None,
             mapping: None,
         })
         .await
@@ -442,6 +447,7 @@ async fn upload_import_uses_saved_mapping_by_signature() {
             filename: "test.csv".into(),
             bytes: csv,
             currency: "EUR".into(),
+            account_id: None,
             mapping: None,
         })
         .await
@@ -472,6 +478,7 @@ async fn upload_import_computes_file_hash() {
             filename: "test.csv".into(),
             bytes: csv.clone(),
             currency: "EUR".into(),
+            account_id: None,
             mapping: None,
         })
         .await
@@ -487,6 +494,7 @@ async fn upload_import_computes_file_hash() {
             filename: "test2.csv".into(),
             bytes: csv,
             currency: "EUR".into(),
+            account_id: None,
             mapping: None,
         })
         .await
@@ -513,6 +521,7 @@ async fn upload_import_rejects_duplicate_filename() {
         filename: "test.csv".into(),
         bytes: csv.clone(),
         currency: "EUR".into(),
+        account_id: None,
         mapping: None,
     })
     .await
@@ -523,6 +532,7 @@ async fn upload_import_rejects_duplicate_filename() {
             filename: "test.csv".into(),
             bytes: csv,
             currency: "EUR".into(),
+            account_id: None,
             mapping: None,
         })
         .await;
@@ -538,6 +548,7 @@ async fn upload_import_rejects_duplicate_filename() {
         filename: "other.csv".into(),
         bytes: b"Date,Amount,Description\n2026-01-06,-1.00,Tea".to_vec(),
         currency: "EUR".into(),
+        account_id: None,
         mapping: None,
     })
     .await
@@ -569,6 +580,7 @@ async fn upload_import_auto_detects_spanish_headers_valor() {
             filename: "movs.csv".into(),
             bytes: csv,
             currency: "EUR".into(),
+            account_id: None,
             mapping: None,
         })
         .await
@@ -604,6 +616,7 @@ async fn upload_import_extracts_origin_account_values() {
             filename: "test.csv".into(),
             bytes: csv,
             currency: "EUR".into(),
+            account_id: None,
             mapping: Some(ColumnMapping {
                 date_column: "Date".into(),
                 amount_column: "Amount".into(),
@@ -640,6 +653,7 @@ async fn upload_import_empty_origin_account_values_when_no_column() {
             filename: "test.csv".into(),
             bytes: csv,
             currency: "EUR".into(),
+            account_id: None,
             mapping: Some(ColumnMapping {
                 date_column: "Date".into(),
                 amount_column: "Amount".into(),
@@ -652,4 +666,64 @@ async fn upload_import_empty_origin_account_values_when_no_column() {
 
     assert!(result.origin_account_values.is_empty());
     assert!(result.valid[0].origin_account.is_none());
+}
+
+#[tokio::test]
+async fn upload_import_stores_target_account() {
+    let csv = b"Date,Amount,Description\n2026-01-05,100.00,Coffee".to_vec();
+    let decoder = FakeCsvDecoder;
+    let batch_repo = Arc::new(FakeBatchRepo::new());
+    let movement_repo = Arc::new(FakeMovementRepo::new());
+    let mapping_repo = Arc::new(FakeCsvMappingRepo::new());
+
+    let uc = UploadImport::new(
+        decoder,
+        batch_repo.clone(),
+        movement_repo.clone(),
+        mapping_repo.clone(),
+    );
+
+    let result = uc
+        .execute(UploadImportInput {
+            filename: "test.csv".into(),
+            bytes: csv,
+            currency: "EUR".into(),
+            account_id: Some(Ff3AccountId::new(7)),
+            mapping: None,
+        })
+        .await
+        .unwrap();
+
+    let batch = batch_repo.get(result.batch_id).await.unwrap();
+    assert_eq!(batch.account_id, Some(Ff3AccountId::new(7)));
+}
+
+#[tokio::test]
+async fn upload_import_without_account_stores_none() {
+    let csv = b"Date,Amount,Description\n2026-01-05,100.00,Coffee".to_vec();
+    let decoder = FakeCsvDecoder;
+    let batch_repo = Arc::new(FakeBatchRepo::new());
+    let movement_repo = Arc::new(FakeMovementRepo::new());
+    let mapping_repo = Arc::new(FakeCsvMappingRepo::new());
+
+    let uc = UploadImport::new(
+        decoder,
+        batch_repo.clone(),
+        movement_repo.clone(),
+        mapping_repo.clone(),
+    );
+
+    let result = uc
+        .execute(UploadImportInput {
+            filename: "test.csv".into(),
+            bytes: csv,
+            currency: "EUR".into(),
+            account_id: None,
+            mapping: None,
+        })
+        .await
+        .unwrap();
+
+    let batch = batch_repo.get(result.batch_id).await.unwrap();
+    assert_eq!(batch.account_id, None);
 }

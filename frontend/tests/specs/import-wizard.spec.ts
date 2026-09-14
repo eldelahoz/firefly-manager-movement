@@ -484,6 +484,43 @@ test.describe('Import > Wizard', () => {
     await expect(wizard.dialog).toBeHidden();
   });
 
+  test('W23 fresh reconcile shows the import account locked', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 41,
+            filename: 'bank.csv',
+            file_hash: 'h41',
+            headers: ['date', 'amount', 'desc'],
+            detected_delimiter: ',',
+            total_rows: 1,
+            valid_count: 1,
+            invalid_count: 0,
+            mapping_used: { date_column: 'date', amount_column: 'amount', description_column: 'desc' },
+            origin_account_values: [],
+            valid: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.route('**/api/imports/41', async (route) => route.fulfill({ json: { batch: { id: 41, filename: 'bank.csv', status: 'parsed', currency: 'EUR', account_id: 1 }, movements: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }], headers: ['date', 'amount', 'desc'], detected_delimiter: ',' } }));
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    await wizard.uploadFile(csvPath('bank.csv', csvValid));
+    await wizard.nextButton.click();
+    await expect(wizard.reconcileButton).toBeVisible();
+    // Locked (RF-04 v0.8): account name + hint pill, no account combobox at all
+    await expect(page.getByText('Checking').first()).toBeVisible();
+    await expect(page.getByText(/selected during import|seleccionada durante la importación/i)).toBeVisible();
+    await expect(page.getByRole('combobox', { name: /Firefly III account|Cuenta de Firefly/ })).toHaveCount(0);
+  });
+
   test('W11 cancel from reconcile', async ({ page }) => {
     await page.route('**/api/imports', async (route) => {
       if (route.request().method() === 'POST') {
@@ -540,7 +577,7 @@ test.describe('Import > Wizard', () => {
     const importsPage = new ImportsPage(page);
     await importsPage.goto();
     await importsPage.getRowByFilename('bank.csv').getByRole('button', { name: /Resume|Reanudar/ }).click();
-    // Resume lands on reconcile-config with account locked (resumeAccountHint)
+    // Resume lands on reconcile-config with account locked (accountLockedHint)
     await expect(page.getByRole('heading', { name: /Reconcile|Conciliar/ })).toBeVisible({ timeout: 5000 });
     await expect(wizard.reconcileButton).toBeVisible({ timeout: 5000 });
     await expect(page.getByText(/selected during import|seleccionada durante la importación/i)).toBeVisible();

@@ -128,6 +128,7 @@ pub async fn upload_import(
     let mut file_bytes: Option<Vec<u8>> = None;
     let mut filename: Option<String> = None;
     let mut currency: Option<String> = None;
+    let mut account_id_field: Option<String> = None;
 
     let mut date_column: Option<String> = None;
     let mut amount_column: Option<String> = None;
@@ -215,6 +216,21 @@ pub async fn upload_import(
                     origin_account_column = Some(text);
                 }
             }
+            "account_id" => {
+                let text = field
+                    .text()
+                    .await
+                    .map_err(|e| {
+                        ApiError(ffm_application::error::ApplicationError::Parse(
+                            e.to_string(),
+                        ))
+                    })?
+                    .trim()
+                    .to_string();
+                if !text.is_empty() {
+                    account_id_field = Some(text);
+                }
+            }
             _ => {
                 // ignore unknown fields
             }
@@ -228,6 +244,26 @@ pub async fn upload_import(
     })?;
     let filename = filename.unwrap_or_else(|| "upload.csv".into());
     let currency = currency.unwrap_or_else(|| "EUR".into());
+
+    // The frontend sends the FF3 account id; resolve it to the local
+    // `ff3_accounts.id` stored on the batch (RF-04 v0.8: account locked at upload).
+    let account_id = match account_id_field {
+        Some(text) => {
+            let ff3_id: i64 = text.parse().map_err(|_| {
+                ApiError(ffm_application::error::ApplicationError::Parse(format!(
+                    "invalid account_id '{text}'"
+                )))
+            })?;
+            let accounts = state.ff3_accounts.all_asset().await.map_err(ApiError)?;
+            let account = accounts.into_iter().find(|a| a.ff3_id == ff3_id);
+            Some(account.map(|a| a.id).ok_or_else(|| {
+                ApiError(ffm_application::error::ApplicationError::Parse(format!(
+                    "unknown account {ff3_id}"
+                )))
+            })?)
+        }
+        None => None,
+    };
 
     let mapping = match (date_column, amount_column, description_column) {
         (Some(d), Some(a), Some(desc)) => Some(ColumnMapping {
@@ -252,6 +288,7 @@ pub async fn upload_import(
             bytes,
             currency,
             mapping,
+            account_id,
         })
         .await
         .map_err(ApiError)?;

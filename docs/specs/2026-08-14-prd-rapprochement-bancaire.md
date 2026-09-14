@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Project | firefly-manager-movement |
-| Version | 0.8 |
+| Version | 0.9 |
 | Created | 2026-08-14 |
-| Last modified | 2026-09-03 |
+| Last modified | 2026-09-13 |
 | Author | A. Delahoz |
 | Status | Draft in progress |
 
@@ -59,7 +59,7 @@ Runs Firefly III in Docker at home. Downloads an XLSX from his bank's website ev
 | --- | --- | --- | --- |
 | CU-1 | Import a statement | David uploads a CSV file and selects the Firefly III account to compare against; the system parses it, detects the format and displays a preview of the movements. | RF-01, RF-04, RF-16 |
 | CU-2 | Map columns (CSV) | If the CSV is not recognized automatically, David maps columns → fields (date, amount, description, and optionally origin account). | RF-02, RF-03 |
-| CU-3 | Run the reconciliation | David launches the reconciliation; the account chosen at import is pre-selected and can still be changed. | RF-04, RF-06, RF-12 |
+| CU-3 | Run the reconciliation | David launches the reconciliation; the account chosen at import is pre-selected and shown as locked (to change it he deletes the batch and re-imports). | RF-04, RF-06, RF-12 |
 | CU-4 | View the results | View in 3 groups: matched / missing in Firefly III / present in Firefly III but absent from the statement; a dedicated section shows ignored movements. | RF-07, RF-10 |
 | CU-5 | Create the missing transactions | David selects all or part of the missing items and either creates them as-is or personalizes them first - individually or in bulk: counterparty account, category, budget, tags (pre-filled with the default tag from settings), attachment, notes. Creation in Firefly III goes through a confirmation modal showing what will be created. If origin trace is enabled in settings (RF-11), an origin note is added below user notes. | RF-08, RF-11, RF-19 |
 | CU-6 | Import history | David finds his past imports (batches) and their status. | RF-09 |
@@ -241,6 +241,11 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 > - The reconciler never creates internal transfers: a bank statement movement is always money entering or leaving the reconciled account. Internal transfers visible on one side only are handled by ignoring the movement (RF-10).
 > - The counterparty account is **no longer required** for creation (RF-08): the required fields are description, date and amount (from the statement); the reconciled target account is the opposite side (source for an expense, destination for an income); the counterparty is optional and Firefly III applies its default handling when omitted.
 > - Results render as **tables with explicit column headers** per group, and the ignored movements appear in a dedicated table below with the `Ignored` status and an Un-ignore action per row (RF-07, RF-10).
+
+> **Amendment (v0.9, 2026-09-13) — locked target account at reconciliation (RF-04, RF-12)**:
+> - The reconciliation configuration displays the import-time Firefly III account as **locked** (read-only); the wizard no longer offers an account selector at reconcile time (RF-04).
+> - To reconcile against a different account, the user deletes the `parsed` batch (RF-17) and re-imports the statement.
+> - The backend currency-mismatch rule is unchanged and remains the API-level guard (RF-12).
 
 ## 6. Non-functional requirements
 
