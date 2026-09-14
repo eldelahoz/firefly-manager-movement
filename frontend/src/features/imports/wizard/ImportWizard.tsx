@@ -113,8 +113,17 @@ export function ImportWizard({
     });
   }, [resumeDetail.data, state.probe]);
   const upload = useMutation({
-    mutationFn: (args: { file: File; currency: string; columns?: Record<string, string> }) =>
-      uploadCsv(args.file, { currency: args.currency, ...args.columns }),
+    mutationFn: (args: {
+      file: File;
+      currency: string;
+      account_id?: string;
+      columns?: Record<string, string>;
+    }) =>
+      uploadCsv(args.file, {
+        currency: args.currency,
+        ...(args.account_id ? { account_id: args.account_id } : {}),
+        ...args.columns,
+      }),
     onSuccess: (res) => {
       const notice = computeNotice(res as UploadResponse, accounts.data);
       if (notice?.kind === 'auto') {
@@ -241,7 +250,11 @@ export function ImportWizard({
                   return;
                 }
               }
-              upload.mutate({ file: state.file, currency: state.currency });
+              upload.mutate({
+                file: state.file,
+                currency: state.currency,
+                account_id: state.accountId,
+              });
             }}
             file={state.file}
             onRemoveFile={removeFile}
@@ -275,7 +288,12 @@ export function ImportWizard({
                   return;
                 }
                 upload.mutate(
-                  { file: state.file, currency: state.currency, columns },
+                  {
+                    file: state.file,
+                    currency: state.currency,
+                    account_id: state.accountId,
+                    columns,
+                  },
                   {
                     onSuccess: (res) => {
                       const notice = computeNotice(res as UploadResponse, accounts.data);
