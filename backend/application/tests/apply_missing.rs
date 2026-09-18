@@ -509,6 +509,7 @@ fn fx(fail_amounts: Vec<i64>) -> Fx {
                 ff3_token: "token".into(),
                 default_creation_tag: None,
                 enable_origin_trace: true,
+                default_date_format: None,
                 updated_at: epoch(),
             },
         )))),

@@ -18,6 +18,8 @@ pub struct SettingsResponse {
     pub has_token: bool,
     pub default_creation_tag: Option<String>,
     pub enable_origin_trace: bool,
+    /// Global date-format fallback (RF-02 v0.8); null = legacy auto-try.
+    pub default_date_format: Option<String>,
 }
 
 impl From<SettingsView> for SettingsResponse {
@@ -27,6 +29,7 @@ impl From<SettingsView> for SettingsResponse {
             has_token: v.has_token,
             default_creation_tag: v.default_creation_tag,
             enable_origin_trace: v.enable_origin_trace,
+            default_date_format: v.default_date_format,
         }
     }
 }
@@ -42,6 +45,9 @@ pub struct SaveSettingsRequest {
     /// When false, origin trace notes are not appended to created transactions.
     #[serde(default = "default_true")]
     pub enable_origin_trace: Option<bool>,
+    /// Global date-format fallback (RF-02 v0.8); null/empty clears it.
+    #[serde(default)]
+    pub default_date_format: Option<String>,
 }
 
 fn default_true() -> Option<bool> {
@@ -102,6 +108,7 @@ pub async fn save_settings(
         ff3_token: body.ff3_token,
         default_creation_tag: body.default_creation_tag,
         enable_origin_trace: body.enable_origin_trace.unwrap_or(true),
+        default_date_format: body.default_date_format,
     })
     .await
     .map_err(ApiError)?;

@@ -10,6 +10,8 @@ diesel::table! {
         default_creation_tag -> Nullable<Varchar>,
         updated_at -> Datetime,
         enable_origin_trace -> Bool,
+        #[max_length = 16]
+        default_date_format -> Nullable<Varchar>,
     }
 }
 
