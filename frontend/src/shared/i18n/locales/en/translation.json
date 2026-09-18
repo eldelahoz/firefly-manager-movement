@@ -23,7 +23,10 @@
     "defaultTagNone": "No default tag",
     "defaultTagHint": "Pre-filled on transaction creation; your selection replaces it",
     "enableOriginTrace": "Include origin trace in notes",
-    "enableOriginTraceHint": "Adds source file + batch reference to created transactions"
+    "enableOriginTraceHint": "Adds source file + batch reference to created transactions",
+    "importDefaults": "Import defaults",
+    "defaultDateFormat": "Default date format",
+    "defaultDateFormatHint": "Used when a file's headers have no memorized format."
   },
   "common": {
     "retry": "Retry",
@@ -118,6 +121,11 @@
     "invalidRows": "Invalid rows ({{count}})",
     "delimiter": "Delimiter",
     "autoApplied": "auto-applied (saved mapping / auto-detected)",
+    "dateFormat": "Date format",
+    "dateFormatHint": "Explicit format parses dates strictly; mismatched rows become invalid lines.",
+    "dateFormatAuto": "Auto-detect",
+    "dateFormatAmbiguous": "Ambiguous dates detected: with auto-detect the day/month order is guessed. Pick an explicit format to be sure.",
+    "dateFormatInvalid": "unparseable",
     "dateColumn": "Date column",
     "amountColumn": "Amount column",
     "descriptionColumn": "Description column",
