@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `189309b` · TRD `189309b` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `4d18eeb` · TRD `22dad7d` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
@@ -89,17 +89,21 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ---
 
-## RF-04  List FF3 asset accounts; select target at import; pre-select at reconcile
+## RF-04  List FF3 asset accounts; select target at import; locked at reconcile
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-13 · **Spec @** `4d18eeb`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `get_account_transactions.rs` | `Ff3AccountRepository.all_asset()` returns cached accounts |
+| **App** | `upload_import.rs::upload_import_stores_target_account` | Upload persists the selected account on the batch (FF3 id → local id, RF-04 v0.8) |
 | **Infra** | `ff3_account_repo.rs` | `Ff3AccountRepository` upsert + query (includes IBAN/number) |
 | **Infra** | `firefly_client.rs` | `asset_accounts()` calls `GET /api/v1/accounts?type=asset` |
 | **Pres** | `firefly_endpoints.rs` | `GET /api/firefly/accounts` returns cached asset accounts |
-| **FE** | `pending (Playwright gap)` → `tests/specs/import-wizard.spec.ts` + `tests/specs/dashboard-browse.spec.ts` ✅ (BrowseWidget) | Account select at import, origin suggest — partially pending (BrowseWidget ✅) |
+| **FE** | `import-wizard.spec.ts` W7 | Account selector at wizard step 1 (upload) with currency |
+| **FE** | `import-wizard.spec.ts` W23 | Fresh reconcile: import-time account shown locked (name + hint, no account combobox) |
+| **FE** | `import-wizard.spec.ts` W12 | Resume: account locked hint displayed |
+| **FE** | `dashboard-browse.spec.ts` ✅ (BrowseWidget) | Account browse widget |
 
 ---
 
@@ -227,15 +231,16 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-12  Multiple currencies: statement currency from FF3 account; blocking warning on mismatch
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-13 · **Spec @** `4d18eeb`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `reconcile_batch.rs::reconcile_currency_mismatch_is_blocked` | Batch `currency` (derived from FF3 account) ≠ account currency → `InvalidState` |
 | **App** | `upload_import.rs` | Currency passed from frontend (derived from selected account) |
-| **FE** | `pending (Playwright gap)` → `tests/specs/import-wizard.spec.ts` (gap `imports-upload-mapping-reconcile`) | Account currency derived, mismatch warning — pending |
+| **FE** | `import-wizard.spec.ts` W7 | Mismatch (EUR account vs USD batch) → blocking warning + reconcile disabled |
 
 > **Amendment v0.4**: Currency no longer manually selected at import; derived from FF3 account.
+> **Amendment v0.5** (2026-09-13): account locked at reconcile (RF-04 v0.8); API mismatch rule unchanged.
 
 ---
 

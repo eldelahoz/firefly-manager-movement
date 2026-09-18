@@ -3,7 +3,7 @@
 
 use sha2::{Digest, Sha256};
 
-use ffm_domain::ids::BatchId;
+use ffm_domain::ids::{BatchId, Ff3AccountId};
 use ffm_domain::value_objects::{BatchStatus, HeaderSignature, MovementStatus};
 
 use crate::csv::{auto_detect_mapping, parse_csv, ColumnMapping, InvalidLine, ParsedMovement};
@@ -19,6 +19,9 @@ pub struct UploadImportInput {
     pub bytes: Vec<u8>,
     pub currency: String,
     pub mapping: Option<ColumnMapping>,
+    /// Local `ff3_accounts.id` of the reconciliation target, resolved by the
+    /// presentation layer from the FF3 account id sent by the frontend (RF-04 v0.8).
+    pub account_id: Option<Ff3AccountId>,
 }
 
 /// Result of the upload import use case.
@@ -122,7 +125,7 @@ where
                 file_hash: file_hash.clone(),
                 format: "csv".to_string(),
                 currency: input.currency,
-                account_id: None,
+                account_id: input.account_id,
                 status: BatchStatus::Parsed,
                 headers: headers.clone(),
                 detected_delimiter: delimiter.to_string(),

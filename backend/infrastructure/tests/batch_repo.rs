@@ -6,7 +6,8 @@ use ffm_domain::value_objects::BatchStatus;
 use ffm_infrastructure::persistence::repositories::batch::MysqlBatchRepository;
 
 #[tokio::test]
-async fn batch_repo_roundtrip() {
+async fn insert_get_list_update_batch() {
+    let _db = common::DB_LOCK.lock().await;
     let pool = common::setup_pool().await;
     common::clean(&pool).await;
     let repo = MysqlBatchRepository::new(pool.clone());
@@ -43,7 +44,17 @@ async fn batch_repo_roundtrip() {
     let updated = repo.get(id).await.expect("get after update");
     assert_eq!(updated.status, BatchStatus::Reconciled);
 
-    let id2 = repo
+    common::clean(&pool).await;
+}
+
+#[tokio::test]
+async fn find_by_filename_and_delete_batch() {
+    let _db = common::DB_LOCK.lock().await;
+    let pool = common::setup_pool().await;
+    common::clean(&pool).await;
+    let repo = MysqlBatchRepository::new(pool.clone());
+
+    let id = repo
         .insert(NewBatch {
             filename: "dup-check.csv".into(),
             file_hash: "hash-find".into(),
@@ -59,12 +70,12 @@ async fn batch_repo_roundtrip() {
 
     let found = repo.find_by_filename("dup-check.csv").await.expect("find");
     assert_eq!(found.len(), 1);
-    assert_eq!(found[0].id, id2);
+    assert_eq!(found[0].id, id);
 
-    repo.delete(id2).await.expect("delete");
+    repo.delete(id).await.expect("delete");
     let found = repo.find_by_filename("dup-check.csv").await.expect("find");
     assert!(found.is_empty());
-    assert!(repo.get(id2).await.is_err());
+    assert!(repo.get(id).await.is_err());
 
     common::clean(&pool).await;
 }
