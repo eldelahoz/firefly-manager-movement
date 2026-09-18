@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `4d18eeb` · TRD `22dad7d` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `6795d5d` · TRD `6795d5d` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
@@ -47,10 +47,13 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-02  CSV parsing with manual mapping; memorize by header signature
 
-**Status:** implemented · **Last verified:** 2026-09-13 · **Spec @** `95378a6`
+**Status:** implemented (spec v0.8) · **Last verified:** 2026-09-18 · **Spec @** `189309b`
+
+**v0.8 delta (explicit date format) — implemented + verified**: precedence explicit > memorized-by-signature > settings `default_date_format` > auto-try; exclusive parsing with invalid lines naming the format (RF-03); format persisted inside `mapping_json` and reapplied by signature (mapping step skipped); settings default round-trip; mapping-step preview + ambiguity warning. Pre-v0.8 scope unchanged (rows below, all green).
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
+| **Domain** | `value_objects.rs::date_format` (4 tests) | `DateFormat`: canonical `as_str`, chrono format, `is_ambiguous` (both dd/mm & mm/dd readings valid), `FromStr` rejects unknown |
 | **App** | `upload_import.rs::upload_import_no_mapping_returns_headers_only` | Unknown headers → batch created, 0 movements, headers returned |
 | **App** | `upload_import.rs::upload_import_uses_provided_mapping` | Explicit `ColumnMapping` used |
 | **App** | `upload_import.rs::upload_import_uses_saved_mapping_by_signature` | Header signature lookup → auto-apply saved mapping |
@@ -58,12 +61,19 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `upload_import.rs::upload_import_empty_origin_account_values_when_no_column` | No origin column → `origin_account` is `None` |
 | **App** | `upload_import.rs::upload_import_auto_detects_spanish_headers_valor` | Known header layouts auto-detected |
 | **App** | `upload_import.rs::upload_import_persists_headers_and_delimiter_on_batch` | Headers + delimiter persisted on the batch (resume mapping source) |
-| **App** | `save_csv_mapping.rs` | `PUT /mapping` persists mapping by signature |
-| **Infra** | `csv_mapping_repo.rs` | `CsvMappingRepository` CRUD + `by_signature` |
-| **Infra** | `batch_repo.rs::insert_get_list_update_batch` | Headers/delimiter JSON roundtrip in MySQL |
+| **App** | `csv.rs::explicit date format` (6 tests) | Explicit format parses exclusively; non-matching value → invalid line naming the format; `05/01/2026` → 2026-05-01 (`mm/dd`) / 2026-01-05 (`dd/mm`); no-format falls back to legacy auto-try |
+| **App** | `upload_import.rs::date_format precedence` (4 tests) | explicit > memorized-by-signature > settings default > auto-try |
+| **App** | `app_settings.rs::default date format` (4 tests) | Save / clear / validate `default_date_format` |
+| **Infra** | `csv_mapping_repo.rs` | `CsvMappingRepository` CRUD + `by_signature` (JSON carries `date_format`) |
+| **Infra** | `app_settings_repo.rs` | `default_date_format` roundtrip + reversible migration replay |
+| **Infra** | `batch_repo.rs::batch_repo_roundtrip` | Headers/delimiter JSON roundtrip in MySQL |
 | **Pres** | `import_endpoints.rs::get_import_returns_batch_and_movements` | `GET /{id}` returns persisted `headers` + `detected_delimiter` |
+| **Pres** | `import_endpoints.rs::upload_with_date_format_parses_exclusively_and_reports_it` | Multipart `date_format` drives exclusive parsing |
+| **Pres** | `import_endpoints.rs::upload_with_unknown_date_format_returns_400` | Unknown wire value → 400 |
+| **Pres** | `import_endpoints.rs::put_mapping_with_date_format_persists_and_unknown_is_400` | `PUT /mapping` persists format by signature; unknown → 400 |
 | **FE** | `import-wizard.spec.ts` W2, W16 | Manual mapping flow: probe → map → re-upload with columns |
 | **FE** | `import-wizard.spec.ts` W22 | Resume: mapping step lists the persisted CSV columns |
+| **FE** | `import-wizard-date-format.spec.ts` DF1–DF5 | Preview per format + `mm/dd` vs `dd/mm` readings, ambiguity warning, PUT body + multipart field, signature reapply skips mapping, settings pre-fill |
 
 ---
 
@@ -454,7 +464,7 @@ All RFs are backend-implemented; FE now solo Playwright. `⏳` = pending Playwri
 | RF | Domain | App | Infra | Pres | FE | Status |
 | --- | :---: | :---: | :---: | :---: | :---: | --- |
 | 01 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `imports-upload-mapping-reconcile`) |
-| 02 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `imports-upload-mapping-reconcile`) |
+| 02 | ✅ | ✅ | ✅ | ✅ | ✅ | implemented (spec v0.8 — date format DF1–DF5) |
 | 03 | — | ✅ | ✅ | — | — | implemented |
 | 04 | — | ✅ | ✅ | ✅ | ⏳/✅ | implemented (FE BrowseWidget ✅, resto pending) |
 | 05 | — | ✅ | ✅ | ✅ | — | implemented |

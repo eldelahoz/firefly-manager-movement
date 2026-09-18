@@ -729,3 +729,188 @@ async fn put_import_mapping_saves_mapping() {
     let stored = mappings.by_signature(sig).await.unwrap().unwrap();
     assert!(stored.mapping_json.contains("date_column"));
 }
+
+// #region Explicit date format (RF-02 v0.8)
+
+fn multipart_with(filename: &str, csv: &str, extras: &[(&str, &str)]) -> (String, String) {
+    let boundary = "BOUNDARY";
+    let mut body = format!(
+        "--{b}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{f}\"\r\nContent-Type: text/csv\r\n\r\n{csv}\r\n",
+        b = boundary,
+        f = filename,
+        csv = csv
+    );
+    for (name, value) in extras {
+        body.push_str(&format!(
+            "--{b}\r\nContent-Disposition: form-data; name=\"{n}\"\r\n\r\n{v}\r\n",
+            b = boundary,
+            n = name,
+            v = value
+        ));
+    }
+    body.push_str(&format!("--{b}--\r\n", b = boundary));
+    (format!("multipart/form-data; boundary={}", boundary), body)
+}
+
+fn df_router(mappings: Arc<FakeCsvMappingRepo>) -> axum::Router {
+    let state = AppState {
+        firefly: Arc::new(FakeFireflyClient::ok()),
+        ff3_accounts: Arc::new(FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(FakeCsvDecoder),
+        batches: Arc::new(FakeBatchRepo::new()),
+        movements: Arc::new(FakeMovementRepo::new()),
+        csv_mappings: mappings,
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
+        ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
+    };
+    app(state)
+}
+
+#[tokio::test]
+async fn upload_with_date_format_parses_exclusively_and_reports_it() {
+    let router = df_router(Arc::new(FakeCsvMappingRepo::new()));
+    let (ct, body) = multipart_with(
+        "t.csv",
+        "Date,Amount,Description\n05/01/2026,100.00,Coffee\n",
+        &[
+            ("date_column", "Date"),
+            ("amount_column", "Amount"),
+            ("description_column", "Description"),
+            ("date_format", "dd/mm/yyyy"),
+        ],
+    );
+    let response = router
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/imports")
+                .header("content-type", ct)
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(value["valid_count"], 1);
+    assert_eq!(value["valid"][0]["date"], "2026-01-05");
+    assert_eq!(value["mapping_used"]["date_format"], "dd/mm/yyyy");
+}
+
+#[tokio::test]
+async fn upload_with_unknown_date_format_returns_400() {
+    let router = df_router(Arc::new(FakeCsvMappingRepo::new()));
+    let (ct, body) = multipart_with(
+        "t.csv",
+        "Date,Amount,Description\n05/01/2026,100.00,Coffee\n",
+        &[
+            ("date_column", "Date"),
+            ("amount_column", "Amount"),
+            ("description_column", "Description"),
+            ("date_format", "nope"),
+        ],
+    );
+    let response = router
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/imports")
+                .header("content-type", ct)
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn put_mapping_with_date_format_persists_and_unknown_is_400() {
+    let mappings = Arc::new(FakeCsvMappingRepo::new());
+    let router = df_router(mappings.clone());
+
+    // Create the batch (plain upload, ISO dates parse via auto-try).
+    let (ct, body) = multipart_with(
+        "t.csv",
+        "Date,Amount,Description\n2026-01-05,100.00,Coffee\n",
+        &[],
+    );
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/imports")
+                .header("content-type", ct)
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let payload = serde_json::json!({
+        "headers": ["Date", "Amount", "Description"],
+        "date_column": "Date",
+        "amount_column": "Amount",
+        "description_column": "Description",
+        "date_format": "mm/dd/yyyy"
+    });
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/imports/1/mapping")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&payload).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Memorized by signature together with the format.
+    let sig = HeaderSignature::from_headers(&[
+        "Date".to_string(),
+        "Amount".to_string(),
+        "Description".to_string(),
+    ]);
+    let stored = mappings.by_signature(sig).await.unwrap().unwrap();
+    assert!(stored
+        .mapping_json
+        .contains(r#""date_format":"mm/dd/yyyy""#));
+
+    // Unknown format on save is rejected.
+    let bad = serde_json::json!({
+        "headers": ["Date", "Amount", "Description"],
+        "date_column": "Date",
+        "amount_column": "Amount",
+        "description_column": "Description",
+        "date_format": "nope"
+    });
+    let response = router
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri("/api/imports/1/mapping")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&bad).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+// #endregion

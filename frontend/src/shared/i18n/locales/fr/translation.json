@@ -23,7 +23,10 @@
     "defaultTagNone": "Pas de tag par défaut",
     "defaultTagHint": "Pré-rempli lors de la création de transaction ; votre sélection le remplace",
     "enableOriginTrace": "Inclure la traçabilité d'origine dans les notes",
-    "enableOriginTraceHint": "Ajoute la référence du fichier source + lot aux transactions créées"
+    "enableOriginTraceHint": "Ajoute la référence du fichier source + lot aux transactions créées",
+    "importDefaults": "Valeurs par défaut pour l'import",
+    "defaultDateFormat": "Format de date par défaut",
+    "defaultDateFormatHint": "Utilisé quand les en-têtes du fichier n'ont pas de format mémorisé."
   },
   "common": {
     "retry": "Réessayer",
@@ -118,6 +121,11 @@
     "invalidRows": "Lignes invalides ({{count}})",
     "delimiter": "Séparateur",
     "autoApplied": "appliqué automatiquement (mapping enregistré / détecté)",
+    "dateFormat": "Format de date",
+    "dateFormatHint": "Un format explicite analyse les dates de façon stricte ; les lignes non conformes deviennent invalides.",
+    "dateFormatAuto": "Détection automatique",
+    "dateFormatAmbiguous": "Dates ambiguës détectées : avec la détection automatique, l'ordre jour/mois est deviné. Choisissez un format explicite pour être sûr.",
+    "dateFormatInvalid": "illisible",
     "dateColumn": "Colonne date",
     "amountColumn": "Colonne montant",
     "descriptionColumn": "Colonne description",

@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useTheme } from '@/app/ThemeProvider';
 import { getSettings, putSettings, postVerifySettings, getTags } from '@/shared/api/endpoints';
 import { queryKeys } from '@/shared/lib/keys';
+import { DATE_FORMATS } from '@/shared/lib/dates';
 import { Button } from '@/shared/ui/button';
 import { Card, CardHeader, CardContent, CardFooter } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
@@ -30,10 +31,12 @@ export function SettingsPage() {
   const [tokenDraft, setTokenDraft] = useState('');
   const [tagDraft, setTagDraft] = useState<string | null>(null);
   const [originTraceDraft, setOriginTraceDraft] = useState<boolean | null>(null);
+  const [dateFormatDraft, setDateFormatDraft] = useState<string | null>(null);
 
   const url = urlDraft ?? settings.data?.ff3_url ?? '';
   const tag = tagDraft ?? settings.data?.default_creation_tag ?? 'none';
   const originTrace = originTraceDraft ?? settings.data?.enable_origin_trace ?? true;
+  const dateFormat = dateFormatDraft ?? settings.data?.default_date_format ?? 'auto';
 
   const save = useMutation({
     mutationFn: () =>
@@ -42,11 +45,13 @@ export function SettingsPage() {
         ff3_token: tokenDraft.trim() || undefined,
         default_creation_tag: tag === 'none' ? null : tag,
         enable_origin_trace: originTrace,
+        default_date_format: dateFormat === 'auto' ? null : dateFormat,
       }),
     onSuccess: (s) => {
       toast.success(t('settings.saved'));
       setTagDraft(s.default_creation_tag ?? 'none');
       setOriginTraceDraft(s.enable_origin_trace ?? true);
+      setDateFormatDraft(s.default_date_format ?? 'auto');
     },
     onError: (e) => toast.error(e.message),
   });
@@ -132,6 +137,35 @@ export function SettingsPage() {
               <p className="text-xs text-muted-foreground">{t('settings.enableOriginTraceHint')}</p>
               <Switch checked={originTrace} onCheckedChange={setOriginTraceDraft} />
             </div>
+          </div>
+        </CardContent>
+        <CardFooter>
+          <Button disabled={save.isPending} onClick={() => save.mutate()}>
+            {save.isPending ? '…' : t('settings.save')}
+          </Button>
+        </CardFooter>
+      </Card>
+
+      {/* ── Import defaults ──────────────────────────── */}
+      <Card>
+        <CardHeader>{t('settings.importDefaults')}</CardHeader>
+        <CardContent>
+          <div className="space-y-1">
+            <span className="text-sm font-medium">{t('settings.defaultDateFormat')}</span>
+            <p className="text-xs text-muted-foreground">{t('settings.defaultDateFormatHint')}</p>
+            <Select value={dateFormat} onValueChange={setDateFormatDraft}>
+              <SelectTrigger className="w-[220px]" aria-label={t('settings.defaultDateFormat')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                <SelectItem value="auto">{t('wizard.dateFormatAuto')}</SelectItem>
+                {DATE_FORMATS.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>
+                    {f.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
         <CardFooter>

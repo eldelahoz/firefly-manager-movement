@@ -3,7 +3,7 @@
 use std::str::FromStr;
 
 use ffm_domain::value_objects::{
-    AmountCents, AmountParseError, BatchStatus, HeaderSignature, MovementStatus,
+    AmountCents, AmountParseError, BatchStatus, DateFormat, HeaderSignature, MovementStatus,
 };
 
 // ── AmountCents ─────────────────────────────────────────────────────────
@@ -215,3 +215,43 @@ fn header_signature_distinct_headers_distinct_sig() {
     let b = HeaderSignature::from_headers(&["b".to_string(), "a".to_string()]);
     assert_ne!(a, b, "el orden de headers importa");
 }
+
+// #region DateFormat (RF-02 v0.8)
+
+#[test]
+fn date_format_wire_strings_round_trip() {
+    for f in DateFormat::ALL {
+        assert_eq!(DateFormat::from_str(f.as_str()), Ok(f));
+    }
+}
+
+#[test]
+fn date_format_from_str_case_insensitive_rejects_unknown() {
+    assert_eq!(
+        DateFormat::from_str("MM/DD/YYYY"),
+        Ok(DateFormat::MmDdYyyySlash)
+    );
+    assert!(DateFormat::from_str("dd-mm").is_err());
+    assert!(DateFormat::from_str("").is_err());
+}
+
+#[test]
+fn date_format_chrono_formats_match_wire_strings() {
+    assert_eq!(DateFormat::DdMmYyyySlash.chrono_format(), "%d/%m/%Y");
+    assert_eq!(DateFormat::MmDdYyyySlash.chrono_format(), "%m/%d/%Y");
+    assert_eq!(DateFormat::YyyyMmDdDash.chrono_format(), "%Y-%m-%d");
+    assert_eq!(DateFormat::DdMmYyyyDot.chrono_format(), "%d.%m.%Y");
+    assert_eq!(DateFormat::DdMmYyyyDash.chrono_format(), "%d-%m-%Y");
+    assert_eq!(DateFormat::YyyyMmDdSlash.chrono_format(), "%Y/%m/%d");
+}
+
+#[test]
+fn date_format_ambiguity() {
+    assert!(DateFormat::DdMmYyyySlash.is_ambiguous());
+    assert!(DateFormat::MmDdYyyySlash.is_ambiguous());
+    assert!(!DateFormat::YyyyMmDdDash.is_ambiguous());
+    assert!(!DateFormat::DdMmYyyyDot.is_ambiguous());
+    assert!(!DateFormat::DdMmYyyyDash.is_ambiguous());
+    assert!(!DateFormat::YyyyMmDdSlash.is_ambiguous());
+}
+// #endregion

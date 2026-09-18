@@ -39,6 +39,7 @@ impl AppSettingsRepository for FakeSettings {
             ff3_token: s.ff3_token,
             default_creation_tag: s.default_creation_tag,
             enable_origin_trace: s.enable_origin_trace,
+            default_date_format: s.default_date_format.and_then(|f| f.parse().ok()),
             updated_at: chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
         };
         *self.0.lock().unwrap() = Some(row.clone());
@@ -116,6 +117,7 @@ fn epoch() -> AppSettings {
         ff3_token: "tok".into(),
         default_creation_tag: None,
         enable_origin_trace: true,
+        default_date_format: None,
         updated_at: chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
     }
 }
@@ -170,6 +172,7 @@ async fn save_persists_reconfigures_and_keeps_token_when_omitted() {
             ff3_token: None, // keep existing
             default_creation_tag: Some("ffm".into()),
             enable_origin_trace: true,
+            default_date_format: None,
         })
         .await
         .unwrap();
@@ -191,6 +194,7 @@ async fn save_replaces_token_when_provided_and_clears_tag() {
             ff3_token: Some("  tok2 ".into()),
             default_creation_tag: Some("   ".into()), // blank clears
             enable_origin_trace: true,
+            default_date_format: None,
         })
         .await
         .unwrap();
@@ -207,6 +211,7 @@ async fn save_rejects_blank_url() {
             ff3_token: Some("t".into()),
             default_creation_tag: None,
             enable_origin_trace: true,
+            default_date_format: None,
         })
         .await
         .unwrap_err();
@@ -222,6 +227,7 @@ async fn save_rejects_non_http_url() {
             ff3_token: Some("t".into()),
             default_creation_tag: None,
             enable_origin_trace: true,
+            default_date_format: None,
         })
         .await
         .unwrap_err();
@@ -237,6 +243,7 @@ async fn save_without_any_token_is_rejected() {
             ff3_token: None,
             default_creation_tag: None,
             enable_origin_trace: true,
+            default_date_format: None,
         })
         .await
         .unwrap_err();
@@ -257,6 +264,7 @@ async fn save_bootstraps_token_from_env_when_no_row() {
         ff3_token: None, // no row to keep from: fall back to env token
         default_creation_tag: None,
         enable_origin_trace: true,
+        default_date_format: None,
     })
     .await
     .unwrap();
@@ -298,3 +306,74 @@ async fn verify_rejects_blank_token() {
         .unwrap_err();
     assert!(matches!(err, ApplicationError::Parse(_)));
 }
+
+// #region Default date format (RF-02 v0.8)
+
+#[tokio::test]
+async fn save_persists_default_date_format() {
+    let repo = FakeSettings(std::sync::Mutex::new(Some(epoch())));
+    let view = SaveAppSettings::new(repo, FakeManager::default(), env("", ""))
+        .execute(SaveAppSettingsInput {
+            ff3_url: "http://ff3.new".into(),
+            ff3_token: None,
+            default_creation_tag: None,
+            enable_origin_trace: true,
+            default_date_format: Some("dd/mm/yyyy".into()),
+        })
+        .await
+        .unwrap();
+    assert_eq!(view.default_date_format.as_deref(), Some("dd/mm/yyyy"));
+}
+
+#[tokio::test]
+async fn get_returns_stored_default_date_format() {
+    let repo = std::sync::Arc::new(FakeSettings(std::sync::Mutex::new(Some(epoch()))));
+    SaveAppSettings::new(repo.clone(), FakeManager::default(), env("", ""))
+        .execute(SaveAppSettingsInput {
+            ff3_url: "http://ff3.new".into(),
+            ff3_token: None,
+            default_creation_tag: None,
+            enable_origin_trace: true,
+            default_date_format: Some("mm/dd/yyyy".into()),
+        })
+        .await
+        .unwrap();
+    let view = GetAppSettings::new(repo, env("", ""))
+        .execute()
+        .await
+        .unwrap();
+    assert_eq!(view.default_date_format.as_deref(), Some("mm/dd/yyyy"));
+}
+
+#[tokio::test]
+async fn save_rejects_unknown_default_date_format() {
+    let repo = FakeSettings(std::sync::Mutex::new(Some(epoch())));
+    let err = SaveAppSettings::new(repo, FakeManager::default(), env("", ""))
+        .execute(SaveAppSettingsInput {
+            ff3_url: "http://ff3.new".into(),
+            ff3_token: None,
+            default_creation_tag: None,
+            enable_origin_trace: true,
+            default_date_format: Some("bogus".into()),
+        })
+        .await
+        .unwrap_err();
+    assert!(matches!(err, ApplicationError::Parse(_)));
+}
+
+#[tokio::test]
+async fn save_clears_default_date_format_with_none() {
+    let repo = FakeSettings(std::sync::Mutex::new(Some(epoch())));
+    let view = SaveAppSettings::new(repo, FakeManager::default(), env("", ""))
+        .execute(SaveAppSettingsInput {
+            ff3_url: "http://ff3.new".into(),
+            ff3_token: None,
+            default_creation_tag: None,
+            enable_origin_trace: true,
+            default_date_format: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(view.default_date_format, None);
+}
+// #endregion

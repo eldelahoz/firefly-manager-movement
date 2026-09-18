@@ -9,7 +9,9 @@ use ffm_domain::value_objects::{BatchStatus, HeaderSignature, MovementStatus};
 use crate::csv::{auto_detect_mapping, parse_csv, ColumnMapping, InvalidLine, ParsedMovement};
 use crate::dtos::{NewBatch, NewMovement};
 use crate::error::ApplicationError;
-use crate::ports::{BatchRepository, CsvDecoder, CsvMappingRepository, MovementRepository};
+use crate::ports::{
+    AppSettingsRepository, BatchRepository, CsvDecoder, CsvMappingRepository, MovementRepository,
+};
 
 /// Input for the upload import use case.
 pub struct UploadImportInput {
@@ -46,30 +48,33 @@ pub struct UploadImportResult {
 
 const PREVIEW_LIMIT: usize = 50;
 
-pub struct UploadImport<D, B, M, C> {
+pub struct UploadImport<D, B, M, C, S> {
     decoder: D,
     batches: B,
     movements: M,
     csv_mappings: C,
+    settings: S,
 }
 
-impl<D, B, M, C> UploadImport<D, B, M, C> {
-    pub fn new(decoder: D, batches: B, movements: M, csv_mappings: C) -> Self {
+impl<D, B, M, C, S> UploadImport<D, B, M, C, S> {
+    pub fn new(decoder: D, batches: B, movements: M, csv_mappings: C, settings: S) -> Self {
         Self {
             decoder,
             batches,
             movements,
             csv_mappings,
+            settings,
         }
     }
 }
 
-impl<D, B, M, C> UploadImport<D, B, M, C>
+impl<D, B, M, C, S> UploadImport<D, B, M, C, S>
 where
     D: CsvDecoder,
     B: BatchRepository,
     M: MovementRepository,
     C: CsvMappingRepository,
+    S: AppSettingsRepository,
 {
     pub async fn execute(
         &self,
@@ -93,7 +98,7 @@ where
 
         let signature = HeaderSignature::from_headers(&headers);
 
-        let mapping = if let Some(m) = input.mapping {
+        let mut mapping = if let Some(m) = input.mapping {
             Some(m)
         } else if let Some(saved) = self.csv_mappings.by_signature(signature).await? {
             let mapping: ColumnMapping = serde_json::from_str(&saved.mapping_json)
@@ -102,6 +107,16 @@ where
         } else {
             auto_detect_mapping(&headers)
         };
+
+        // Date-format precedence (RF-02 v0.8): explicit (multipart or
+        // memorized signature) > global settings default > legacy auto-try.
+        if let Some(ref mut m) = mapping {
+            if m.date_format.is_none() {
+                if let Some(settings) = self.settings.get().await? {
+                    m.date_format = settings.default_date_format;
+                }
+            }
+        }
 
         let batch_id = self
             .batches

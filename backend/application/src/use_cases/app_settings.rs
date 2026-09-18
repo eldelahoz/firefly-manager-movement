@@ -5,6 +5,7 @@ use crate::dtos::SettingsView;
 use crate::dtos::{About, NewAppSettings};
 use crate::error::ApplicationError;
 use crate::ports::{AppSettingsRepository, FireflyClientFactory, FireflyConnectionManager};
+use ffm_domain::value_objects::DateFormat;
 
 /// Effective environment-variable fallback (RF-19, TRD §4): used when no
 /// settings row exists yet. Carries the raw env token server-side only —
@@ -40,6 +41,7 @@ impl<R: AppSettingsRepository> GetAppSettings<R> {
                 has_token: true,
                 default_creation_tag: s.default_creation_tag,
                 enable_origin_trace: s.enable_origin_trace,
+                default_date_format: s.default_date_format.map(|f| f.as_str().to_string()),
             },
             // No row yet: the running config comes from env fallback.
             None => SettingsView {
@@ -47,6 +49,7 @@ impl<R: AppSettingsRepository> GetAppSettings<R> {
                 has_token: self.env.has_token(),
                 default_creation_tag: None,
                 enable_origin_trace: true,
+                default_date_format: None,
             },
         })
     }
@@ -58,6 +61,9 @@ pub struct SaveAppSettingsInput {
     pub ff3_token: Option<String>,
     pub default_creation_tag: Option<String>,
     pub enable_origin_trace: bool,
+    /// Global date-format fallback (RF-02 v0.8). Blank/None clears it;
+    /// unknown values are rejected before persisting.
+    pub default_date_format: Option<String>,
 }
 
 pub struct SaveAppSettings<R, M> {
@@ -104,12 +110,32 @@ impl<R: AppSettingsRepository, M: FireflyConnectionManager> SaveAppSettings<R, M
             .map(|t| t.trim().to_string())
             .filter(|t| !t.is_empty());
         let enable_origin_trace = input.enable_origin_trace;
+        let default_date_format = input
+            .default_date_format
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .map(|s| {
+                s.parse::<DateFormat>().map_err(|_| {
+                    ApplicationError::Parse(format!(
+                        "unknown date format '{}' (expected one of: {})",
+                        s,
+                        DateFormat::ALL
+                            .iter()
+                            .map(|f| f.as_str())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ))
+                })
+            })
+            .transpose()?;
+        let date_format_wire = default_date_format.map(|f| f.as_str().to_string());
         self.repo
             .save(NewAppSettings {
                 ff3_url: url.clone(),
                 ff3_token: token.clone(),
                 default_creation_tag: tag.clone(),
                 enable_origin_trace,
+                default_date_format: date_format_wire.clone(),
             })
             .await?;
         self.manager.reconfigure(&url, &token).await?;
@@ -118,6 +144,7 @@ impl<R: AppSettingsRepository, M: FireflyConnectionManager> SaveAppSettings<R, M
             has_token: true,
             default_creation_tag: tag,
             enable_origin_trace,
+            default_date_format: date_format_wire,
         })
     }
 }

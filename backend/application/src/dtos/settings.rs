@@ -8,6 +8,8 @@ pub struct NewAppSettings {
     pub ff3_token: String,
     pub default_creation_tag: Option<String>,
     pub enable_origin_trace: bool,
+    /// Wire date-format string (RF-02 v0.8); None = no global default.
+    pub default_date_format: Option<String>,
 }
 
 /// Public view of the settings: no token value (NFR-02).
@@ -17,4 +19,6 @@ pub struct SettingsView {
     pub has_token: bool,
     pub default_creation_tag: Option<String>,
     pub enable_origin_trace: bool,
+    /// Wire date-format string (RF-02 v0.8); None = legacy auto-try.
+    pub default_date_format: Option<String>,
 }

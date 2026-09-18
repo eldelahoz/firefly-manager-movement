@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Project | firefly-manager-movement |
-| Version | 0.7 |
+| Version | 0.8 |
 | Created | 2026-08-14 |
-| Last modified | 2026-09-03 |
+| Last modified | 2026-09-17 |
 | Related PRD | [`2026-08-14-prd-rapprochement-bancaire.md`](./2026-08-14-prd-rapprochement-bancaire.md) |
 | Status | Draft in progress |
 
@@ -109,7 +109,7 @@ erDiagram
     CSV_MAPPINGS {
         bigint id PK
         varchar header_signature UK
-        json mapping_json
+        json mapping_json "columns + optional date_format (RF-02 v0.8)"
         datetime created_at
     }
     DELETED_AUDIT {
@@ -123,6 +123,7 @@ erDiagram
         varchar ff3_url
         varchar ff3_token "write-only, never returned"
         varchar default_creation_tag "nullable"
+        varchar default_date_format "nullable, RF-02 v0.8"
         datetime updated_at
     }
 ```
@@ -136,7 +137,7 @@ Key constraints:
 - `ff3_accounts`: `UNIQUE(ff3_id)`. Local cache synced on demand (when launching a reconciliation or via a dedicated endpoint); avoids repeated API calls and provides a displayable name.
 - `amount_cents`: signed BIGINT (cents), never floats (NFR-06).
 - `raw_json`: raw file line, for audit and re-parsing.
-- `app_settings`: single row. `ff3_token` is write-only (never returned to the frontend, NFR-02); `default_creation_tag` is nullable (empty = no default tag, RF-19 v0.7). Replaces environment-variable configuration since v0.6 (RF-19).
+- `app_settings`: single row. `ff3_token` is write-only (never returned to the frontend, NFR-02); `default_creation_tag` is nullable (empty = no default tag, RF-19 v0.7); `default_date_format` is nullable (NULL = no global default, RF-02 v0.8). Replaces environment-variable configuration since v0.6 (RF-19).
 - Assumed and justified denormalizations:
   - `reconciliations` counters = snapshot frozen at run time (audit);
   - `movements.status` = current state from the latest run + user actions, indexed for filtering;
@@ -159,7 +160,7 @@ Key constraints:
 | DELETE | `/api/imports/{id}` | Delete a batch in `parsed` status (+ its movements) — 409 if the batch is not `parsed`; response `200 {id, status: "deleted"}` |
 | GET | `/api/firefly/accounts` | Read proxy of asset accounts |
 | GET | `/api/firefly/tags`, `/api/firefly/categories`, `/api/firefly/budgets` | Read proxies for the personalization pickers and the default creation tag (RF-08, RF-19) |
-| GET / PUT | `/api/settings` | App settings (FF3 URL, token, default creation tag) — token write-only, never returned (RF-19) |
+| GET / PUT | `/api/settings` | App settings (FF3 URL, token, default creation tag, default date format) — token write-only, never returned (RF-19; `default_date_format` RF-02 v0.8) |
 | QUERY | `/api/firefly/accounts/{id}/transactions` | Read proxy of an account's transactions over a period — filters in body: `{start, end}` (RF-14) |
 | DELETE | `/api/firefly/transactions/{id}` | Duplicate deletion with audit snapshot (RF-15) |
 
@@ -168,6 +169,7 @@ Notes:
 - Batch currency (`POST /api/imports`, `currency` field): since frontend v1.5, it is **derived from the FF3 account selected** in the import wizard and transmitted as-is; the backend keeps its `EUR` default if the field is absent (contract unchanged).
 - **Duplicate file names**: `POST /api/imports` refuses a file whose name already exists in an existing batch — `find_by_filename` check before insertion (RF-16, case-insensitive via MySQL collation). The wizard also pre-checks client-side against the batch list and blocks the upload with an inline error.
 - **Mapping probe flow**: when no mapping is memorized or auto-detected, the wizard performs a "probe" upload (headers only, 0 movements, batch in `parsed` status). Upon mapping confirmation, the probe is deleted (`DELETE /api/imports/{id}`) and the file is re-uploaded with the confirmed columns — no orphan batches.
+- **Date format (v0.8)**: `POST /api/imports` accepts an optional multipart `date_format` field and `PUT /api/imports/{id}/mapping` an optional `date_format` body field (wire values from the six known formats; an unknown value is rejected with 400). The saved mapping persists it inside `mapping_json`; a re-import with the same signature reapplies it automatically (RF-02 v0.8).
 - **Persisted CSV headers** (2026-09-13): `batches.headers_json` + `batches.detected_delimiter` store the header row and delimiter detected at upload; `GET /api/imports/{id}` returns them (`headers`, `detected_delimiter`) so the mapping step lists the original columns when resuming an incomplete import (RF-02, RF-18).
 - **Persisted target account** (2026-09-13, RF-04 v0.8): `POST /api/imports` accepts an optional `account_id` multipart field carrying the **FF3 account id** selected at import; the backend resolves it to the local `ff3_accounts.id` and stores it on the batch at upload time (400 if unknown). `BatchResponse.account_id` / `account_name` expose the resolved FF3 id and name, so the reconcile step displays the account locked on resume without any client-side state.
 - `POST /apply` is idempotent per movement: before each creation, check the existence of a row in `creations` (`UNIQUE(movement_id)`, NFR-05); skip already-created movements.
@@ -213,6 +215,7 @@ The frontend never talks to Firefly III directly: everything goes through the ba
 
 - **CSV**: delimiter and encoding detection; if the headers match a memorized mapping (`csv_mappings.header_signature`, hash of normalized headers), automatic application; otherwise manual mapping is required. XLSX files must be converted to CSV by the user before import (native XLSX/OFX support planned for V2).
 - **Origin-account column (v0.7)**: the mapping can bind an optional origin-account column (RF-02). The parsed distinct values are exposed with the batch preview to feed the account auto-suggestion (RF-04: match against `ff3_accounts` by IBAN, account number or name). No dedicated schema column — the value stays derivable from `raw_json` + the stored mapping.
+- **Date format (v0.8)**: the explicit date format rides inside `mapping_json` as part of the serialized column mapping (`date_format`, nullable; wire values `dd/mm/yyyy` | `mm/dd/yyyy` | `yyyy-mm-dd` | `dd.mm.yyyy` | `dd-mm-yyyy` | `yyyy/mm/dd`). No dedicated schema column — same precedent as the origin-account column. With an explicit format the parser uses only that format (mismatch ⇒ invalid line naming the format, RF-03); otherwise it falls back to the legacy ordered auto-try. `app_settings.default_date_format` (nullable VARCHAR) is the global fallback; precedence: explicit selection > memorized-by-signature > settings default > auto-try.
 - Invalid lines: kept with the error attached, exposed in the preview (RF-03).
 - When the CSV requires manual mapping, the preview displays an explanatory message (0 valid rows) and the wizard guides the user to the mapping step (RF-02, v0.5 amendment).
 

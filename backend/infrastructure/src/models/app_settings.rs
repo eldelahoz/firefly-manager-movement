@@ -3,6 +3,7 @@ use diesel::prelude::*;
 
 use ffm_application::dtos::NewAppSettings;
 use ffm_domain::entities::AppSettings;
+use ffm_domain::value_objects::DateFormat;
 
 use crate::schema::app_settings;
 
@@ -15,6 +16,7 @@ pub struct AppSettingsModel {
     pub default_creation_tag: Option<String>,
     pub updated_at: NaiveDateTime,
     pub enable_origin_trace: bool,
+    pub default_date_format: Option<String>,
 }
 
 impl From<AppSettingsModel> for AppSettings {
@@ -24,6 +26,9 @@ impl From<AppSettingsModel> for AppSettings {
             ff3_token: m.ff3_token,
             default_creation_tag: m.default_creation_tag,
             enable_origin_trace: m.enable_origin_trace,
+            default_date_format: m
+                .default_date_format
+                .and_then(|s| s.parse::<DateFormat>().ok()),
             updated_at: m.updated_at,
         }
     }
@@ -37,6 +42,7 @@ pub struct NewAppSettingsModel {
     pub ff3_token: String,
     pub default_creation_tag: Option<String>,
     pub enable_origin_trace: bool,
+    pub default_date_format: Option<String>,
 }
 
 impl From<NewAppSettings> for NewAppSettingsModel {
@@ -47,6 +53,7 @@ impl From<NewAppSettings> for NewAppSettingsModel {
             ff3_token: d.ff3_token,
             default_creation_tag: d.default_creation_tag,
             enable_origin_trace: d.enable_origin_trace,
+            default_date_format: d.default_date_format,
         }
     }
 }

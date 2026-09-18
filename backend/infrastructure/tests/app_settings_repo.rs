@@ -5,6 +5,7 @@ mod common;
 use diesel_async::SimpleAsyncConnection;
 use ffm_application::dtos::NewAppSettings;
 use ffm_application::ports::AppSettingsRepository;
+use ffm_domain::value_objects::DateFormat;
 use ffm_infrastructure::persistence::repositories::app_settings::MysqlAppSettingsRepository;
 
 const UP_SQL: &str = include_str!("../migrations/2026-09-03-100000-0006_app_settings/up.sql");
@@ -15,6 +16,9 @@ const UP_TOKEN_SQL: &str =
     include_str!("../migrations/2026-09-05-100000-0008_ff3_token_text/up.sql");
 const UP_ORIGIN_TRACE_SQL: &str = include_str!(
     "../migrations/2026-09-06-010721-0000_add_enable_origin_trace_to_app_settings/up.sql"
+);
+const UP_DATE_FORMAT_SQL: &str = include_str!(
+    "../migrations/2026-09-17-120000-0000_add_default_date_format_to_app_settings/up.sql"
 );
 
 #[tokio::test]
@@ -33,6 +37,7 @@ async fn app_settings_repo_roundtrip_and_reversible_migration() {
             ff3_token: "secret-token".into(),
             default_creation_tag: Some("ffm-import".into()),
             enable_origin_trace: true,
+            default_date_format: Some("mm/dd/yyyy".into()),
         })
         .await
         .unwrap();
@@ -40,6 +45,7 @@ async fn app_settings_repo_roundtrip_and_reversible_migration() {
     assert_eq!(saved.default_creation_tag.as_deref(), Some("ffm-import"));
     let loaded = repo.get().await.unwrap().unwrap();
     assert_eq!(loaded.ff3_token, "secret-token");
+    assert_eq!(loaded.default_date_format, Some(DateFormat::MmDdYyyySlash));
 
     // clearing the tag round-trips to None
     repo.save(NewAppSettings {
@@ -47,16 +53,13 @@ async fn app_settings_repo_roundtrip_and_reversible_migration() {
         ff3_token: "secret-token".into(),
         default_creation_tag: None,
         enable_origin_trace: true,
+        default_date_format: None,
     })
     .await
     .unwrap();
-    assert!(repo
-        .get()
-        .await
-        .unwrap()
-        .unwrap()
-        .default_creation_tag
-        .is_none());
+    let loaded = repo.get().await.unwrap().unwrap();
+    assert!(loaded.default_creation_tag.is_none());
+    assert!(loaded.default_date_format.is_none());
 
     // Firefly III OAuth personal access tokens are ~1 KB JWTs; the live
     // table must accept them (migration 0008 widened ff3_token to TEXT).
@@ -66,6 +69,7 @@ async fn app_settings_repo_roundtrip_and_reversible_migration() {
         ff3_token: long_token.clone(),
         default_creation_tag: None,
         enable_origin_trace: true,
+        default_date_format: None,
     })
     .await
     .expect("save with 1028-char token");
@@ -81,6 +85,7 @@ async fn app_settings_repo_roundtrip_and_reversible_migration() {
         conn.batch_execute(UP_SQL).await.unwrap();
         conn.batch_execute(UP_TOKEN_SQL).await.unwrap();
         conn.batch_execute(UP_ORIGIN_TRACE_SQL).await.unwrap();
+        conn.batch_execute(UP_DATE_FORMAT_SQL).await.unwrap();
     }
     assert!(repo.get().await.unwrap().is_none());
 }

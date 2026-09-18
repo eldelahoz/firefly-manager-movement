@@ -42,6 +42,7 @@ export const fixtures = {
     has_token: true,
     default_creation_tag: 'ffm-import',
     enable_origin_trace: true,
+    default_date_format: null,
   },
   tags: ['ffm-import', 'vacation'],
   categories: ['Groceries'],

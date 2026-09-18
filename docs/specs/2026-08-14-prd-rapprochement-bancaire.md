@@ -5,7 +5,7 @@
 | Project | firefly-manager-movement |
 | Version | 0.9 |
 | Created | 2026-08-14 |
-| Last modified | 2026-09-13 |
+| Last modified | 2026-09-17 |
 | Author | A. Delahoz |
 | Status | Draft in progress |
 
@@ -196,7 +196,7 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 | ID | Requirement | Priority |
 | --- | --- | --- |
 | [RF-01](./requirements/rf-01-upload.md) | The system allows uploading CSV files (max size 10 MB). XLSX files must be manually converted to CSV by the user before import. | P0 |
-| [RF-02](./requirements/rf-02-csv-mapping.md) | The system parses the CSV with manual column mapping; it memorizes the mapping by file signature (headers). An optional origin-account column can be mapped. | P0 |
+| [RF-02](./requirements/rf-02-csv-mapping.md) | The system parses the CSV with manual column mapping; it memorizes the mapping by file signature (headers). An optional origin-account column can be mapped. An explicit date format can be selected at mapping; it is memorized by header signature. | P0 |
 | [RF-03](./requirements/rf-03-invalid-lines.md) | The system detects and reports invalid lines (unreadable date, empty amount) without blocking the import; valid lines are kept. | P0 |
 | [RF-04](./requirements/rf-04-asset-accounts.md) | The system lists Firefly III asset accounts; the target account for the comparison is selected during the import and pre-selected when running the reconciliation. When the file carries an origin-account column matching a single asset account, it is pre-selected automatically. | P0 |
 | [RF-05](./requirements/rf-05-fetch-transactions.md) | The system fetches the target account's transactions via the Firefly III API over the date window. | P0 |
@@ -246,6 +246,8 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 > - The reconciliation configuration displays the import-time Firefly III account as **locked** (read-only); the wizard no longer offers an account selector at reconcile time (RF-04).
 > - To reconcile against a different account, the user deletes the `parsed` batch (RF-17) and re-imports the statement.
 > - The backend currency-mismatch rule is unchanged and remains the API-level guard (RF-12).
+
+> **Amendment (v0.9, 2026-09-17) — RF-02 explicit date format**: the column mapping gains an explicit date-format selector (six known formats + auto). Precedence: explicit selection > memorized-by-signature > global default (Settings) > auto-try. Explicit format mismatch ⇒ invalid line naming the format (RF-03); no silent reinterpretation. The mapping step previews parsed sample dates and warns on ambiguous values.
 
 ## 6. Non-functional requirements
 
