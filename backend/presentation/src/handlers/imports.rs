@@ -6,6 +6,7 @@ use chrono::NaiveDate;
 use chrono::NaiveDateTime;
 use serde::Deserialize;
 use serde::Serialize;
+use std::str::FromStr;
 use utoipa::ToSchema;
 
 use ffm_application::csv::ColumnMapping;
@@ -16,10 +17,24 @@ use ffm_application::use_cases::list_imports::ListImports;
 use ffm_application::use_cases::save_csv_mapping::SaveCsvMapping;
 use ffm_application::use_cases::upload_import::{UploadImport, UploadImportInput};
 use ffm_domain::entities::Ff3Account;
+use ffm_domain::value_objects::DateFormat;
 use std::collections::HashMap;
 
 use crate::error::ApiError;
 use crate::state::AppState;
+
+/// Validates a wire date-format string (RF-02 v0.8). Blank/absent = None;
+/// unknown values yield 400.
+fn validate_date_format(raw: Option<&str>) -> Result<Option<DateFormat>, ApiError> {
+    match raw.map(str::trim).filter(|s| !s.is_empty()) {
+        None => Ok(None),
+        Some(s) => DateFormat::from_str(s).map(Some).map_err(|_| {
+            ApiError(ffm_application::error::ApplicationError::Parse(format!(
+                "unknown date format '{s}'"
+            )))
+        }),
+    }
+}
 
 #[derive(Serialize, ToSchema)]
 pub struct ColumnMappingResponse {
@@ -28,6 +43,9 @@ pub struct ColumnMappingResponse {
     pub description_column: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub origin_account_column: Option<String>,
+    /// Explicit date format used for parsing (RF-02 v0.8); absent = auto-try.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date_format: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -103,6 +121,9 @@ pub struct SaveMappingRequest {
     pub description_column: String,
     #[serde(default)]
     pub origin_account_column: Option<String>,
+    /// Memorized date format (RF-02 v0.8); absent/blank = no explicit format.
+    #[serde(default)]
+    pub date_format: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -133,6 +154,7 @@ pub async fn upload_import(
     let mut amount_column: Option<String> = None;
     let mut description_column: Option<String> = None;
     let mut origin_account_column: Option<String> = None;
+    let mut date_format_raw: Option<String> = None;
 
     while let Some(field) = multipart.next_field().await.map_err(|e| {
         ApiError(ffm_application::error::ApplicationError::Parse(
@@ -215,6 +237,20 @@ pub async fn upload_import(
                     origin_account_column = Some(text);
                 }
             }
+            "date_format" => {
+                date_format_raw = Some(
+                    field
+                        .text()
+                        .await
+                        .map_err(|e| {
+                            ApiError(ffm_application::error::ApplicationError::Parse(
+                                e.to_string(),
+                            ))
+                        })?
+                        .trim()
+                        .to_string(),
+                );
+            }
             _ => {
                 // ignore unknown fields
             }
@@ -228,6 +264,7 @@ pub async fn upload_import(
     })?;
     let filename = filename.unwrap_or_else(|| "upload.csv".into());
     let currency = currency.unwrap_or_else(|| "EUR".into());
+    let date_format = validate_date_format(date_format_raw.as_deref())?;
 
     let mapping = match (date_column, amount_column, description_column) {
         (Some(d), Some(a), Some(desc)) => Some(ColumnMapping {
@@ -235,7 +272,7 @@ pub async fn upload_import(
             amount_column: a,
             description_column: desc,
             origin_account_column,
-            date_format: None,
+            date_format,
         }),
         _ => None,
     };
@@ -272,6 +309,7 @@ pub async fn upload_import(
             amount_column: m.amount_column,
             description_column: m.description_column,
             origin_account_column: m.origin_account_column,
+            date_format: m.date_format.map(|f| f.as_str().to_string()),
         }),
         valid: result
             .valid
@@ -452,6 +490,7 @@ pub async fn save_mapping(
         .map_err(ApiError)?;
 
     let uc = SaveCsvMapping::new(state.csv_mappings.clone());
+    let date_format = validate_date_format(body.date_format.as_deref())?;
     let mapping_id = uc
         .execute(
             body.headers,
@@ -460,7 +499,7 @@ pub async fn save_mapping(
                 amount_column: body.amount_column,
                 description_column: body.description_column,
                 origin_account_column: body.origin_account_column,
-                date_format: None,
+                date_format,
             },
         )
         .await
