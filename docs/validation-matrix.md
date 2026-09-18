@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `2d7604a` · TRD `2d7604a` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `189309b` · TRD `189309b` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
@@ -23,7 +23,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-01  CSV upload (max 10 MB); XLSX → CSV by user
 
-**Status:** implemented · **Last verified:** 2026-09-12 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-09-12 · **Spec @** `220ea85`
 
 > **v0.1 amendment delta (2026-09-12, explicit-Next)**: file selection/drop only stages the file (no request, wizard stays on step 1); upload+parse runs only on Next; Next disabled until a file is staged; Back from preview keeps the staged file and Next re-parses (previous probe batch deleted first); Remove and Change file delete the previous probe batch (no orphan batches). Backend upload/parse semantics unchanged.
 
@@ -47,7 +47,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-02  CSV parsing with manual mapping; memorize by header signature
 
-**Status:** pending (spec v0.8) · **Last verified:** 2026-09-13 · **Spec @** `95378a6`
+**Status:** pending (spec v0.8) · **Last verified:** 2026-09-13 · **Spec @** `189309b`
 
 **Pending (spec v0.8)** — delta: explicit date format (mapping-step selector + parsed-sample preview + ambiguity warning), persistence inside `mapping_json`, settings default `default_date_format`, explicit-format-only parsing with `InvalidLine` naming the format, signature reapply of the memorized format. Blocked until: unit tests `DateFormat` + explicit-format `parse_csv` (`domain/tests/value_objects.rs`, `application/tests/csv.rs`), integration upload/format precedence (`application/tests/upload_import.rs`), settings round-trip (`application/tests/app_settings.rs`, `infrastructure/tests/app_settings_repo.rs`), endpoint tests (`presentation/tests/import_endpoints.rs`), E2E `import-wizard-date-format.spec.ts`. The table below covers the pre-v0.8 scope (still valid).
 
