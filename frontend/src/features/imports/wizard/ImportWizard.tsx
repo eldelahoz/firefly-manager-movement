@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -112,6 +112,24 @@ export function ImportWizard({
       batchId: batch.id,
     });
   }, [resumeDetail.data, state.probe]);
+  // Sample rows for the mapping-step date-format preview (first 8 KB of the file).
+  const [sampleRows, setSampleRows] = useState<string[][]>([]);
+  useEffect(() => {
+    if (state.step !== 'mapping' || !state.file || !state.probe) return;
+    let cancelled = false;
+    void state.file
+      .slice(0, 8192)
+      .text()
+      .then((text) => {
+        if (cancelled) return;
+        const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '');
+        const delim = state.probe!.detected_delimiter;
+        setSampleRows(lines.slice(1).map((l) => l.split(delim)));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.step, state.file, state.probe]);
   const upload = useMutation({
     mutationFn: (args: { file: File; currency: string; columns?: Record<string, string> }) =>
       uploadCsv(args.file, { currency: args.currency, ...args.columns }),
@@ -263,6 +281,7 @@ export function ImportWizard({
         {state.step === 'mapping' && state.probe && (
           <MappingStep
             probe={state.probe}
+            sampleRows={sampleRows}
             onMapped={async (columns) => {
               const probeId = state.probe?.batch_id;
               if (probeId == null) return;

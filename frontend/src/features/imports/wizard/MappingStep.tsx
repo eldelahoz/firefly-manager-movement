@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type { UploadResponse } from '@/shared/api/dto';
-import { putMapping } from '@/shared/api/endpoints';
+import { getSettings, putMapping } from '@/shared/api/endpoints';
+import { queryKeys } from '@/shared/lib/keys';
+import { DATE_FORMATS, isAmbiguousFor, parseWithFormat } from '@/shared/lib/dates';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { WizardFooter } from './WizardShell';
 
@@ -11,15 +13,18 @@ export type MappingColumns = {
   amount_column: string;
   description_column: string;
   origin_account_column?: string;
+  date_format?: string;
 };
 
 export function MappingStep({
   probe,
+  sampleRows,
   onMapped,
   onBack,
   onCancel,
 }: {
   probe: UploadResponse;
+  sampleRows?: string[][];
   onMapped: (columns: MappingColumns, response?: { mapping_id: number }) => void;
   onBack: () => void;
   onCancel: () => void;
@@ -30,6 +35,14 @@ export function MappingStep({
     amount_column: '',
     description_column: '',
   });
+  const [dateFormat, setDateFormat] = useState<string | null>(null);
+  const settings = useQuery({
+    queryKey: queryKeys.settings,
+    queryFn: getSettings,
+    staleTime: 30_000,
+  });
+  // null = follow the settings default until the user picks explicitly.
+  const selectedFormat = dateFormat ?? settings.data?.default_date_format ?? 'auto';
   const put = useMutation({
     mutationFn: () =>
       putMapping(probe.batch_id, {
@@ -40,9 +53,20 @@ export function MappingStep({
         ...(cols.origin_account_column
           ? { origin_account_column: cols.origin_account_column }
           : {}),
+        ...(selectedFormat !== 'auto' ? { date_format: selectedFormat } : {}),
       }),
   });
   const complete = cols.date_column && cols.amount_column && cols.description_column;
+  const dateIdx = probe.headers.indexOf(cols.date_column);
+  const fmt = selectedFormat === 'auto' ? undefined : selectedFormat;
+  const raws =
+    dateIdx >= 0
+      ? (sampleRows ?? [])
+          .map((r) => (r[dateIdx] ?? '').trim())
+          .filter((v) => v !== '')
+          .slice(0, 3)
+      : [];
+  const ambiguous = raws.some((v) => isAmbiguousFor(v, fmt));
   const fields = [
     ['date_column', t('wizard.dateColumn'), t('wizard.fieldDate')],
     ['amount_column', t('wizard.amountColumn'), t('wizard.fieldAmount')],
@@ -78,6 +102,44 @@ export function MappingStep({
             </span>
           </div>
         ))}
+        <div className="flex items-center gap-3">
+          <Select value={selectedFormat} onValueChange={setDateFormat}>
+            <SelectTrigger className="w-full max-w-[360px]" aria-label={t('wizard.dateFormat')}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectItem value="auto">{t('wizard.dateFormatAuto')}</SelectItem>
+              {DATE_FORMATS.map((f) => (
+                <SelectItem key={f.value} value={f.value}>
+                  {f.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-lg text-text-3" aria-hidden="true">
+            →
+          </span>
+          <span className="text-sm text-text-1">{t('wizard.dateFormat')}</span>
+        </div>
+        <p className="text-xs text-text-3">{t('wizard.dateFormatHint')}</p>
+        {raws.length > 0 && (
+          <div className="space-y-1 text-sm" data-testid="date-format-preview">
+            {raws.map((v) => (
+              <div key={v} className="flex gap-2">
+                <span className="text-text-3">{v}</span>
+                <span className="text-text-3" aria-hidden="true">
+                  →
+                </span>
+                <span>{parseWithFormat(v, fmt) ?? t('wizard.dateFormatInvalid')}</span>
+              </div>
+            ))}
+            {ambiguous && (
+              <p className="text-status-missing-txt" role="alert">
+                {t('wizard.dateFormatAmbiguous')}
+              </p>
+            )}
+          </div>
+        )}
         {optionalFields.map(([key, label]) => (
           <div key={key} className="flex items-center gap-3">
             <Select
@@ -109,7 +171,15 @@ export function MappingStep({
         onBack={onBack}
         backLabel={t('common.back')}
         primaryLabel={t('common.next')}
-        onPrimary={() => put.mutate(undefined, { onSuccess: (res) => onMapped(cols, res) })}
+        onPrimary={() =>
+          put.mutate(undefined, {
+            onSuccess: (res) =>
+              onMapped(
+                { ...cols, ...(selectedFormat !== 'auto' ? { date_format: selectedFormat } : {}) },
+                res,
+              ),
+          })
+        }
         primaryDisabled={!complete || put.isPending}
       />
     </div>
