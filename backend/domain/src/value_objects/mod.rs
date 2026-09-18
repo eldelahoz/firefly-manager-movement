@@ -4,10 +4,12 @@
 
 mod amount;
 mod batch_status;
+mod date_format;
 mod header_signature;
 mod movement_status;
 
 pub use amount::{AmountCents, AmountParseError};
 pub use batch_status::BatchStatus;
+pub use date_format::DateFormat;
 pub use header_signature::HeaderSignature;
 pub use movement_status::MovementStatus;
