@@ -47,7 +47,9 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-02  CSV parsing with manual mapping; memorize by header signature
 
-**Status:** implemented · **Last verified:** 2026-09-13 · **Spec @** `95378a6`
+**Status:** pending (spec v0.8) · **Last verified:** 2026-09-13 · **Spec @** `95378a6`
+
+**Pending (spec v0.8)** — delta: explicit date format (mapping-step selector + parsed-sample preview + ambiguity warning), persistence inside `mapping_json`, settings default `default_date_format`, explicit-format-only parsing with `InvalidLine` naming the format, signature reapply of the memorized format. Blocked until: unit tests `DateFormat` + explicit-format `parse_csv` (`domain/tests/value_objects.rs`, `application/tests/csv.rs`), integration upload/format precedence (`application/tests/upload_import.rs`), settings round-trip (`application/tests/app_settings.rs`, `infrastructure/tests/app_settings_repo.rs`), endpoint tests (`presentation/tests/import_endpoints.rs`), E2E `import-wizard-date-format.spec.ts`. The table below covers the pre-v0.8 scope (still valid).
 
 | Layer | Test | What it validates |
 | --- | --- | --- |

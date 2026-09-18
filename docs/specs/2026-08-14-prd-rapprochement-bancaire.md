@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Project | firefly-manager-movement |
-| Version | 0.8 |
+| Version | 0.9 |
 | Created | 2026-08-14 |
-| Last modified | 2026-09-03 |
+| Last modified | 2026-09-17 |
 | Author | A. Delahoz |
 | Status | Draft in progress |
 
@@ -196,7 +196,7 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 | ID | Requirement | Priority |
 | --- | --- | --- |
 | [RF-01](./requirements/rf-01-upload.md) | The system allows uploading CSV files (max size 10 MB). XLSX files must be manually converted to CSV by the user before import. | P0 |
-| [RF-02](./requirements/rf-02-csv-mapping.md) | The system parses the CSV with manual column mapping; it memorizes the mapping by file signature (headers). An optional origin-account column can be mapped. | P0 |
+| [RF-02](./requirements/rf-02-csv-mapping.md) | The system parses the CSV with manual column mapping; it memorizes the mapping by file signature (headers). An optional origin-account column can be mapped. An explicit date format can be selected at mapping; it is memorized by header signature. | P0 |
 | [RF-03](./requirements/rf-03-invalid-lines.md) | The system detects and reports invalid lines (unreadable date, empty amount) without blocking the import; valid lines are kept. | P0 |
 | [RF-04](./requirements/rf-04-asset-accounts.md) | The system lists Firefly III asset accounts; the target account for the comparison is selected during the import and pre-selected when running the reconciliation. When the file carries an origin-account column matching a single asset account, it is pre-selected automatically. | P0 |
 | [RF-05](./requirements/rf-05-fetch-transactions.md) | The system fetches the target account's transactions via the Firefly III API over the date window. | P0 |
@@ -241,6 +241,8 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 > - The reconciler never creates internal transfers: a bank statement movement is always money entering or leaving the reconciled account. Internal transfers visible on one side only are handled by ignoring the movement (RF-10).
 > - The counterparty account is **no longer required** for creation (RF-08): the required fields are description, date and amount (from the statement); the reconciled target account is the opposite side (source for an expense, destination for an income); the counterparty is optional and Firefly III applies its default handling when omitted.
 > - Results render as **tables with explicit column headers** per group, and the ignored movements appear in a dedicated table below with the `Ignored` status and an Un-ignore action per row (RF-07, RF-10).
+
+> **Amendment (v0.9, 2026-09-17) — RF-02 explicit date format**: the column mapping gains an explicit date-format selector (six known formats + auto). Precedence: explicit selection > memorized-by-signature > global default (Settings) > auto-try. Explicit format mismatch ⇒ invalid line naming the format (RF-03); no silent reinterpretation. The mapping step previews parsed sample dates and warns on ambiguous values.
 
 ## 6. Non-functional requirements
 
