@@ -26,6 +26,8 @@ export const putMapping = (
     date_column: string;
     amount_column: string;
     description_column: string;
+    /** Memorized with the signature (RF-02 v0.8); absent = no explicit format. */
+    date_format?: string;
   },
 ) => api.put<{ mapping_id: number }>(`/api/imports/${id}/mapping`, body);
 export const postReconcile = (id: number, body: ReconcileRequest) =>

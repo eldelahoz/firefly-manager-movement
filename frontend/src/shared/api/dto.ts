@@ -26,6 +26,8 @@ export interface UploadResponse {
     amount_column: string;
     description_column: string;
     origin_account_column?: string | null;
+    /** Explicit date format used for parsing (RF-02 v0.8); absent = auto-try. */
+    date_format?: string | null;
   } | null;
   origin_account_values: string[];
   valid: { line_no: number; date: string; amount_cents: number; description: string }[];
@@ -146,6 +148,8 @@ export interface SettingsResponse {
   has_token: boolean;
   default_creation_tag: string | null;
   enable_origin_trace: boolean;
+  /** RF-19 (v0.8): global fallback format for CSV date parsing. */
+  default_date_format?: string | null;
 }
 
 export interface SettingsPutRequest {
@@ -153,6 +157,7 @@ export interface SettingsPutRequest {
   ff3_token?: string;
   default_creation_tag?: string | null;
   enable_origin_trace?: boolean;
+  default_date_format?: string | null;
 }
 
 export interface VerifyResponse {
