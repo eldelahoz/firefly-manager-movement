@@ -245,6 +245,7 @@ pub async fn upload_import(
         state.batches.clone(),
         state.movements.clone(),
         state.csv_mappings.clone(),
+        state.app_settings.clone(),
     );
 
     let result = uc

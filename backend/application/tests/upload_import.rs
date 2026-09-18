@@ -232,6 +232,7 @@ async fn upload_import_parses_valid_csv() {
         batch_repo.clone(),
         movement_repo.clone(),
         mapping_repo.clone(),
+        FakeSettings(Mutex::new(None)),
     );
 
     let result = uc
@@ -274,6 +275,7 @@ async fn upload_import_keeps_invalid_lines() {
         batch_repo.clone(),
         movement_repo.clone(),
         mapping_repo.clone(),
+        FakeSettings(Mutex::new(None)),
     );
 
     let result = uc
@@ -308,6 +310,7 @@ async fn upload_import_uses_provided_mapping() {
         batch_repo.clone(),
         movement_repo.clone(),
         mapping_repo.clone(),
+        FakeSettings(Mutex::new(None)),
     );
 
     let result = uc
@@ -343,6 +346,7 @@ async fn upload_import_no_mapping_returns_headers_only() {
         batch_repo.clone(),
         movement_repo.clone(),
         mapping_repo.clone(),
+        FakeSettings(Mutex::new(None)),
     );
 
     let result = uc
@@ -385,6 +389,7 @@ async fn upload_import_persists_headers_and_delimiter_on_batch() {
         batch_repo.clone(),
         movement_repo.clone(),
         mapping_repo.clone(),
+        FakeSettings(Mutex::new(None)),
     );
 
     let result = uc
@@ -436,6 +441,7 @@ async fn upload_import_uses_saved_mapping_by_signature() {
         batch_repo.clone(),
         movement_repo.clone(),
         mapping_repo.clone(),
+        FakeSettings(Mutex::new(None)),
     );
 
     let result = uc
@@ -466,6 +472,7 @@ async fn upload_import_computes_file_hash() {
         batch_repo.clone(),
         movement_repo.clone(),
         mapping_repo.clone(),
+        FakeSettings(Mutex::new(None)),
     );
 
     let result = uc
@@ -508,6 +515,7 @@ async fn upload_import_rejects_duplicate_filename() {
         batch_repo.clone(),
         movement_repo.clone(),
         mapping_repo.clone(),
+        FakeSettings(Mutex::new(None)),
     );
 
     uc.execute(UploadImportInput {
@@ -563,6 +571,7 @@ async fn upload_import_auto_detects_spanish_headers_valor() {
         batch_repo.clone(),
         movement_repo.clone(),
         mapping_repo.clone(),
+        FakeSettings(Mutex::new(None)),
     );
 
     let result = uc
@@ -598,6 +607,7 @@ async fn upload_import_extracts_origin_account_values() {
         batch_repo.clone(),
         movement_repo.clone(),
         mapping_repo.clone(),
+        FakeSettings(Mutex::new(None)),
     );
 
     let result = uc
@@ -635,6 +645,7 @@ async fn upload_import_empty_origin_account_values_when_no_column() {
         batch_repo.clone(),
         movement_repo.clone(),
         mapping_repo.clone(),
+        FakeSettings(Mutex::new(None)),
     );
 
     let result = uc
@@ -656,3 +667,163 @@ async fn upload_import_empty_origin_account_values_when_no_column() {
     assert!(result.origin_account_values.is_empty());
     assert!(result.valid[0].origin_account.is_none());
 }
+
+// #region Date format precedence (RF-02 v0.8)
+
+use ffm_application::use_cases::app_settings::FakeSettings;
+use ffm_domain::entities::AppSettings;
+use ffm_domain::value_objects::DateFormat;
+
+fn settings_with(df: Option<DateFormat>) -> FakeSettings {
+    FakeSettings(Mutex::new(Some(AppSettings {
+        ff3_url: "http://ff3".into(),
+        ff3_token: "tok".into(),
+        default_creation_tag: None,
+        enable_origin_trace: true,
+        default_date_format: df,
+        updated_at: epoch(),
+    })))
+}
+
+#[tokio::test]
+async fn explicit_mapping_format_beats_global() {
+    let csv = b"Date,Amount,Description\n05/01/2026,100.00,Coffee".to_vec();
+    let uc = UploadImport::new(
+        FakeCsvDecoder,
+        Arc::new(FakeBatchRepo::new()),
+        Arc::new(FakeMovementRepo::new()),
+        Arc::new(FakeCsvMappingRepo::new()),
+        settings_with(Some(DateFormat::MmDdYyyySlash)),
+    );
+    let result = uc
+        .execute(UploadImportInput {
+            filename: "t.csv".into(),
+            bytes: csv,
+            currency: "EUR".into(),
+            mapping: Some(ColumnMapping {
+                date_column: "Date".into(),
+                amount_column: "Amount".into(),
+                description_column: "Description".into(),
+                origin_account_column: None,
+                date_format: Some(DateFormat::DdMmYyyySlash),
+            }),
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        result.valid[0].date,
+        chrono::NaiveDate::from_ymd_opt(2026, 1, 5).unwrap()
+    );
+    assert_eq!(
+        result.mapping_used.unwrap().date_format,
+        Some(DateFormat::DdMmYyyySlash)
+    );
+}
+
+#[tokio::test]
+async fn signature_mapping_format_beats_global() {
+    let headers = vec![
+        "Date".to_string(),
+        "Amount".to_string(),
+        "Description".to_string(),
+    ];
+    let memorized = ColumnMapping {
+        date_column: "Date".into(),
+        amount_column: "Amount".into(),
+        description_column: "Description".into(),
+        origin_account_column: None,
+        date_format: Some(DateFormat::YyyyMmDdDash),
+    };
+    let mapping_repo = Arc::new(FakeCsvMappingRepo::new());
+    mapping_repo
+        .upsert(NewCsvMapping {
+            header_signature: HeaderSignature::from_headers(&headers),
+            mapping_json: serde_json::to_string(&memorized).unwrap(),
+        })
+        .await
+        .unwrap();
+
+    let csv = b"Date,Amount,Description\n2026-01-05,100.00,Coffee".to_vec();
+    let uc = UploadImport::new(
+        FakeCsvDecoder,
+        Arc::new(FakeBatchRepo::new()),
+        Arc::new(FakeMovementRepo::new()),
+        mapping_repo,
+        settings_with(Some(DateFormat::MmDdYyyySlash)),
+    );
+    let result = uc
+        .execute(UploadImportInput {
+            filename: "t.csv".into(),
+            bytes: csv,
+            currency: "EUR".into(),
+            mapping: None,
+        })
+        .await
+        .unwrap();
+    // mm/dd would reject an ISO date; only the memorized format parses it.
+    assert_eq!(
+        result.valid[0].date,
+        chrono::NaiveDate::from_ymd_opt(2026, 1, 5).unwrap()
+    );
+    assert_eq!(
+        result.mapping_used.unwrap().date_format,
+        Some(DateFormat::YyyyMmDdDash)
+    );
+}
+
+#[tokio::test]
+async fn global_default_used_when_mapping_has_no_format() {
+    let csv = b"Date,Amount,Description\n05/01/2026,100.00,Coffee".to_vec();
+    let uc = UploadImport::new(
+        FakeCsvDecoder,
+        Arc::new(FakeBatchRepo::new()),
+        Arc::new(FakeMovementRepo::new()),
+        Arc::new(FakeCsvMappingRepo::new()),
+        settings_with(Some(DateFormat::DdMmYyyySlash)),
+    );
+    let result = uc
+        .execute(UploadImportInput {
+            filename: "t.csv".into(),
+            bytes: csv,
+            currency: "EUR".into(),
+            mapping: None,
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        result.valid[0].date,
+        chrono::NaiveDate::from_ymd_opt(2026, 1, 5).unwrap()
+    );
+    assert_eq!(
+        result.mapping_used.unwrap().date_format,
+        Some(DateFormat::DdMmYyyySlash)
+    );
+}
+
+#[tokio::test]
+async fn no_settings_row_falls_back_to_auto_try() {
+    let csv = b"Date,Amount,Description\n05/01/2026,100.00,Coffee".to_vec();
+    let uc = UploadImport::new(
+        FakeCsvDecoder,
+        Arc::new(FakeBatchRepo::new()),
+        Arc::new(FakeMovementRepo::new()),
+        Arc::new(FakeCsvMappingRepo::new()),
+        settings_with(None),
+    );
+    let result = uc
+        .execute(UploadImportInput {
+            filename: "t.csv".into(),
+            bytes: csv,
+            currency: "EUR".into(),
+            mapping: None,
+        })
+        .await
+        .unwrap();
+    // Legacy: %d/%m/%Y tried before %m/%d/%Y.
+    assert_eq!(
+        result.valid[0].date,
+        chrono::NaiveDate::from_ymd_opt(2026, 1, 5).unwrap()
+    );
+    assert_eq!(result.mapping_used.unwrap().date_format, None);
+}
+// #endregion
