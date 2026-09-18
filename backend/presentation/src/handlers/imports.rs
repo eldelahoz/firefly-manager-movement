@@ -235,6 +235,7 @@ pub async fn upload_import(
             amount_column: a,
             description_column: desc,
             origin_account_column,
+            date_format: None,
         }),
         _ => None,
     };
@@ -458,6 +459,7 @@ pub async fn save_mapping(
                 amount_column: body.amount_column,
                 description_column: body.description_column,
                 origin_account_column: body.origin_account_column,
+                date_format: None,
             },
         )
         .await

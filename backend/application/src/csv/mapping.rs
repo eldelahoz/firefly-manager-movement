@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use ffm_domain::value_objects::DateFormat;
+
 /// Maps CSV column names to domain fields.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ColumnMapping {
@@ -8,6 +10,44 @@ pub struct ColumnMapping {
     pub description_column: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub origin_account_column: Option<String>,
+    /// Explicit statement date format (RF-02 v0.8), memorized with the
+    /// mapping by header signature. None = legacy auto-try.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "date_format_serde"
+    )]
+    pub date_format: Option<DateFormat>,
+}
+
+/// Serde helpers: the VO lives in the domain crate (no serde dep there),
+/// so (de)serialization to its wire string happens here.
+mod date_format_serde {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::str::FromStr;
+
+    use ffm_domain::value_objects::DateFormat;
+
+    pub(super) fn serialize<S: Serializer>(
+        f: &Option<DateFormat>,
+        s: S,
+    ) -> Result<S::Ok, S::Error> {
+        match f {
+            Some(f) => f.as_str().serialize(s),
+            None => s.serialize_none(),
+        }
+    }
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(
+        d: D,
+    ) -> Result<Option<DateFormat>, D::Error> {
+        match Option::<String>::deserialize(d)? {
+            None => Ok(None),
+            Some(raw) => DateFormat::from_str(&raw)
+                .map(Some)
+                .map_err(|_| serde::de::Error::custom(format!("unknown date format '{raw}'"))),
+        }
+    }
 }
 
 /// Tries to auto-detect the column mapping from header names.
@@ -68,5 +108,6 @@ pub fn auto_detect_mapping(headers: &[String]) -> Option<ColumnMapping> {
         amount_column,
         description_column,
         origin_account_column,
+        date_format: None,
     })
 }

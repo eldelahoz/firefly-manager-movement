@@ -320,6 +320,7 @@ async fn upload_import_uses_provided_mapping() {
                 amount_column: "M".into(),
                 description_column: "Desc".into(),
                 origin_account_column: None,
+                date_format: None,
             }),
         })
         .await
@@ -609,6 +610,7 @@ async fn upload_import_extracts_origin_account_values() {
                 amount_column: "Amount".into(),
                 description_column: "Description".into(),
                 origin_account_column: Some("Account".into()),
+                date_format: None,
             }),
         })
         .await
@@ -645,6 +647,7 @@ async fn upload_import_empty_origin_account_values_when_no_column() {
                 amount_column: "Amount".into(),
                 description_column: "Description".into(),
                 origin_account_column: None,
+                date_format: None,
             }),
         })
         .await

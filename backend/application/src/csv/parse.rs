@@ -6,6 +6,7 @@ use csv::ReaderBuilder;
 use serde_json::{json, Map};
 
 use ffm_domain::value_objects::AmountCents;
+use ffm_domain::value_objects::DateFormat;
 
 use super::detect::detect_delimiter;
 use super::mapping::ColumnMapping;
@@ -121,12 +122,16 @@ pub fn parse_csv(
         let amount_str = record.get(amount_idx).unwrap_or("").trim();
         let desc_str = record.get(desc_idx).unwrap_or("").trim();
 
-        let date = match parse_date(date_str) {
+        let date = match parse_date_in(mapping.date_format, date_str) {
             Some(d) => d,
             None => {
+                let reason = match mapping.date_format {
+                    Some(f) => format!("invalid date '{}' (expected format {})", date_str, f.as_str()),
+                    None => format!("invalid date '{}'", date_str),
+                };
                 invalid.push(InvalidLine {
                     line_no,
-                    reason: format!("invalid date '{}'", date_str),
+                    reason,
                     raw: raw_line,
                 });
                 line_no += 1;
@@ -204,4 +209,13 @@ fn parse_date(s: &str) -> Option<NaiveDate> {
         }
     }
     None
+}
+
+/// Parses a date using ONLY the explicit format when one is set
+/// (RF-02 v0.8); falls back to the legacy auto-try otherwise.
+fn parse_date_in(explicit: Option<DateFormat>, s: &str) -> Option<NaiveDate> {
+    match explicit {
+        Some(f) => NaiveDate::parse_from_str(s.trim(), f.chrono_format()).ok(),
+        None => parse_date(s),
+    }
 }

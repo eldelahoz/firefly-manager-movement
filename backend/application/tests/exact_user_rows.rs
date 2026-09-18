@@ -9,6 +9,7 @@ fn exact_user_rows() {
         amount_column: "Valor".into(),
         description_column: "Descripción".into(),
         origin_account_column: None,
+        date_format: None,
     };
 
     let r = parse_csv(csv, &mapping).unwrap();

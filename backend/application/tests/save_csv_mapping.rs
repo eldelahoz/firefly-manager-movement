@@ -81,6 +81,7 @@ async fn saves_mapping_by_header_signature() {
         amount_column: "Amount".into(),
         description_column: "Description".into(),
         origin_account_column: None,
+        date_format: None,
     };
 
     let id = uc.execute(headers.clone(), mapping.clone()).await.unwrap();
@@ -113,6 +114,7 @@ async fn upsert_overwrites_existing_mapping() {
                 amount_column: "Amount".into(),
                 description_column: "Description".into(),
                 origin_account_column: None,
+                date_format: None,
             },
         )
         .await
@@ -126,6 +128,7 @@ async fn upsert_overwrites_existing_mapping() {
                 amount_column: "Amount".into(),
                 description_column: "Desc".into(),
                 origin_account_column: None,
+                date_format: None,
             },
         )
         .await
