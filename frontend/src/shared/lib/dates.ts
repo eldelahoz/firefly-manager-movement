@@ -53,7 +53,7 @@ export function isAmbiguousFor(raw: string, format?: string): boolean {
   if (format && format !== 'auto' && format !== 'dd/mm/yyyy' && format !== 'mm/dd/yyyy') {
     return false;
   }
-  const m = raw.trim().match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/);
+  const m = raw.trim().match(/^(\d{1,2})[-./](\d{1,2})[-./](\d{4})$/);
   if (!m) return false;
   return Number(m[1]) <= 12 && Number(m[2]) <= 12;
 }
