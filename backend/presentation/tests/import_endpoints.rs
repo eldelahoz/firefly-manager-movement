@@ -749,10 +749,7 @@ fn multipart_with(filename: &str, csv: &str, extras: &[(&str, &str)]) -> (String
         ));
     }
     body.push_str(&format!("--{b}--\r\n", b = boundary));
-    (
-        format!("multipart/form-data; boundary={}", boundary),
-        body,
-    )
+    (format!("multipart/form-data; boundary={}", boundary), body)
 }
 
 fn df_router(mappings: Arc<FakeCsvMappingRepo>) -> axum::Router {
@@ -891,7 +888,9 @@ async fn put_mapping_with_date_format_persists_and_unknown_is_400() {
         "Description".to_string(),
     ]);
     let stored = mappings.by_signature(sig).await.unwrap().unwrap();
-    assert!(stored.mapping_json.contains(r#""date_format":"mm/dd/yyyy""#));
+    assert!(stored
+        .mapping_json
+        .contains(r#""date_format":"mm/dd/yyyy""#));
 
     // Unknown format on save is rejected.
     let bad = serde_json::json!({

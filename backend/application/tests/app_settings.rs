@@ -338,7 +338,10 @@ async fn get_returns_stored_default_date_format() {
         })
         .await
         .unwrap();
-    let view = GetAppSettings::new(repo, env("", "")).execute().await.unwrap();
+    let view = GetAppSettings::new(repo, env("", ""))
+        .execute()
+        .await
+        .unwrap();
     assert_eq!(view.default_date_format.as_deref(), Some("mm/dd/yyyy"));
 }
 

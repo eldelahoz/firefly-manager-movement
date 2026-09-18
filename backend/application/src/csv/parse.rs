@@ -126,7 +126,11 @@ pub fn parse_csv(
             Some(d) => d,
             None => {
                 let reason = match mapping.date_format {
-                    Some(f) => format!("invalid date '{}' (expected format {})", date_str, f.as_str()),
+                    Some(f) => format!(
+                        "invalid date '{}' (expected format {})",
+                        date_str,
+                        f.as_str()
+                    ),
                     None => format!("invalid date '{}'", date_str),
                 };
                 invalid.push(InvalidLine {

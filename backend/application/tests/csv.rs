@@ -328,8 +328,14 @@ fn parse_csv_uses_explicit_format_exclusively() {
     let mapping = mapping_with_format(DateFormat::DdMmYyyySlash);
     let result = parse_csv(csv, &mapping).unwrap();
     assert_eq!(result.valid.len(), 2);
-    assert_eq!(result.valid[0].date, chrono::NaiveDate::from_ymd_opt(2026, 1, 5).unwrap());
-    assert_eq!(result.valid[1].date, chrono::NaiveDate::from_ymd_opt(2026, 1, 13).unwrap());
+    assert_eq!(
+        result.valid[0].date,
+        chrono::NaiveDate::from_ymd_opt(2026, 1, 5).unwrap()
+    );
+    assert_eq!(
+        result.valid[1].date,
+        chrono::NaiveDate::from_ymd_opt(2026, 1, 13).unwrap()
+    );
 }
 
 #[test]
@@ -346,7 +352,10 @@ fn parse_csv_invalid_date_names_expected_format() {
     let csv = "Date,Amount,Description\nbad,100.00,Coffee";
     let mapping = mapping_with_format(DateFormat::DdMmYyyySlash);
     let result = parse_csv(csv, &mapping).unwrap();
-    assert_eq!(result.invalid[0].reason, "invalid date 'bad' (expected format dd/mm/yyyy)");
+    assert_eq!(
+        result.invalid[0].reason,
+        "invalid date 'bad' (expected format dd/mm/yyyy)"
+    );
 }
 
 #[test]
@@ -354,7 +363,10 @@ fn parse_csv_explicit_mm_dd_reads_first_component_as_month() {
     let csv = "Date,Amount,Description\n05/01/2026,100.00,Coffee";
     let mapping = mapping_with_format(DateFormat::MmDdYyyySlash);
     let result = parse_csv(csv, &mapping).unwrap();
-    assert_eq!(result.valid[0].date, chrono::NaiveDate::from_ymd_opt(2026, 5, 1).unwrap());
+    assert_eq!(
+        result.valid[0].date,
+        chrono::NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()
+    );
 }
 
 #[test]
@@ -369,8 +381,14 @@ fn no_format_keeps_legacy_auto_try() {
     };
     let result = parse_csv(csv, &mapping).unwrap();
     // Legacy: %d/%m/%Y tried before %m/%d/%Y — behavior unchanged.
-    assert_eq!(result.valid[0].date, chrono::NaiveDate::from_ymd_opt(2026, 1, 5).unwrap());
-    assert_eq!(result.valid[1].date, chrono::NaiveDate::from_ymd_opt(2026, 1, 13).unwrap());
+    assert_eq!(
+        result.valid[0].date,
+        chrono::NaiveDate::from_ymd_opt(2026, 1, 5).unwrap()
+    );
+    assert_eq!(
+        result.valid[1].date,
+        chrono::NaiveDate::from_ymd_opt(2026, 1, 13).unwrap()
+    );
 }
 
 #[test]
