@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `6795d5d` · TRD `6795d5d` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `6795d5d` · TRD `a439e81` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
@@ -47,7 +47,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-02  CSV parsing with manual mapping; memorize by header signature
 
-**Status:** implemented (spec v0.8) · **Last verified:** 2026-09-18 · **Spec @** `189309b`
+**Status:** implemented (spec v0.8) · **Last verified:** 2026-09-18 · **Spec @** `a439e81`
 
 **v0.8 delta (explicit date format) — implemented + verified**: precedence explicit > memorized-by-signature > settings `default_date_format` > auto-try; exclusive parsing with invalid lines naming the format (RF-03); format persisted inside `mapping_json` and reapplied by signature (mapping step skipped); settings default round-trip; mapping-step preview + ambiguity warning. Pre-v0.8 scope unchanged (rows below, all green).
 
