@@ -18,7 +18,7 @@ The system parses the CSV using a **column mapping** (CSV columns → fields: da
 
 **Date format precedence** (first hit wins): 1) format explicitly selected in the mapping step of the current import; 2) format memorized with the mapping for the file's header signature; 3) global default from app settings (`default_date_format`, RF-19); 4) auto-try. The memorized format travels inside the stored mapping (same storage as the columns; no dedicated schema column). The mapping step previews the parsed sample dates for the selected format and warns when the selected-or-auto format is ambiguous for a sample value (both `dd/mm` and `mm/dd` readings are valid calendar dates).
 
-**File signature definition**: the signature is the SHA-256 hash of the **normalized header row** - each header name is trimmed, lowercased and stripped of whitespace, then the normalized names are joined in column order with `;` as separator. Two files whose normalized headers are equal share the same signature.
+**File signature definition**: the signature is the **normalized header row** as a plain string - each header name is trimmed and lowercased (interior whitespace is preserved), then the normalized names are joined in column order with `|` as separator. It is not hashed. Header order is significant (`["a","b"]` ≠ `["b","a"]`). Two files whose normalized headers are equal share the same signature.
 
 **Memorization rules**:
 
@@ -81,6 +81,7 @@ The system parses the CSV using a **column mapping** (CSV columns → fields: da
 - Integrates v0.5 amendments: explanatory message on manual mapping; automatic deletion of mapping probes.
 - Integrates v0.7 amendment: optional origin-account column feeding the account auto-suggestion (RF-04).
 - Integrates v0.8 amendment: explicit date format with precedence explicit > memorized > settings default > auto-try; stored inside the mapping JSON.
+- 2026-09-18 correction: the signature definition was aligned with the implementation — plain `|`-joined normalized string (trim + lowercase, interior whitespace preserved), not a SHA-256 hash. No behavior change: the code always worked this way.
 - File name and header signature are distinct identifiers: the file name uniquely identifies a batch (RF-16), while the signature identifies the bank's export layout. Monthly statements from the same bank have different names but the same signature, so the memorized mapping applies automatically.
 - The probe flow may re-upload the same file name because the probe batch is deleted before the re-upload (RF-17), which frees the name for RF-16.
 - Exactly one mapping is stored per unique signature, enforced at the storage level (TRD section 2).
