@@ -10,8 +10,10 @@ pub struct ColumnMapping {
     pub description_column: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub origin_account_column: Option<String>,
-    /// Explicit statement date format (RF-02 v0.8), memorized with the
-    /// mapping by header signature. None = legacy auto-try.
+    /// Explicit date format for this mapping, memorized by header signature.
+    ///
+    /// `None` = no explicit format: the settings default applies, then the
+    /// legacy ordered auto-try. (RF-02 v0.8)
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",

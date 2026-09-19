@@ -23,8 +23,10 @@ use std::collections::HashMap;
 use crate::error::ApiError;
 use crate::state::AppState;
 
-/// Validates a wire date-format string (RF-02 v0.8). Blank/absent = None;
-/// unknown values yield 400.
+/// Validates a wire date-format string against the known formats.
+///
+/// Absent/blank → `None` (settings default, then legacy auto-try apply);
+/// unknown values yield 400. (RF-02 v0.8)
 fn validate_date_format(raw: Option<&str>) -> Result<Option<DateFormat>, ApiError> {
     match raw.map(str::trim).filter(|s| !s.is_empty()) {
         None => Ok(None),
@@ -121,7 +123,10 @@ pub struct SaveMappingRequest {
     pub description_column: String,
     #[serde(default)]
     pub origin_account_column: Option<String>,
-    /// Memorized date format (RF-02 v0.8); absent/blank = no explicit format.
+    /// Explicit date format to memorize with this mapping.
+    ///
+    /// Absent/blank → none: the settings default applies, then the legacy
+    /// ordered auto-try; unknown values yield 400. (RF-02 v0.8)
     #[serde(default)]
     pub date_format: Option<String>,
 }
