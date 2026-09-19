@@ -216,7 +216,7 @@ impl FromStr for AmountCents {
     }
 }
 
-/// Validates thousands groupings: the first may have 1-3 digits, the rest exactly 3.
+// Validates thousands groupings: the first may have 1-3 digits, the rest exactly 3.
 fn is_valid_thousands(s: &str, sep: char) -> bool {
     let mut groups = s.split(sep);
     match groups.next() {

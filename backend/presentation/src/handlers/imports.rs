@@ -376,9 +376,9 @@ pub async fn upload_import(
     }))
 }
 
-/// Index cached FF3 accounts by their local primary key, so a batch's
-/// stored `account_id` (a local `ff3_accounts.id`) can be resolved to the
-/// external FF3 id and name that the frontend accounts list uses as its key.
+// Index cached FF3 accounts by their local primary key, so a batch's
+// stored `account_id` (a local `ff3_accounts.id`) can be resolved to the
+// external FF3 id and name that the frontend accounts list uses as its key.
 async fn account_index(
     repo: std::sync::Arc<dyn ffm_application::ports::Ff3AccountRepository>,
 ) -> Result<HashMap<i64, Ff3Account>, ApiError> {

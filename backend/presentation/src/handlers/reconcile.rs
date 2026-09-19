@@ -37,7 +37,7 @@ pub struct ReconcileResponse {
     pub window_end: NaiveDate,
     pub matched_count: usize,
     pub missing_count: usize,
-    /// Unmatched FF3 transactions: plain extra + duplicates.
+    /// Unmatched FF3 transactions: `extra` + `duplicates` (RF-07 third group).
     pub extra_count: usize,
     pub duplicate_count: usize,
 }
@@ -252,8 +252,10 @@ pub struct AttachmentRequest {
 #[derive(Deserialize, ToSchema)]
 pub struct ApplyMovementBody {
     pub movement_id: i64,
-    /// Counterparty account (external FF3 id). Optional since v0.8: when
-    /// omitted, Firefly III applies its default handling for the movement.
+    /// Counterparty account (external FF3 id).
+    ///
+    /// `null`/absent = omitted from the FF3 payload; Firefly III applies
+    /// its default handling for the movement.
     #[serde(default)]
     pub counterparty_ff3_id: Option<i64>,
     #[serde(default)]
@@ -279,7 +281,7 @@ pub struct ApplyRequest {
 #[derive(Serialize, ToSchema)]
 pub struct ApplyReportResponse {
     pub movement_id: i64,
-    /// "created" | "already_created" | "failed"
+    /// One of `created`, `already_created`, `failed`.
     pub outcome: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ff3_id: Option<i64>,

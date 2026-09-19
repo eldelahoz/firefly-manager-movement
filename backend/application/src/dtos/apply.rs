@@ -11,8 +11,10 @@ pub struct AttachmentPayload {
 #[derive(Debug, Clone)]
 pub struct MovementApply {
     pub movement_id: MovementId,
-    /// Counterparty account (external FF3 id). Optional since v0.8:
-    /// when `None`, the account side is omitted from the FF3 payload.
+    /// Counterparty account (external FF3 id).
+    ///
+    /// `None` = the account side is omitted from the FF3 payload, letting
+    /// Firefly III apply its default handling.
     pub counterparty_ff3_id: Option<i64>,
     pub description: Option<String>,
     pub category: Option<String>,

@@ -21,12 +21,12 @@ pub trait BatchRepository: Send + Sync {
         id: BatchId,
         account_id: Ff3AccountId,
     ) -> Result<(), ApplicationError>;
-    /// Batches cuyo filename coincide (MySQL collation es case-insensitive).
-    /// Default: sin duplicados (fakes que no lo implementan).
+    /// Batches whose filename matches (MySQL collation is case-insensitive).
+    /// Default: empty (fakes that do not implement it).
     async fn find_by_filename(&self, _filename: &str) -> Result<Vec<Batch>, ApplicationError> {
         Ok(Vec::new())
     }
-    /// Elimina un batch por id. Default: no soportado (fakes que no lo implementan).
+    /// Deletes a batch by id. Default: not supported (fakes that do not implement it).
     async fn delete(&self, _id: BatchId) -> Result<(), ApplicationError> {
         Err(ApplicationError::InvalidState(
             "delete not supported by this repository".into(),
@@ -46,7 +46,7 @@ pub trait MovementRepository: Send + Sync {
         id: MovementId,
         status: MovementStatus,
     ) -> Result<(), ApplicationError>;
-    /// Elimina todos los movimientos de un batch. Default: no soportado.
+    /// Deletes all movements of a batch. Default: not supported.
     async fn delete_by_batch(&self, _batch_id: BatchId) -> Result<(), ApplicationError> {
         Err(ApplicationError::InvalidState(
             "delete_by_batch not supported by this repository".into(),

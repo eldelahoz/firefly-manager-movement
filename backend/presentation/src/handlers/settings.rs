@@ -40,7 +40,9 @@ impl From<SettingsView> for SettingsResponse {
 #[derive(Deserialize, ToSchema)]
 pub struct SaveSettingsRequest {
     pub ff3_url: String,
-    /// Optional on update: empty/absent keeps the stored token.
+    /// New FF3 API token to store.
+    ///
+    /// Empty/absent = keep the stored token.
     #[serde(default)]
     pub ff3_token: Option<String>,
     /// null or empty string clears the default tag.

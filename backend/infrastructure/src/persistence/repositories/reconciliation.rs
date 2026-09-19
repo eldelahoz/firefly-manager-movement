@@ -126,7 +126,7 @@ impl ReconciliationRepository for MysqlReconciliationRepository {
     }
 }
 
-/// Body of the atomic run persistence, executed inside a transaction.
+// Body of the atomic run persistence, executed inside a transaction.
 async fn save_run_tx(
     conn: &mut diesel_async::AsyncMysqlConnection,
     run: ReconciliationRun,
