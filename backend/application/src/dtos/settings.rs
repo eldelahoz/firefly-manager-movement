@@ -8,7 +8,10 @@ pub struct NewAppSettings {
     pub ff3_token: String,
     pub default_creation_tag: Option<String>,
     pub enable_origin_trace: bool,
-    /// Wire date-format string (RF-02 v0.8); None = no global default.
+    /// Wire date-format string (lowercase, e.g. `dd/mm/yyyy`).
+    ///
+    /// Blank/`None` clears the stored default; unknown values are rejected
+    /// with 400 before persisting. (RF-02 v0.8)
     pub default_date_format: Option<String>,
 }
 
@@ -19,6 +22,9 @@ pub struct SettingsView {
     pub has_token: bool,
     pub default_creation_tag: Option<String>,
     pub enable_origin_trace: bool,
-    /// Wire date-format string (RF-02 v0.8); None = legacy auto-try.
+    /// Wire date-format string (lowercase, e.g. `dd/mm/yyyy`).
+    ///
+    /// `None` = no global default: parsing falls back to the legacy ordered
+    /// auto-try. (RF-02 v0.8)
     pub default_date_format: Option<String>,
 }

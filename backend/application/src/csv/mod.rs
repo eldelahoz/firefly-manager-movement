@@ -1,5 +1,4 @@
 //! CSV parsing and column mapping (pure application logic).
-//!
 //! Detects the delimiter, maps columns to domain fields, validates each row
 //! (date + amount parsing), and returns valid movements alongside invalid
 //! lines with their reason.

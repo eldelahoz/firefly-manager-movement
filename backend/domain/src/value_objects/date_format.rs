@@ -1,10 +1,12 @@
 use std::str::FromStr;
 
-/// Explicit date format for CSV parsing (RF-02 v0.8).
+/// Explicit date format for CSV parsing.
 ///
-/// Wire representation uses lowercase strings such as `dd/mm/yyyy`.
-/// When a mapping carries a format, the parser uses ONLY it; without one
-/// it falls back to the legacy ordered auto-try of these six formats.
+/// Wire representation is a lowercase string such as `dd/mm/yyyy`.
+/// When a mapping carries a format, the parser uses ONLY it: non-matching
+/// values become invalid lines naming the format (RF-03). Without one, the
+/// settings default applies, then the legacy ordered auto-try of
+/// [`DateFormat::ALL`]. (RF-02 v0.8)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DateFormat {
     DdMmYyyySlash,

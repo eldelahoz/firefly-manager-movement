@@ -1,8 +1,7 @@
-//! DeleteImport use case.
-//! Elimina un batch en estado `parsed` junto con sus movimientos.
-//! Solo `parsed`: los batches reconciled/applied arrastran reconciliaciones,
-//! matches y (en applied) transacciones vivas en Firefly III que no deben
-//! borrarse en silencio.
+//! DeleteImport use case (RF-17): deletes a batch in `parsed` status with
+//! its movements. Only `parsed` — `reconciled`/`applied` batches carry
+//! reconciliations, matches and (for `applied`) live Firefly III
+//! transactions that must not be deleted silently.
 
 use ffm_domain::ids::BatchId;
 use ffm_domain::value_objects::BatchStatus;

@@ -18,7 +18,10 @@ pub struct SettingsResponse {
     pub has_token: bool,
     pub default_creation_tag: Option<String>,
     pub enable_origin_trace: bool,
-    /// Global date-format fallback (RF-02 v0.8); null = legacy auto-try.
+    /// Global default applied when the import mapping carries no explicit format.
+    ///
+    /// `null` = no global default: parsing falls back to the legacy ordered
+    /// auto-try. (RF-02 v0.8)
     pub default_date_format: Option<String>,
 }
 
@@ -37,7 +40,9 @@ impl From<SettingsView> for SettingsResponse {
 #[derive(Deserialize, ToSchema)]
 pub struct SaveSettingsRequest {
     pub ff3_url: String,
-    /// Optional on update: empty/absent keeps the stored token.
+    /// New FF3 API token to store.
+    ///
+    /// Empty/absent = keep the stored token.
     #[serde(default)]
     pub ff3_token: Option<String>,
     /// null or empty string clears the default tag.
@@ -45,7 +50,10 @@ pub struct SaveSettingsRequest {
     /// When false, origin trace notes are not appended to created transactions.
     #[serde(default = "default_true")]
     pub enable_origin_trace: Option<bool>,
-    /// Global date-format fallback (RF-02 v0.8); null/empty clears it.
+    /// Global default applied when the import mapping carries no explicit format.
+    ///
+    /// `null`/empty/absent clears the stored default; unknown values yield
+    /// 400. (RF-02 v0.8)
     #[serde(default)]
     pub default_date_format: Option<String>,
 }

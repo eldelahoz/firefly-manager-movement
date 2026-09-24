@@ -201,7 +201,7 @@ fn build_raw_json(headers: &[String], record: &csv::StringRecord) -> String {
     json!(map).to_string()
 }
 
-/// Tries common date formats used in bank CSVs.
+// Tries common date formats used in bank CSVs (legacy auto-try order).
 fn parse_date(s: &str) -> Option<NaiveDate> {
     let s = s.trim();
     const FORMATS: &[&str] = &[
@@ -215,8 +215,8 @@ fn parse_date(s: &str) -> Option<NaiveDate> {
     None
 }
 
-/// Parses a date using ONLY the explicit format when one is set
-/// (RF-02 v0.8); falls back to the legacy auto-try otherwise.
+// Parses a date using ONLY the explicit format when one is set
+// (RF-02 v0.8); falls back to the legacy auto-try otherwise.
 fn parse_date_in(explicit: Option<DateFormat>, s: &str) -> Option<NaiveDate> {
     match explicit {
         Some(f) => NaiveDate::parse_from_str(s.trim(), f.chrono_format()).ok(),

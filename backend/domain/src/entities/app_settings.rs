@@ -10,8 +10,10 @@ pub struct AppSettings {
     pub ff3_token: String,
     pub default_creation_tag: Option<String>,
     pub enable_origin_trace: bool,
-    /// Global fallback date format (RF-02 v0.8): applied when the import
-    /// mapping carries none. None = legacy auto-try.
+    /// Global default applied when the import mapping carries no explicit format.
+    ///
+    /// `None` = no global default: parsing falls back to the legacy ordered
+    /// auto-try. (RF-02 v0.8)
     pub default_date_format: Option<DateFormat>,
     pub updated_at: NaiveDateTime,
 }

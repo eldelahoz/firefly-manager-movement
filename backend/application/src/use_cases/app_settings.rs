@@ -57,12 +57,16 @@ impl<R: AppSettingsRepository> GetAppSettings<R> {
 
 pub struct SaveAppSettingsInput {
     pub ff3_url: String,
-    /// None/empty = keep the existing token.
+    /// New FF3 token to store.
+    ///
+    /// `None`/empty = keep the existing token.
     pub ff3_token: Option<String>,
     pub default_creation_tag: Option<String>,
     pub enable_origin_trace: bool,
-    /// Global date-format fallback (RF-02 v0.8). Blank/None clears it;
-    /// unknown values are rejected before persisting.
+    /// Global default applied when the import mapping carries no explicit format.
+    ///
+    /// Blank/`None` clears the stored default; unknown values are rejected
+    /// before persisting. (RF-02 v0.8)
     pub default_date_format: Option<String>,
 }
 
