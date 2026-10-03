@@ -10,6 +10,7 @@ export function PreviewStep({
   probe,
   currency,
   originNotice,
+  hideAutoApplied,
   onNext,
   onBack,
   onClose,
@@ -17,6 +18,7 @@ export function PreviewStep({
   probe: UploadResponse;
   currency: string;
   originNotice?: OriginNotice;
+  hideAutoApplied?: boolean;
   onNext: () => void;
   onBack: () => void;
   onClose: () => void;
@@ -36,7 +38,9 @@ export function PreviewStep({
           {t('wizard.delimiter')}: {probe.detected_delimiter}
         </span>
       </div>
-      {probe.mapping_used && <p className="text-xs text-text-3">{t('wizard.autoApplied')}</p>}
+      {probe.mapping_used && !hideAutoApplied && (
+        <p className="text-xs text-text-3">{t('wizard.autoApplied')}</p>
+      )}
       {originNotice?.kind === 'auto' && (
         <p role="status" className="mt-2 text-sm text-status-matched-txt">
           {t('wizard.originAutoSelected', { account: originNotice.accountName })}

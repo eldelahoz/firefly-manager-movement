@@ -29,7 +29,7 @@ function computeNotice(res: UploadResponse, accounts: Ff3Account[] | undefined):
   return { kind: 'warn', values: s.values };
 }
 
-const STEP_ORDER = ['upload', 'preview', 'mapping', 'reconcile'] as const;
+const STEP_ORDER = ['upload', 'mapping', 'preview', 'reconcile'] as const;
 
 export function ImportWizard({
   open,
@@ -286,6 +286,7 @@ export function ImportWizard({
             probe={state.probe}
             currency={state.currency}
             originNotice={state.originNotice}
+            hideAutoApplied={state.finalBatchId != null}
             onNext={() => dispatch({ type: 'NEXT_FROM_PREVIEW' })}
             onBack={() => dispatch({ type: 'BACK_FROM_PREVIEW' })}
             onClose={onClose}

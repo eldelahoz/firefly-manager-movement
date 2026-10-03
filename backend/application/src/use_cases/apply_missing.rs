@@ -7,8 +7,9 @@ use crate::ports::{
     AppSettingsRepository, BatchRepository, CreationRepository, Ff3AccountRepository,
     Ff3TransactionRepository, MatchRepository, MovementRepository, ReconciliationRepository,
 };
-use ffm_domain::ids::{MovementId, ReconciliationId};
+use ffm_domain::ids::{Ff3TransactionId, MovementId, ReconciliationId};
 use ffm_domain::value_objects::{BatchStatus, MovementStatus};
+use std::collections::HashMap;
 
 /// Outcome for each movement in the batch.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -159,7 +160,7 @@ where
                     input.batch_id.as_i64()
                 ))
             })?;
-        let _previous_matches = self
+        let previous_matches = self
             .run_ports
             .matches
             .by_reconciliation(previous_run.id)
@@ -293,17 +294,18 @@ where
 
         // ── Incremental confirmation run (D7) ─────────────────────
         let recon_id = if !successful_movement_ids.is_empty() {
-            let all_cached_txs: Vec<RunFf3Transaction> = self
+            let prev_tx_rows = self
                 .run_ports
                 .ff3_transactions
                 .by_reconciliation(previous_run.id)
-                .await?
-                .into_iter()
+                .await?;
+            let all_cached_txs: Vec<RunFf3Transaction> = prev_tx_rows
+                .iter()
                 .map(|t| RunFf3Transaction {
                     ff3_id: t.ff3_id,
                     date: t.date,
                     amount_cents: t.amount_cents,
-                    description: t.description,
+                    description: t.description.clone(),
                     is_duplicate: t.is_duplicate,
                 })
                 .collect();
@@ -344,6 +346,26 @@ where
                 })
                 .collect();
 
+            // Carry over the previous run's match pairs. Their FF3 transactions
+            // are re-cached below; without the carry-over, get_results derives
+            // groups from match rows and would demote every old pair to `extra`.
+            // Match rows reference the local cache row id (Ff3TransactionId);
+            // RunMatch keys on the external ff3_id — remap via the cached rows.
+            let local_to_ff3: HashMap<Ff3TransactionId, i64> =
+                prev_tx_rows.iter().map(|t| (t.id, t.ff3_id)).collect();
+            let mut all_match_dtos: Vec<RunMatch> = previous_matches
+                .iter()
+                .filter_map(|m| {
+                    local_to_ff3
+                        .get(&m.ff3_transaction_id)
+                        .map(|&ff3_id| RunMatch {
+                            movement_id: m.movement_id,
+                            ff3_id,
+                        })
+                })
+                .collect();
+            all_match_dtos.extend(new_match_dtos.iter().cloned());
+
             let prev_matched = previous_run.matched_count as usize;
             let prev_missing = previous_run.missing_count as usize;
             let prev_extra = previous_run.extra_count as usize;
@@ -362,7 +384,7 @@ where
                     extra_count: prev_extra as i32,
                 },
                 ff3_transactions: new_cached,
-                matches: new_match_dtos,
+                matches: all_match_dtos,
                 movement_status_updates: successful_movement_ids
                     .iter()
                     .map(|mid| (*mid, MovementStatus::Matched))

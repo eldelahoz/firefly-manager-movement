@@ -353,7 +353,10 @@ impl FireflyClient for ReqwestFireflyClient {
             // FF3 requires a positive amount; direction is conveyed by
             // type + source/destination accounts, never by the sign.
             "amount": Self::format_decimal(AmountCents::new(creation.amount.as_i64().abs())),
-            "date": format!("{}T00:00:00+00:00", creation.date.format("%Y-%m-%d")),
+            // UTC noon: FF3 re-renders stored instants in the user's timezone,
+            // so UTC midnight would show the previous day for UTC-x zones.
+            // Noon keeps the same calendar day across offsets -12..+11.
+            "date": format!("{}T12:00:00+00:00", creation.date.format("%Y-%m-%d")),
             "description": creation.description,
         });
         let obj = attrs.as_object_mut().unwrap();

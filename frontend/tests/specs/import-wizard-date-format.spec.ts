@@ -48,10 +48,10 @@ test.describe('Import > Wizard date format (RF-02 v0.8)', () => {
     await wizard.openWizard();
     await wizard.selectAccount('Checking');
     await wizard.uploadFile(csvPath('dates.csv', csvAmbiguous));
+    // Unmapped upload lands directly on the mapping step, detection-failure hint included
     await expect(page.getByText(/We could not detect|No pudimos detectar/i)).toBeVisible({
       timeout: 5000,
     });
-    await wizard.nextButton.click();
     await expect(wizard.mappingDateSelect).toBeVisible();
   }
 
@@ -146,12 +146,15 @@ test.describe('Import > Wizard date format (RF-02 v0.8)', () => {
     await expect(page.getByText(/We could not detect|No pudimos detectar/i)).toBeVisible({
       timeout: 5000,
     });
-    await wizard.nextButton.click();
     await expect(wizard.mappingDateSelect).toBeVisible();
     await wizard.selectMapping({ date: 'Fecha', amount: 'Valor', desc: 'Desc' });
     await page.getByRole('combobox', { name: formatSelect }).click();
     await page.getByRole('option', { name: 'MM/DD/YYYY' }).click();
     mapped = true;
+    await wizard.nextButton.click();
+    // Mapped re-upload lands on the preview: rows parsed with the chosen mapping
+    await expect(wizard.previewTable).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('cell', { name: 'Coffee' })).toBeVisible();
     await wizard.nextButton.click();
     await expect(page.getByRole('heading', { name: /Reconcile|Conciliar/ })).toBeVisible({
       timeout: 5000,

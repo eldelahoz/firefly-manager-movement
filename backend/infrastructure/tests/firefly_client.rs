@@ -467,11 +467,13 @@ async fn create_transaction_wraps_in_transactions_array() {
     assert_eq!(tx["category_name"], "Income");
     assert_eq!(tx["notes"], "monthly");
     assert_eq!(tx["tags"], serde_json::json!(["tag1"]));
-    // Verify date-time format per FF3 spec
+    // Date must be UTC noon: FF3 renders/stores in the user's timezone, so
+    // midnight UTC shifts the visible day back for any UTC+x zone. Noon keeps
+    // the same calendar day for offsets -12..+11 (midnight would not).
     let date_str = tx["date"].as_str().unwrap();
-    assert!(
-        date_str.contains('T'),
-        "Expected date-time format with 'T', got: {date_str}"
+    assert_eq!(
+        date_str, "2026-09-03T12:00:00+00:00",
+        "Expected UTC-noon date-time, got: {date_str}"
     );
 }
 
