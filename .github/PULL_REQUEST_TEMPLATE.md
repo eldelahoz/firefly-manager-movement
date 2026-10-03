@@ -36,9 +36,10 @@ Mark every gate you ran. All applicable gates must be green.
 - [ ] PR title follows `<type>(<scope>): <subject>` (<= 100 chars, English, imperative)
 - [ ] Every commit message and this description are in English
 - [ ] `Refs: RF-XX, NFR-YY` present in commits or description for spec or implementation changes
-- [ ] CI gates green: lint / lint-pr-title / guard-main (or lint / lint-commits on push)
+- [ ] CI gates green: `lint / lint-commits` + `lint / lint-pr-title` (`guard-main` runs on `main` after merge)
 - [ ] No `--no-verify` (or hotfix justification documented below)
 - [ ] Merged via this PR only - no direct push to `main`
+- [ ] Merged with squash: `gh pr merge --squash --delete-branch` (merge/rebase methods are disabled)
 
 Closes #
 
