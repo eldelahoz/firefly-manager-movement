@@ -231,6 +231,8 @@ cargo test -p ffm-presentation
 
 ## Git Workflow
 
+All commit messages, PR titles, PR descriptions, and tooling output are written in **English**. (PRD/spec docs may stay in French; code comments follow the Coding Conventions section below.)
+
 ### Branch Naming
 
 ```
@@ -241,10 +243,14 @@ Examples: `feat/domain-matching-engine`, `fix/infra-pool-leak`, `docs/prd-update
 
 ### Commit Messages
 
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
+Follow [Conventional Commits](https://www.conventionalcommits.org/). The format is enforced locally by `commitlint` + `lefthook` (installed via `pnpm install` at the repo root) and re-validated in CI:
 
 ```
-<type>(<scope>): <description>
+<type>(<scope>): <subject>
+
+[body - explains WHAT and WHY, wrapped at <= 100 chars per line]
+
+Refs: RF-XX, NFR-YY
 ```
 
 | Type | Use for |
@@ -255,29 +261,63 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 | `refactor` | Code restructuring without behavior change |
 | `test` | Adding or fixing tests |
 | `chore` | Tooling, config, dependencies |
+| `ci` | GitHub Actions, hooks, commit-convention tooling |
 
-Scopes mirror the crate structure: `domain`, `application`, `infra`, `presentation`, `backend`, `frontend`.
+| Scope | Targets |
+| --- | --- |
+| `domain` `application` `infra` `presentation` `backend` `frontend` | The Clean Architecture layers / crates / app |
+| `matrix` `specs` `docs` | `docs/validation-matrix.md`, `docs/specs/`, other repo docs |
+| `deps` `ci` `docker` | Lockfiles/dependencies, workflows/hooks tooling, compose stacks |
 
-Examples from this repo:
-- `feat(domain): MatchingEngine - apareamiento 1-a-1 por monto+sens`
-- `feat(infra): ReqwestFireflyClient with exhaustive pagination`
-- `docs(backend): translate code comments to English`
+Rules (hard failures unless noted):
+
+- **Header (the whole first line) <= 100 chars**; >= 72 emits a warning - push details into the body.
+- **One scope per commit** (`docs(a,b): ...` is rejected; the body carries the detail).
+- **Subject in English, imperative mood, no trailing period** (`feat(backend): add ...`, not `feat(backend): Añade ...` or `feat(backend): added.`). The hook rejects obvious Spanish residues (letters like `ñ á é í ó ú ü ¿ ¡` and function words `con|por|para|sin|...`); it does not catch fluent Spanglish - reviewers are the last line for wording quality.
+- **`Refs: RF-XX, NFR-YY` footer is required** whenever the commit touches `docs/specs/requirements/**` (checked by the `commit-msg` hook). For implementation changes covered by a requirement, the PR checklist carries the same duty.
+
+Valid / invalid (real history rewrites):
+
+| Invalid | Valid |
+| --- | --- |
+| `feat(domain): MatchingEngine - apareamiento 1-a-1 por monto+sens` | `feat(domain): 1-to-1 matching by amount+sensitivity` |
+| `feat(infra): MysqlBatchRepository + MysqlMovementRepository con tests de integracion` | `feat(infra): MySQL batch and movement repositories with integration tests` |
+| `feat(infra): repos MySQL restantes (Ff3Account upsert, Reconciliation, ...) + tests integracion` (149 chars) | `feat(infra): remaining MySQL repositories` (list them in the body) |
+| `docs(domain,application,presentation): normalize date-format doc comments` | `docs(backend): normalize date-format doc comments across crates` |
+| `chg: ...` / `add: ...` / `format(frontend): ...` | map to `chore` / `feat` / `chore(frontend)` |
+
+### Pull Requests
+
+Every new PR is pre-filled with `.github/PULL_REQUEST_TEMPLATE.md` (English). The PR title follows the same convention as commits (`<type>(<scope>): <subject>`, <= 100 chars, English) and is linted in CI (`lint-pr-title` job).
+
+No direct pushes to `main`, enforced in layers:
+
+1. **GitHub branch protection** (`main`: require a PR + the `lint-commits` / `lint-pr-title` / `guard-main` status checks). *Not yet active:* the repository is on the free private plan, where the protection/ruleset APIs return 403 - apply via `PUT /repos/eldelahoz/firefly-manager-movement/branches/main/protection` (payload saved in the plan doc) once the plan allows it. Until then, layers 2 and 3 are the enforcement.
+2. **Local pre-push hook** (`lefthook`): `git push origin main` is rejected with an English message pointing at `git switch -c <type>/<scope>-<desc> && git push -u origin HEAD && gh pr create`.
+3. **CI `guard-main` job**: any commit reaching `main` without a `Merge pull request #NN` or ` (#NN)` marker fails the pipeline.
+
+`--no-verify` is banned except for documented hotfixes (justify in the PR template section); CI and protection still catch the violation.
 
 ### Before Pushing
 
 ```bash
-cargo fmt --all
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+# from the repo root (one-time: pnpm install to sync the git hooks)
+pnpm exec commitlint --from=HEAD~1
+
+# backend (via WSL)
+cd backend
+wsl cargo fmt --all
+wsl cargo clippy --workspace --all-targets -- -D warnings
+wsl cargo test --workspace
 ```
 
-All three must pass. Clippy warnings are treated as errors (`-D warnings`).
+All gates must pass. Clippy warnings are treated as errors (`-D warnings`).
 
 For changes under `frontend/`, the equivalent gate must also pass:
 
 ```bash
 cd frontend
-pnpm lint && pnpm test && pnpm build
+pnpm lint && pnpm build && pnpm e2e
 ```
 
 ## Coding Conventions
