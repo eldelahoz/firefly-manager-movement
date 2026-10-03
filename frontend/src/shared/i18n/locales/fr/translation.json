@@ -89,7 +89,7 @@
     "delete": "Supprimer",
     "deleteTitle": "Supprimer l'import",
     "deleteBody": "Supprimer « {{filename}} » ({{count}} mouvements) ? Cette action est irréversible.",
-    "needsMapping": "Impossible de détecter les colonnes automatiquement. Configurez-les à l'étape suivante pour voir les lignes.",
+    "needsMapping": "Impossible de détecter les colonnes automatiquement. Configurez-les ci-dessous pour voir les lignes analysées.",
     "pendingReconcile": "Import incomplet : rapprochement en attente (étape 4)",
     "reconcileTitle": "Réconcilier l'import"
   },

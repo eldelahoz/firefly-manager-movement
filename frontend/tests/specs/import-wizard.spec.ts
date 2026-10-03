@@ -160,9 +160,10 @@ test.describe('Import > Wizard', () => {
     await expect(wizard.dropzone).toBeVisible();
     expect(deleteCount).toBe(0);
 
-    // Parsed, then back, then remove: the probe batch is deleted server-side
+    // Parsed, then back (preview -> mapping -> upload), then remove: the probe batch is deleted server-side
     await wizard.uploadFile(p);
     await expect(page.getByText(/auto-applied/i)).toBeVisible({ timeout: 5000 });
+    await wizard.backButton.click();
     await wizard.backButton.click();
     await page.getByRole('button', { name: /Remove|Eliminar|Retirer/ }).click();
     await expect(wizard.dropzone).toBeVisible();
@@ -214,8 +215,8 @@ test.describe('Import > Wizard', () => {
     await wizard.selectAccount('Checking');
     const p = csvPath('unknown.csv', csvNeedsMapping);
     await wizard.uploadFile(p);
+    // No memorized mapping: the wizard lands on mapping with the detection-failure hint
     await expect(page.getByText(/We could not detect|No pudimos detectar/)).toBeVisible({ timeout: 5000 });
-    await wizard.nextButton.click();
     await expect(wizard.mappingDateSelect).toBeVisible();
     await wizard.selectMapping({ date: 'Fecha', amount: 'Valor', desc: 'Desc' });
     await expect(wizard.nextButton).toBeEnabled();
@@ -242,6 +243,11 @@ test.describe('Import > Wizard', () => {
       }
       await route.fallback();
     });
+    await wizard.nextButton.click();
+    // Preview shows the rows parsed with the chosen mapping (manual: no auto-applied badge)
+    await expect(wizard.previewTable).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Coffee' })).toBeVisible();
+    await expect(page.getByText(/auto-applied/i)).toBeHidden();
     await wizard.nextButton.click();
     await expect(page.getByRole('heading', { name: /Reconcile|Conciliar/ })).toBeVisible({ timeout: 5000 });
   });
@@ -478,7 +484,7 @@ test.describe('Import > Wizard', () => {
     await wizard.selectAccount('Checking');
     const p = csvPath('unknown.csv', csvNeedsMapping);
     await wizard.uploadFile(p);
-    await wizard.nextButton.click();
+    // Unmapped upload lands directly on the mapping step
     await expect(wizard.mappingDateSelect).toBeVisible();
     await wizard.cancelButton.click();
     await expect(wizard.dialog).toBeHidden();
@@ -670,6 +676,10 @@ test.describe('Import > Wizard', () => {
     await wizard.uploadFile(p);
     await expect(page.getByText(/auto-applied/i)).toBeVisible({ timeout: 5000 });
     await wizard.backButton.click();
+    // Back navigates one step at a time: preview -> mapping (auto-applied mapping preselected)
+    await expect(wizard.mappingDateSelect).toBeVisible();
+    await expect(wizard.mappingDateSelect).toHaveText(/date/);
+    await wizard.backButton.click();
     // File preserved: file panel shown, dropzone hidden, Next re-enabled
     await expect(page.getByText('bank.csv')).toBeVisible();
     await expect(wizard.dropzone).toBeHidden();
@@ -677,7 +687,8 @@ test.describe('Import > Wizard', () => {
     // Next re-parses (previous probe batch deleted first)
     await wizard.confirmUpload();
     await expect(page.getByText(/auto-applied/i)).toBeVisible({ timeout: 5000 });
-    // Change file: back to upload, stage again, confirm re-parses
+    // Change file: back through mapping to upload, stage again, confirm re-parses
+    await wizard.backButton.click();
     await wizard.backButton.click();
     const [fc] = await Promise.all([
       page.waitForEvent('filechooser'),
@@ -689,9 +700,10 @@ test.describe('Import > Wizard', () => {
     await expect(page.getByText(/auto-applied/i)).toBeVisible({ timeout: 5000 });
   });
 
-  test('W16 back/next preview<->mapping<->reconcile', async ({ page }) => {
+  test('W16 back/next upload<->mapping<->preview<->reconcile', async ({ page }) => {
     await page.route('**/api/imports', async (route) => {
       if (route.request().method() === 'POST') {
+        const withColumns = (route.request().postData() ?? '').includes('date_column');
         await route.fulfill({
           json: {
             batch_id: 60,
@@ -700,11 +712,15 @@ test.describe('Import > Wizard', () => {
             headers: ['Fecha', 'Valor', 'Desc'],
             detected_delimiter: ',',
             total_rows: 1,
-            valid_count: 0,
+            valid_count: withColumns ? 1 : 0,
             invalid_count: 0,
-            mapping_used: null,
+            mapping_used: withColumns
+              ? { date_column: 'Fecha', amount_column: 'Valor', description_column: 'Desc' }
+              : null,
             origin_account_values: [],
-            valid: [],
+            valid: withColumns
+              ? [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }]
+              : [],
             invalid: [],
           },
         });
@@ -727,19 +743,31 @@ test.describe('Import > Wizard', () => {
     await wizard.selectAccount('Checking');
     const p = csvPath('unknown.csv', csvNeedsMapping);
     await wizard.uploadFile(p);
+    // Upload without a memorized mapping lands directly on mapping
     await expect(page.getByText(/We could not detect|No pudimos detectar/i)).toBeVisible({ timeout: 5000 });
-    await wizard.nextButton.click();
     await expect(wizard.mappingDateSelect).toBeVisible();
     await wizard.backButton.click();
-    // Preview without saved mapping: needs-mapping hint (imports.needsMapping)
-    await expect(page.getByText(/We could not detect|No pudimos detectar/i)).toBeVisible();
-    await wizard.nextButton.click();
+    // Back from mapping returns to upload with the file still staged
+    await expect(page.getByText('unknown.csv')).toBeVisible();
+    await expect(wizard.dropzone).toBeHidden();
+    await wizard.confirmUpload();
     await expect(wizard.mappingDateSelect).toBeVisible();
     await wizard.selectMapping({ date: 'Fecha', amount: 'Valor', desc: 'Desc' });
     await wizard.nextButton.click();
+    // Preview: rows parsed with the chosen mapping (manual, so no auto-applied badge)
+    await expect(wizard.previewTable).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'Coffee' })).toBeVisible();
+    await expect(page.getByText(/auto-applied/i)).toBeHidden();
+    await wizard.nextButton.click();
     await expect(wizard.reconcileButton).toBeVisible();
+    // Back navigates preview -> mapping (selection preserved) -> upload
+    await wizard.backButton.click();
+    await expect(wizard.previewTable).toBeVisible();
     await wizard.backButton.click();
     await expect(wizard.mappingDateSelect).toBeVisible();
+    await expect(wizard.mappingDateSelect).toHaveText(/Fecha/);
+    await wizard.backButton.click();
+    await expect(page.getByText('unknown.csv')).toBeVisible();
   });
 
   test('W17 mapping incomplete Next disabled', async ({ page }) => {
@@ -771,7 +799,6 @@ test.describe('Import > Wizard', () => {
     await wizard.selectAccount('Checking');
     const p = csvPath('unknown.csv', csvNeedsMapping);
     await wizard.uploadFile(p);
-    await wizard.nextButton.click();
     await expect(wizard.mappingDateSelect).toBeVisible();
     await expect(wizard.nextButton).toBeDisabled();
     await wizard.mappingDateSelect.click();

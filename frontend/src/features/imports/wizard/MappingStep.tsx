@@ -30,12 +30,17 @@ export function MappingStep({
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
+  // Seeded from the last applied mapping so Back from preview preserves the selection.
+  const applied = probe.mapping_used;
   const [cols, setCols] = useState<MappingColumns>({
-    date_column: '',
-    amount_column: '',
-    description_column: '',
+    date_column: applied?.date_column ?? '',
+    amount_column: applied?.amount_column ?? '',
+    description_column: applied?.description_column ?? '',
+    ...(applied?.origin_account_column
+      ? { origin_account_column: applied.origin_account_column }
+      : {}),
   });
-  const [dateFormat, setDateFormat] = useState<string | null>(null);
+  const [dateFormat, setDateFormat] = useState<string | null>(applied?.date_format ?? null);
   const settings = useQuery({
     queryKey: queryKeys.settings,
     queryFn: getSettings,
@@ -76,6 +81,11 @@ export function MappingStep({
   return (
     <div className="flex h-full flex-col">
       <div className="space-y-6">
+        {!applied && probe.valid_count === 0 && (
+          <p role="status" className="text-sm text-text-2">
+            {t('imports.needsMapping')}
+          </p>
+        )}
         {fields.map(([key, label, field]) => (
           <div key={key} className="flex items-center gap-3">
             <Select

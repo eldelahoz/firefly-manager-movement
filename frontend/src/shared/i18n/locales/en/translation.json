@@ -89,7 +89,7 @@
     "delete": "Delete",
     "deleteTitle": "Delete import",
     "deleteBody": "Delete \"{{filename}}\" ({{count}} movements)? This cannot be undone.",
-    "needsMapping": "We could not detect the columns automatically. Configure them in the next step to see the rows.",
+    "needsMapping": "We could not detect the columns automatically. Configure them below to see the parsed rows.",
     "pendingReconcile": "Incomplete import: pending reconciliation (step 4)",
     "reconcileTitle": "Reconcile import"
   },

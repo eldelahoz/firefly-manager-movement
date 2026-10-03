@@ -89,7 +89,7 @@
     "delete": "Eliminar",
     "deleteTitle": "Eliminar importación",
     "deleteBody": "¿Eliminar «{{filename}}» ({{count}} movimientos)? Esta acción no se puede deshacer.",
-    "needsMapping": "No pudimos detectar las columnas automáticamente. Configúralas en el siguiente paso para ver las filas.",
+    "needsMapping": "No pudimos detectar las columnas automáticamente. Configúralas a continuación para ver las filas parseadas.",
     "pendingReconcile": "Importación incompleta: pendiente de conciliar (paso 4)",
     "reconcileTitle": "Conciliar importación"
   },

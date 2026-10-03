@@ -59,39 +59,38 @@ export function wizardReducer(s: WizardState, a: WizardAction): WizardState {
       // Stage the file only: stay on upload; the parse runs on explicit Next (RF-01 v0.1)
       return { ...s, file: a.file, probe: null, error: null, originNotice: null };
     case 'UPLOAD_SUCCESS':
-      return { ...s, step: 'preview', probe: a.probe, originNotice: a.originNotice ?? null };
+      // A usable mapping (saved signature / auto-detect) lands on the preview to confirm it;
+      // otherwise the user maps columns first and the preview shows post-mapping rows.
+      return {
+        ...s,
+        step: a.probe.mapping_used && a.probe.valid_count > 0 ? 'preview' : 'mapping',
+        probe: a.probe,
+        originNotice: a.originNotice ?? null,
+      };
     case 'UPLOAD_ERROR':
       return { ...s, step: 'upload', error: a.message, originNotice: null };
     case 'NEXT_FROM_PREVIEW':
       return { ...s, step: s.probe?.mapping_used ? 'reconcile-config' : 'mapping' };
     case 'MAPPING_SUCCESS':
+      // Re-upload with the chosen columns already ran: show the parsed result.
       return {
         ...s,
         probe: a.probe,
         finalBatchId: a.probe.batch_id,
-        step: 'reconcile-config',
+        step: 'preview',
         originNotice: a.originNotice ?? null,
       };
     case 'BACK_FROM_MAPPING':
-      return { ...s, step: 'preview', error: null };
+      // Upload only makes sense with a staged file; resume mode loops back to preview.
+      return { ...s, step: s.file ? 'upload' : 'preview', error: null };
     case 'BACK_FROM_PREVIEW':
-      // In resume mode (has finalBatchId), don't go back to upload
-      if (s.finalBatchId != null) {
-        return { ...s, step: 'reconcile-config', error: null };
-      }
-      return {
-        ...s,
-        step: 'upload',
-        file: s.file,
-        accountId: s.accountId,
-        currency: s.currency,
-        error: null,
-        originNotice: null,
-      };
+      // Previous step is mapping in every path (auto-applied, manual, resume);
+      // mapping seeds the current mapping_used, upload stays one Back further.
+      return { ...s, step: 'mapping', error: null };
     case 'REMOVE_FILE':
       return { ...s, file: null, probe: null, error: null, originNotice: null };
     case 'BACK_FROM_RECONCILE':
-      return { ...s, step: s.file ? 'mapping' : 'preview', error: null };
+      return { ...s, step: 'preview', error: null };
     case 'RESUME_INIT':
       return {
         ...s,
