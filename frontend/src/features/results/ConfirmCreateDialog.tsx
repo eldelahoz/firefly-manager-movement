@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { LoaderCircle } from 'lucide-react';
 import type { Ff3Account } from '@/shared/api/dto';
 import type { Customization } from './customization';
 import { MoneyText } from '@/shared/ui/MoneyText';
@@ -11,6 +12,7 @@ export function ConfirmCreateDialog({
   filename,
   movements,
   accounts,
+  pending,
   onConfirm,
   onClose,
 }: {
@@ -24,6 +26,7 @@ export function ConfirmCreateDialog({
     customization: Customization;
   }[];
   accounts: Ff3Account[];
+  pending: boolean;
   onConfirm: () => void;
   onClose: () => void;
 }) {
@@ -36,7 +39,7 @@ export function ConfirmCreateDialog({
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (!o) onClose();
+        if (!o && !pending) onClose();
       }}
     >
       <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
@@ -70,10 +73,13 @@ export function ConfirmCreateDialog({
           {t('results.originNoteNote', { note: `ffm:${filename}:${batchId}` })}
         </p>
         <DialogFooter>
-          <Button variant="cancel" onClick={onClose}>
+          <Button variant="cancel" disabled={pending} onClick={onClose}>
             {t('common.cancel')}
           </Button>
-          <Button onClick={onConfirm}>{t('results.confirm')}</Button>
+          <Button disabled={pending} onClick={onConfirm} aria-busy={pending}>
+            {pending && <LoaderCircle className="animate-spin" aria-hidden="true" />}
+            {pending ? t('results.creating') : t('results.confirm')}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

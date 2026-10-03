@@ -460,6 +460,7 @@ export function ResultsPage() {
           filename={detail.data?.batch.filename ?? ''}
           movements={movementSummaries}
           accounts={allAccounts}
+          pending={apply.isPending}
           onConfirm={() => apply.mutate()}
           onClose={() => setConfirmOpen(false)}
         />
