@@ -275,10 +275,13 @@ export function ResultsPage() {
                   header={<TableHeader group="matched" />}
                   renderItem={(i) => {
                     const { movement, ff3 } = results.data.matched[i];
+                    const last = i === counts.matched - 1;
                     return (
                       <div
                         role="row"
-                        className={`grid ${GRID_COLS.matched} items-center gap-3 border-b border-border-subtle px-2 py-3 text-sm transition-colors ${GROUP_ACCENT.matched.rowHover}`}
+                        className={`grid ${GRID_COLS.matched} items-center gap-3 px-2 py-3 text-sm transition-colors ${
+                          last ? '' : 'border-b border-border-subtle'
+                        } ${GROUP_ACCENT.matched.rowHover}`}
                       >
                         <span role="cell">{formatDate(movement.date, i18n.language)}</span>
                         <span role="cell" className="min-w-0 truncate" title={movement.description}>
@@ -287,12 +290,8 @@ export function ResultsPage() {
                         <span role="cell" className="min-w-0 truncate" title={ff3.description}>
                           {ff3.description}
                         </span>
-                        <div role="cell">
-                          <MoneyText
-                            cents={movement.amount_cents}
-                            currency={currency}
-                            className="text-right"
-                          />
+                        <div role="cell" className="text-right">
+                          <MoneyText cents={movement.amount_cents} currency={currency} />
                         </div>
                         <div role="cell" className="flex justify-center">
                           <StatusPill status={movement.status} />
@@ -310,73 +309,74 @@ export function ResultsPage() {
             <EmptyState title={t('results.missing')} />
           ) : (
             <>
-              <div className="flex items-center justify-between py-2">
-                <label className="flex items-center gap-2 text-sm text-text-2">
-                  <Checkbox
-                    aria-label={t('results.selectAll')}
-                    checked={activeSelected.length === counts.missing && counts.missing > 0}
-                    onCheckedChange={() =>
-                      setSelected(
-                        activeSelected.length === counts.missing
-                          ? []
-                          : results.data.missing.map((m) => m.id),
-                      )
-                    }
-                  />
-                  {t('results.selectAll')}
-                </label>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    disabled={activeSelected.length === 0}
-                    onClick={() => {
-                      if (activeSelected.length === 1) {
-                        setEditingId(activeSelected[0]);
-                      } else {
-                        setBulkOpen(true);
-                      }
-                    }}
-                  >
-                    {t('results.personalize')} ({activeSelected.length})
-                  </Button>
-                  <Button
-                    disabled={activeSelected.length === 0}
-                    onClick={() => setConfirmOpen(true)}
-                  >
-                    {t('results.apply')} ({activeSelected.length})
-                  </Button>
-                </div>
-              </div>
               <div
                 role="table"
                 aria-label={t('results.missing')}
                 className="overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm"
               >
+                <div className="flex items-center justify-between border-b border-border-subtle px-2 py-2">
+                  <label className="flex items-center gap-2 text-sm text-text-2">
+                    <span className="flex w-8 items-center justify-center">
+                      <Checkbox
+                        aria-label={t('results.selectAll')}
+                        checked={activeSelected.length === counts.missing && counts.missing > 0}
+                        onCheckedChange={() =>
+                          setSelected(
+                            activeSelected.length === counts.missing
+                              ? []
+                              : results.data.missing.map((m) => m.id),
+                          )
+                        }
+                      />
+                    </span>
+                    {t('results.selectAll')}
+                  </label>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={activeSelected.length === 0}
+                      onClick={() => {
+                        if (activeSelected.length === 1) {
+                          setEditingId(activeSelected[0]);
+                        } else {
+                          setBulkOpen(true);
+                        }
+                      }}
+                    >
+                      {t('results.personalize')} ({activeSelected.length})
+                    </Button>
+                    <Button
+                      disabled={activeSelected.length === 0}
+                      onClick={() => setConfirmOpen(true)}
+                    >
+                      {t('results.apply')} ({activeSelected.length})
+                    </Button>
+                  </div>
+                </div>
                 <VirtualList
                   count={counts.missing}
                   header={<TableHeader group="missing" />}
                   renderItem={(i) => {
                     const m = results.data.missing[i];
                     return (
-                      <>
-                        <MissingRow
-                          movement={m}
-                          currency={currency}
-                          selected={activeSelected.includes(m.id)}
-                          report={
-                            reports.batchId === id
-                              ? reports.items.find((r) => r.movement_id === m.id)
-                              : undefined
-                          }
-                          onToggle={(mid) =>
-                            setSelected((s) =>
-                              s.includes(mid) ? s.filter((x) => x !== mid) : [...s, mid],
-                            )
-                          }
-                          onEdit={() => setEditingId(m.id)}
-                          onIgnore={(mid) => ignore.mutate({ mid, ignored: true })}
-                        />
-                      </>
+                      <MissingRow
+                        movement={m}
+                        currency={currency}
+                        selected={activeSelected.includes(m.id)}
+                        isLast={i === counts.missing - 1}
+                        report={
+                          reports.batchId === id
+                            ? reports.items.find((r) => r.movement_id === m.id)
+                            : undefined
+                        }
+                        onToggle={(mid) =>
+                          setSelected((s) =>
+                            s.includes(mid) ? s.filter((x) => x !== mid) : [...s, mid],
+                          )
+                        }
+                        onEdit={() => setEditingId(m.id)}
+                        onIgnore={(mid) => ignore.mutate({ mid, ignored: true })}
+                      />
                     );
                   }}
                 />
@@ -397,7 +397,13 @@ export function ResultsPage() {
                 <VirtualList
                   count={counts.extra}
                   header={<TableHeader group="extra" />}
-                  renderItem={(i) => <ExtraRow tx={results.data.extra[i]} currency={currency} />}
+                  renderItem={(i) => (
+                    <ExtraRow
+                      tx={results.data.extra[i]}
+                      currency={currency}
+                      isLast={i === counts.extra - 1}
+                    />
+                  )}
                 />
               </div>
             </>
@@ -417,11 +423,12 @@ export function ResultsPage() {
             className="overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm"
           >
             <TableHeader group="ignored" />
-            {results.data.ignored.map((m) => (
+            {results.data.ignored.map((m, i) => (
               <IgnoredRow
                 key={m.id}
                 movement={m}
                 currency={currency}
+                isLast={i === results.data.ignored.length - 1}
                 onUnignore={() => ignore.mutate({ mid: m.id, ignored: false })}
               />
             ))}

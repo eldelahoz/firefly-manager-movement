@@ -61,7 +61,7 @@ export function TableHeader({ group }: { group: GroupKey }) {
   return (
     <div
       role="row"
-      className={`grid ${GRID_COLS[group]} gap-3 border-b-2 bg-table-header px-2 py-1.5 text-xs font-semibold uppercase tracking-wide ${accent.underline} ${accent.text}`}
+      className={`grid ${GRID_COLS[group]} gap-3 border-b-2 bg-table-header px-2 py-2.5 text-xs font-semibold uppercase tracking-wide ${accent.underline} ${accent.text}`}
     >
       {LABELS[group].map((k) => (
         <span
@@ -71,7 +71,7 @@ export function TableHeader({ group }: { group: GroupKey }) {
             k === 'col.actions' || k === 'col.status'
               ? 'text-center'
               : k === 'col.amount'
-                ? 'text-center'
+                ? 'text-right'
                 : undefined
           }
         >

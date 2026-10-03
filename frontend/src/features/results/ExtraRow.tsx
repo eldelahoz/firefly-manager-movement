@@ -9,20 +9,31 @@ import { StatusPill } from '@/shared/ui/StatusPill';
 import { DeleteDuplicateDialog } from '@/features/firefly/DeleteDuplicateDialog';
 import { GRID_COLS, GROUP_ACCENT } from './tableLayout';
 
-export function ExtraRow({ tx, currency }: { tx: Ff3CachedTxDTO; currency: string }) {
+export function ExtraRow({
+  tx,
+  currency,
+  isLast = false,
+}: {
+  tx: Ff3CachedTxDTO;
+  currency: string;
+  isLast?: boolean;
+}) {
   const { t, i18n } = useTranslation();
   const [confirming, setConfirming] = useState(false);
   return (
-    <div
-      className={`border-b border-border-subtle py-3 text-sm transition-colors ${GROUP_ACCENT.extra.rowHover}`}
-    >
-      <div role="row" className={`grid ${GRID_COLS.extra} items-center gap-3 px-2`}>
+    <>
+      <div
+        role="row"
+        className={`grid ${GRID_COLS.extra} items-center gap-3 px-2 py-3 text-sm transition-colors ${
+          isLast ? '' : 'border-b border-border-subtle'
+        } ${GROUP_ACCENT.extra.rowHover}`}
+      >
         <span role="cell">{formatDate(tx.date, i18n.language)}</span>
         <span role="cell" className="min-w-0 truncate" title={tx.description}>
           {tx.description}
         </span>
-        <div role="cell">
-          <MoneyText cents={tx.amount_cents} currency={currency} className="text-right" />
+        <div role="cell" className="text-right">
+          <MoneyText cents={tx.amount_cents} currency={currency} />
         </div>
         <div role="cell" className="flex justify-center">
           <StatusPill status={tx.is_duplicate ? 'duplicate' : 'extra'} />
@@ -56,6 +67,6 @@ export function ExtraRow({ tx, currency }: { tx: Ff3CachedTxDTO; currency: strin
         currency={currency}
         onClose={() => setConfirming(false)}
       />
-    </div>
+    </>
   );
 }
