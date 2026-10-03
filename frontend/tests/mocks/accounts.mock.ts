@@ -1,7 +1,7 @@
 import type { Page, Route, Request } from '@playwright/test';
 import { fixtures } from '../fixtures/fixtures';
 
-const { accounts, txs } = fixtures;
+const { accounts, txs, expenseAccounts, revenueAccounts } = fixtures;
 
 interface AccountsMockOptions {
   /** Simulate loading delay (ms) for /api/firefly/accounts */
@@ -65,7 +65,10 @@ export async function mockAccounts(
       await route.fulfill({ status: 500, json: { error: 'Internal Server Error' } });
       return;
     }
-    await route.fulfill({ json: accounts });
+    const type = new URL(route.request().url()).searchParams.get('type');
+    const json =
+      type === 'revenue' ? revenueAccounts : type === 'expense' ? expenseAccounts : accounts;
+    await route.fulfill({ json });
   });
 }
 

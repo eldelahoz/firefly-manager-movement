@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
   getAccounts,
+  getAccountsByType,
   getImport,
   getResults,
   getSettings,
@@ -82,6 +83,16 @@ export function ResultsPage() {
   const accounts = useQuery({
     queryKey: queryKeys.accounts,
     queryFn: getAccounts,
+    staleTime: 300_000,
+  });
+  const revenueAccounts = useQuery({
+    queryKey: queryKeys.accountsByType('revenue'),
+    queryFn: () => getAccountsByType('revenue'),
+    staleTime: 300_000,
+  });
+  const expenseAccounts = useQuery({
+    queryKey: queryKeys.accountsByType('expense'),
+    queryFn: () => getAccountsByType('expense'),
     staleTime: 300_000,
   });
   const tags = useQuery({
@@ -176,6 +187,14 @@ export function ResultsPage() {
     [openRerun, id, t],
   );
   usePageHeader({ title: headerTitle, actions: headerActions });
+  const allAccounts = useMemo(
+    () => [
+      ...(accounts.data ?? []),
+      ...(revenueAccounts.data ?? []),
+      ...(expenseAccounts.data ?? []),
+    ],
+    [accounts.data, revenueAccounts.data, expenseAccounts.data],
+  );
   if (!Number.isFinite(id)) {
     return (
       <EmptyState
@@ -415,7 +434,7 @@ export function ResultsPage() {
           initial={customizations[editingMovement.id] ?? {}}
           defaultTag={defaultTag}
           currency={currency}
-          accounts={accounts.data ?? []}
+          accounts={allAccounts}
           tags={tags.data ?? []}
           categories={categories.data ?? []}
           budgets={budgets.data ?? []}
@@ -440,7 +459,7 @@ export function ResultsPage() {
           batchId={id}
           filename={detail.data?.batch.filename ?? ''}
           movements={movementSummaries}
-          accounts={accounts.data ?? []}
+          accounts={allAccounts}
           onConfirm={() => apply.mutate()}
           onClose={() => setConfirmOpen(false)}
         />

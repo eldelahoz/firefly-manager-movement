@@ -53,8 +53,8 @@ export function PersonalizeEditor({
 
   const filteredAccounts =
     direction === 'withdrawal'
-      ? accounts.filter((a) => a.type === 'expense' || a.type === 'asset')
-      : accounts.filter((a) => a.type === 'revenue' || a.type === 'asset');
+      ? accounts.filter((a) => a.type === 'expense')
+      : accounts.filter((a) => a.type === 'revenue');
 
   function handleSave() {
     onSave({
