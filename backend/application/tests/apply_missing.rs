@@ -830,7 +830,21 @@ async fn apply_creates_with_origin_tag_and_confirms_matched() {
     assert_eq!(run.reconciliation.matched_count, 3); // m3 + m1 + m2
     assert_eq!(run.reconciliation.missing_count, 0);
     assert_eq!(run.reconciliation.extra_count, 1); // carried over
-    assert_eq!(run.matches.len(), 2); // only new matches (m1, m2)
+                                                   // The new run must carry over the previous run's match rows too, otherwise
+                                                   // get_results shows the old pairs as `extra` (they'd be in the tx cache
+                                                   // with no match row pointing at them).
+    assert_eq!(run.matches.len(), 3); // carried (m3→300) + new (m1→501, m2→502)
+    let pairs: Vec<(i64, i64)> = run
+        .matches
+        .iter()
+        .map(|m| (m.movement_id.as_i64(), m.ff3_id))
+        .collect();
+    assert!(
+        pairs.contains(&(3, 300)),
+        "carried-over match missing: {pairs:?}"
+    );
+    assert!(pairs.contains(&(1, 501)), "new m1 match missing: {pairs:?}");
+    assert!(pairs.contains(&(2, 502)), "new m2 match missing: {pairs:?}");
 
     assert_eq!(f.movements.status_of(1), MovementStatus::Matched);
     assert_eq!(f.movements.status_of(2), MovementStatus::Matched);
