@@ -1,0 +1,66 @@
+name: lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint-commits:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - name: Lint commit messages
+        env:
+          FROM: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          TO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ "$FROM" = "0000000000000000000000000000000000000000" ]; then
+            FROM=$(git rev-list --max-parents=0 "$TO" | tail -1)
+          fi
+          pnpm exec commitlint --from "$FROM" --to "$TO" --verbose
+
+  lint-pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - name: Lint PR title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s' "$TITLE" | pnpm exec commitlint --verbose
+
+  guard-main:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject direct pushes to main
+        env:
+          COMMITS: ${{ toJSON(github.event.commits) }}
+        run: |
+          # A commit reached main legitimately iff the merge UI produced it:
+          #  - merge commit:  subject "Merge pull request #NN from ..."
+          #  - squash commit: subject ends with " (#NN)"
+          # Anything else was pushed directly with git push origin main.
+          bad=$(printf '%s' "$COMMITS" | jq -r '.[] | select(
+              ((.message | startswith("Merge pull request #")) | not) and
+              ((.message | test(" \\(#[0-9]+\\)$")) | not)
+            ) | .id[0:9] + " " + (.message | split("\n")[0])')
+          if [ -n "$bad" ]; then
+            echo "::error::Direct push to main detected. Commits arrived without a PR (#NN) marker:"
+            printf '%s\n' "$bad"
+            echo "Fix: revert main to the last merged state and use the PR workflow (see CONTRIBUTING.md)."
+            exit 1
+          fi

@@ -1,0 +1,15 @@
+{
+  "name": "firefly-manager-movement",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.1.2",
+  "scripts": {
+    "prepare": "lefthook install",
+    "lint:commit": "commitlint --from=HEAD~1"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "lefthook": "^1.11.14"
+  }
+}

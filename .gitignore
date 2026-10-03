@@ -7,6 +7,9 @@ test-results/
 playwright-report/
 blob-report/
 
+# Root Node dev tooling (commitlint + lefthook only; frontend/ has its own .gitignore)
+/node_modules/
+
 .env
 
 # Obsidian vault over docs/ - everything under docs/.obsidian/ is ignored
