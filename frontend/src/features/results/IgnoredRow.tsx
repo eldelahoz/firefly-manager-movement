@@ -22,7 +22,7 @@ export function IgnoredRow({
   return (
     <div
       role="row"
-      className={`grid ${GRID_COLS.ignored} items-center gap-3 px-2 py-3 text-sm transition-colors ${
+      className={`grid ${GRID_COLS.ignored} items-center gap-3 px-4 py-3 text-sm transition-colors ${
         isLast ? '' : 'border-b border-border-subtle'
       } ${GROUP_ACCENT.ignored.rowHover}`}
     >
@@ -36,7 +36,7 @@ export function IgnoredRow({
       <div role="cell" className="flex justify-center">
         <StatusPill status="ignored" />
       </div>
-      <span role="cell" className="flex items-center justify-center">
+      <span role="cell" className="flex items-center justify-end">
         <Button
           variant="ghost"
           size="icon-sm"

@@ -24,7 +24,7 @@ export function ExtraRow({
     <>
       <div
         role="row"
-        className={`grid ${GRID_COLS.extra} items-center gap-3 px-2 py-3 text-sm transition-colors ${
+        className={`grid ${GRID_COLS.extra} items-center gap-3 px-4 py-3 text-sm transition-colors ${
           isLast ? '' : 'border-b border-border-subtle'
         } ${GROUP_ACCENT.extra.rowHover}`}
       >
@@ -38,7 +38,7 @@ export function ExtraRow({
         <div role="cell" className="flex justify-center">
           <StatusPill status={tx.is_duplicate ? 'duplicate' : 'extra'} />
         </div>
-        <span role="cell" className="flex items-center justify-center">
+        <span role="cell" className="flex items-center justify-end">
           {tx.is_duplicate && (
             <Button
               variant="ghost"

@@ -279,7 +279,7 @@ export function ResultsPage() {
                     return (
                       <div
                         role="row"
-                        className={`grid ${GRID_COLS.matched} items-center gap-3 px-2 py-3 text-sm transition-colors ${
+                        className={`grid ${GRID_COLS.matched} items-center gap-3 px-4 py-3 text-sm transition-colors ${
                           last ? '' : 'border-b border-border-subtle'
                         } ${GROUP_ACCENT.matched.rowHover}`}
                       >
@@ -314,7 +314,7 @@ export function ResultsPage() {
                 aria-label={t('results.missing')}
                 className="overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm"
               >
-                <div className="flex items-center justify-between border-b border-border-subtle px-2 py-2">
+                <div className="flex items-center justify-between border-b border-border-subtle px-4 py-2">
                   <label className="flex items-center gap-2 text-sm text-text-2">
                     <span className="flex w-8 items-center justify-center">
                       <Checkbox

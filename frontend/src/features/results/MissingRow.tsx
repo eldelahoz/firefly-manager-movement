@@ -31,7 +31,7 @@ export function MissingRow({
   return (
     <div
       role="row"
-      className={`grid ${GRID_COLS.missing} items-center gap-3 px-2 py-3 text-sm transition-colors ${
+      className={`grid ${GRID_COLS.missing} items-center gap-3 px-4 py-3 text-sm transition-colors ${
         isLast ? '' : 'border-b border-border-subtle'
       } ${GROUP_ACCENT.missing.rowHover}`}
     >
@@ -58,7 +58,7 @@ export function MissingRow({
           <StatusPill status={movement.status} />
         </div>
       )}
-      <span role="cell" className="flex items-center justify-center gap-1">
+      <span role="cell" className="flex items-center justify-end gap-1">
         <Button
           variant="ghost"
           size="icon-sm"
