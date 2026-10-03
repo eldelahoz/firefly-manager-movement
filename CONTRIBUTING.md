@@ -288,7 +288,7 @@ Valid / invalid (real history rewrites):
 
 ### Pull Requests
 
-Every new PR is pre-filled with `.github/PULL_REQUEST_TEMPLATE.md` (English). The PR title follows the same convention as commits (`<type>(<scope>): <subject>`, <= 100 chars, English) and is linted in CI (`lint-pr-title` job).
+Every new PR is pre-filled with `.github/PULL_REQUEST_TEMPLATE.md` (English). The PR title follows the same convention as commits (`<type>(<scope>): <subject>`, <= 100 chars, English) and is linted in CI (`lint-pr-title` job). The head branch is deleted automatically when the PR merges (repo setting `delete_branch_on_merge`; for `gh pr merge` pass `--delete-branch` to be explicit).
 
 No direct pushes to `main`, enforced in layers:
 
