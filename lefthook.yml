@@ -1,0 +1,25 @@
+# Git hooks managed by lefthook (Windows-safe: all logic is Node or pwsh, no bash).
+# Setup: pnpm install at repo root (runs "lefthook install" via prepare).
+# Bypass with --no-verify is restricted to documented hotfixes (see CONTRIBUTING.md);
+# CI re-validates everything.
+
+commit-msg:
+  commands:
+    commitlint:
+      # Validates <type>(<scope>): <subject> format, 100-char header cap
+      # (72 warns), closed type/scope lists, English-only subject.
+      run: pnpm exec commitlint --edit {1}
+    refs-trailer:
+      # Requires a "Refs: RF-XX[, NFR-YY]" footer when requirement docs are staged.
+      run: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/check-refs-trailer.ps1 {1}
+
+pre-push:
+  commands:
+    no-direct-main:
+      # Blocks "git push origin main" (reads the pre-push ref list from stdin).
+      # use_stdin: without it lefthook consumes the ref list into its pseudo-TTY
+      # and the guard would never see the pushed refs.
+      use_stdin: true
+      run: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/guard-no-main-push.ps1
+
+
