@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Version | Original (2026-08-14) — unamended |
+| Version | v0.10 (integrates PRD v0.10 amendment) |
 | Priority | P1 |
 | Use cases | CU-3 |
 | Depends on | RF-06 (engine), RF-09 (batch persists) |
@@ -13,7 +13,7 @@
 The user MUST be able to **re-run a reconciliation on an existing batch** with **modified parameters**:
 
 - date tolerance (±0..±3 days),
-- search window,
+- search window (defaults to the tolerance, editable via the manual override; re-runs recompute it from the new tolerance unless overridden),
 - target account (subject to the RF-12 currency rule).
 
 **Semantics of a re-run**:

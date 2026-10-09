@@ -5,7 +5,7 @@ import type { Ff3CachedTxDTO } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
 import { Button } from '@/shared/ui/button';
 import { MoneyText } from '@/shared/ui/MoneyText';
-import { StatusPill } from '@/shared/ui/StatusPill';
+import { Pill, StatusPill } from '@/shared/ui/StatusPill';
 import { DeleteDuplicateDialog } from '@/features/firefly/DeleteDuplicateDialog';
 import { GRID_COLS, GROUP_ACCENT } from './tableLayout';
 
@@ -13,10 +13,12 @@ export function ExtraRow({
   tx,
   currency,
   isLast = false,
+  outsidePeriod,
 }: {
   tx: Ff3CachedTxDTO;
   currency: string;
   isLast?: boolean;
+  outsidePeriod?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const [confirming, setConfirming] = useState(false);
@@ -35,8 +37,9 @@ export function ExtraRow({
         <div role="cell" className="text-right">
           <MoneyText cents={tx.amount_cents} currency={currency} />
         </div>
-        <div role="cell" className="flex justify-center">
+        <div role="cell" className="flex items-center justify-center gap-2">
           <StatusPill status={tx.is_duplicate ? 'duplicate' : 'extra'} />
+          {outsidePeriod && <Pill>{t('results.outsidePeriod')}</Pill>}
         </div>
         <span role="cell" className="flex items-center justify-end">
           {tx.is_duplicate && (
