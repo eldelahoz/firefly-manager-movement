@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `6795d5d` · TRD `a439e81` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `3af9851` · TRD `a439e81` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
@@ -109,7 +109,9 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-05  Fetch target account transactions via FF3 API over date window
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-10-09 · **Spec @** `3af9851`
+
+> v0.10 amendment: fetch window = statement dates ± tolerance by default (was ±7), manual override editable on the reconcile step (Edit/Auto). Engine fetch semantics unchanged (arbitrary window in body).
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -118,12 +120,16 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Infra** | `firefly_client.rs` | Exhaustive pagination over `GET /api/v1/accounts/{id}/transactions` |
 | **Infra** | `reconcile_flow_repo.rs` | End-to-end flow: batch → reconcile → transactions fetched |
 | **Pres** | `firefly_endpoints.rs` | `QUERY /api/firefly/accounts/{id}/transactions` with body `{start,end}` |
+| **FE** | `import-wizard.spec.ts::W6/W24` | POST body carries `window_start = min − T`, `window_end = max + T`; computed window displayed |
+| **FE** | `import-wizard.spec.ts::W25` | Manual override sent; Auto restores tolerance-derived values |
 
 ---
 
 ## RF-06  Reconciliation engine with configurable date tolerance
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-10-09 · **Spec @** `3af9851`
+
+> v0.10 amendment: the search window is no longer an independent ±7 parameter — it defaults to the tolerance (`[min − T, max + T]`, manual override editable). The engine itself is unchanged; tolerance semantics (±0..±3) are unchanged.
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -135,12 +141,15 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `reconcile_batch.rs::reconcile_currency_mismatch_is_blocked` | Batch currency ≠ account currency → blocked |
 | **App** | `reconcile_batch.rs::reconcile_rerun_creates_new_reconciliation` | RF-13 re-reconciliation updates counts |
 | **App** | `exact_user_rows.rs` | Real-world row scenarios |
+| **FE** | `import-wizard.spec.ts::W6/W24/W25` | Window follows tolerance (with override); tolerance segmented control intact |
 
 ---
 
 ## RF-07  Results in 3 groups (matched / missing / extras) with visual gap highlighting
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `d734652`
+**Status:** implemented · **Last verified:** 2026-10-09 · **Spec @** `3af9851`
+
+> v0.10 amendment: extras dated outside the statement `min..max` carry an `Outside period` badge and are excluded from the displayed extras count (persisted run snapshot count unchanged).
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -149,6 +158,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `get_results.rs` | `GetResults` use case returns 3 groups + ignored |
 | **Infra** | `reconciliation_repo.rs` | `ReconciliationRepository` saves run with snapshot |
 | **Pres** | `reconcile_endpoints.rs` | `GET /api/imports/{id}/results` returns grouped DTOs |
+| **FE** | `results-extra-period.spec.ts::X1` | Out-of-period extras badged and excluded from the displayed count |
 | **FE** | `pending (Playwright gap)` → `tests/specs/results-groups.spec.ts` + `tests/specs/virtual-list.spec.ts` (gaps `results-matched-missing-extra`, `virtual-list`) | 3 groups, headers, VirtualList — pending |
 
 ---
@@ -246,14 +256,17 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-13  Re-run reconciliation on existing batch
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-10-09 · **Spec @** `3af9851`
+
+> v0.10 amendment: the search window follows the tolerance on re-runs (recomputed from the new tolerance unless manually overridden).
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `reconcile_batch.rs::reconcile_rerun_creates_new_reconciliation` | Second run creates new `Reconciliation` row, updates movement statuses |
 | **App** | `get_results.rs` | Can fetch latest or specific run |
 | **Pres** | `reconcile_endpoints.rs` | `POST /api/imports/{id}/reconcile` idempotent (creates new run) |
-| **FE** | `pending (Playwright gap)` → `tests/specs/import-wizard.spec.ts` (gap `imports-upload-mapping-reconcile`) | Re-run reconciliation — pending |
+| **FE** | `import-wizard.spec.ts::W24/W25` | Rerun config recomputes window on tolerance change; override/Auto available |
+| **FE** | `pending (Playwright gap)` → `tests/specs/import-wizard.spec.ts` (gap `imports-upload-mapping-reconcile`) | Full re-run cycle from results view — pending |
 
 ---
 
