@@ -138,6 +138,8 @@
     "tolerance": "Tolerance",
     "toleranceDays": "Tolerance (days)",
     "searchWindow": "Search window",
+    "editWindow": "Edit",
+    "autoWindow": "Auto",
     "currency": "Currency",
     "currencyFromBatch": "{{currency}} (from statement)",
     "currencyMatches": "matches account",

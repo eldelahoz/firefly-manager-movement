@@ -425,6 +425,61 @@ test.describe('Import > Wizard', () => {
     await expect(page).toHaveURL(/\/results\/22/);
   });
 
+  test('W25 search window manual override with auto reset', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 25,
+            filename: 'bank.csv',
+            file_hash: 'h25',
+            headers: ['date', 'amount', 'desc'],
+            detected_delimiter: ',',
+            total_rows: 1,
+            valid_count: 1,
+            invalid_count: 0,
+            mapping_used: { date_column: 'date', amount_column: 'amount', description_column: 'desc' },
+            origin_account_values: [],
+            valid: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.route('**/api/imports/25', async (route) => route.fulfill({ json: { batch: { id: 25, filename: 'bank.csv', status: 'parsed', currency: 'EUR', account_id: 1 }, movements: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }], headers: ['date', 'amount', 'desc'], detected_delimiter: ',' } }));
+    await page.route('**/api/imports/25/reconcile', async (route) => {
+      const body = route.request().postDataJSON();
+      expect(body.tolerance_days).toBe(0);
+      expect(body.window_start).toBe('2026-07-01');
+      expect(body.window_end).toBe('2026-08-01');
+      await route.fulfill({ json: { batch_id: 25, reconciliation_id: 1 } });
+    });
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const p = csvPath('bank.csv', csvValid);
+    await wizard.uploadFile(p);
+    await wizard.nextButton.click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('2026-08-01 → 2026-08-01')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Edit' }).click();
+    const startInput = dialog.locator('input[type="date"]').first();
+    const endInput = dialog.locator('input[type="date"]').nth(1);
+    await expect(startInput).toHaveValue('2026-08-01');
+    await expect(endInput).toHaveValue('2026-08-01');
+    await startInput.fill('2026-07-01');
+    await dialog.getByRole('button', { name: 'Auto' }).click();
+    await expect(dialog.getByText('2026-08-01 → 2026-08-01')).toBeVisible();
+    await expect(dialog.locator('input[type="date"]')).toHaveCount(0);
+    await dialog.getByRole('button', { name: 'Edit' }).click();
+    await dialog.locator('input[type="date"]').first().fill('2026-07-01');
+    await wizard.reconcileButton.click();
+    await expect(page).toHaveURL(/\/results\/25/);
+  });
+
   test('W7 currency mismatch', async ({ page }) => {
     await page.route('**/api/imports', async (route) => {
       if (route.request().method() === 'POST') {

@@ -138,6 +138,8 @@
     "tolerance": "Tolérance",
     "toleranceDays": "Jours de tolérance",
     "searchWindow": "Fenêtre de recherche",
+    "editWindow": "Modifier",
+    "autoWindow": "Auto",
     "currency": "Devise",
     "currencyFromBatch": "{{currency}} (du relevé)",
     "currencyMatches": "correspond au compte",
