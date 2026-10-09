@@ -5,7 +5,6 @@ import { getAccounts, getImport, postReconcile } from '@/shared/api/endpoints';
 import { addDays } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { Button } from '@/shared/ui/button';
-import { Input } from '@/shared/ui/input';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { WizardFooter } from './WizardShell';
 
@@ -39,26 +38,25 @@ export function ReconcileConfigStep({
     queryFn: () => getImport(batchId!),
     enabled: batchId !== null,
   });
-  // Locked account (RF-04 v0.8): decided at import, never editable here.
-  // `||` (not `??`) so an empty-string wizard state falls back to the persisted batch account.
+
   const accountId = initialAccountId || String(detail.data?.batch.account_id ?? '');
   const [tolerance, setTolerance] = useState(0);
-  const [rangeOverride, setRangeOverride] = useState<{ start: string; end: string } | null>(null);
   const accounts = useQuery({
     queryKey: queryKeys.accounts,
     queryFn: getAccounts,
     staleTime: 300_000,
   });
+
   const computedRange = useMemo(() => {
     if (!detail.data || detail.data.movements.length === 0) return null;
     const dates = detail.data.movements.map((m) => m.date).sort();
-    const start = addDays(dates[0], -7);
-    const end = addDays(dates[dates.length - 1], 7);
+    const start = addDays(dates[0], -tolerance);
+    const end = addDays(dates[dates.length - 1], tolerance);
     if (!start || !end) return null;
     return { start, end };
-  }, [detail.data]);
+  }, [detail.data, tolerance]);
   const currency = detail.data?.batch.currency ?? '';
-  const range = rangeOverride ?? computedRange;
+  const range = computedRange;
   const selectedAccount = accounts.data?.find((a) => a.id === Number(accountId));
   const currencyMismatch = useMemo(
     () => !!currency && !!selectedAccount && selectedAccount.currency !== currency,
@@ -116,25 +114,14 @@ export function ReconcileConfigStep({
           </div>
         </div>
         {range && (
-          <div className="flex max-w-[480px] gap-2">
-            <label className="flex-1 text-[13px] text-text-2">
-              {t('dashboard.browseFrom')}
-              <Input
-                type="date"
-                value={range.start}
-                onChange={(e) => setRangeOverride({ ...range, start: e.target.value })}
-                className="mt-1"
-              />
-            </label>
-            <label className="flex-1 text-[13px] text-text-2">
-              {t('dashboard.browseTo')}
-              <Input
-                type="date"
-                value={range.end}
-                onChange={(e) => setRangeOverride({ ...range, end: e.target.value })}
-                className="mt-1"
-              />
-            </label>
+          <div className="max-w-[480px]">
+            <p className="mb-1 text-[13px] text-text-2">{t('wizard.searchWindow')}</p>
+            <p className="flex items-center gap-2 text-sm text-text-1">
+              <span>{`${range.start} → ${range.end}`}</span>
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-text-2">
+                ±{tolerance}
+              </span>
+            </p>
           </div>
         )}
         {currency && (

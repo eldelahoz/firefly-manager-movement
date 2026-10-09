@@ -137,6 +137,7 @@
     "account": "Cuenta de Firefly III",
     "tolerance": "Tolerancia",
     "toleranceDays": "Días de tolerancia",
+    "searchWindow": "Ventana de búsqueda",
     "currency": "Moneda",
     "currencyFromBatch": "{{currency}} (del extracto)",
     "currencyMatches": "coincide con la cuenta",

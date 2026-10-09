@@ -361,6 +361,8 @@ test.describe('Import > Wizard', () => {
     await page.route('**/api/imports/20/reconcile', async (route) => {
       const body = route.request().postDataJSON();
       expect(body.tolerance_days).toBe(2);
+      expect(body.window_start).toBe('2026-07-30');
+      expect(body.window_end).toBe('2026-08-03');
       await route.fulfill({ json: { batch_id: 20, reconciliation_id: 1 } });
     });
     const wizard = new ImportWizardPage(page);
@@ -374,6 +376,53 @@ test.describe('Import > Wizard', () => {
     await page.getByRole('button', { name: '±2' }).click();
     await wizard.reconcileButton.click();
     await expect(page).toHaveURL(/\/results\/20/);
+  });
+
+  test('W24 search window derived from tolerance and read-only', async ({ page }) => {
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() === 'POST') {
+        await route.fulfill({
+          json: {
+            batch_id: 22,
+            filename: 'bank.csv',
+            file_hash: 'h22',
+            headers: ['date', 'amount', 'desc'],
+            detected_delimiter: ',',
+            total_rows: 1,
+            valid_count: 1,
+            invalid_count: 0,
+            mapping_used: { date_column: 'date', amount_column: 'amount', description_column: 'desc' },
+            origin_account_values: [],
+            valid: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }],
+            invalid: [],
+          },
+        });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.route('**/api/imports/22', async (route) => route.fulfill({ json: { batch: { id: 22, filename: 'bank.csv', status: 'parsed', currency: 'EUR', account_id: 1 }, movements: [{ line_no: 2, date: '2026-08-01', amount_cents: -1000, description: 'Coffee' }], headers: ['date', 'amount', 'desc'], detected_delimiter: ',' } }));
+    await page.route('**/api/imports/22/reconcile', async (route) => {
+      const body = route.request().postDataJSON();
+      expect(body.tolerance_days).toBe(2);
+      expect(body.window_start).toBe('2026-07-30');
+      expect(body.window_end).toBe('2026-08-03');
+      await route.fulfill({ json: { batch_id: 22, reconciliation_id: 1 } });
+    });
+    const wizard = new ImportWizardPage(page);
+    await wizard.page.goto('/imports');
+    await wizard.openWizard();
+    await wizard.selectAccount('Checking');
+    const p = csvPath('bank.csv', csvValid);
+    await wizard.uploadFile(p);
+    await wizard.nextButton.click();
+    await expect(page.getByText('Search window')).toBeVisible();
+    await expect(page.getByText('2026-08-01 → 2026-08-01')).toBeVisible();
+    await page.getByRole('button', { name: '±2' }).click();
+    await expect(page.getByText('2026-07-30 → 2026-08-03')).toBeVisible();
+    await expect(page.locator('.fixed input[type="date"], [role="dialog"] input[type="date"]')).toHaveCount(0);
+    await wizard.reconcileButton.click();
+    await expect(page).toHaveURL(/\/results\/22/);
   });
 
   test('W7 currency mismatch', async ({ page }) => {

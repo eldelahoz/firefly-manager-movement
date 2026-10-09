@@ -137,6 +137,7 @@
     "account": "Firefly III account",
     "tolerance": "Tolerance",
     "toleranceDays": "Tolerance (days)",
+    "searchWindow": "Search window",
     "currency": "Currency",
     "currencyFromBatch": "{{currency}} (from statement)",
     "currencyMatches": "matches account",
