@@ -199,6 +199,7 @@
     "confirmTitle": "Create in Firefly III",
     "confirmCount": "{{count}} transactions will be created",
     "confirm": "Create",
+    "creating": "Creating…",
     "originNoteNote": "Each created transaction carries the origin note {{note}}",
     "defaultTagNote": "Default creation tag applied: {{tag}}",
     "attachmentWarning": "Created, but the attachment failed: {{reason}}",

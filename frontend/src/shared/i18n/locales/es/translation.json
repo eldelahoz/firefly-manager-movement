@@ -199,6 +199,7 @@
     "confirmTitle": "Crear en Firefly III",
     "confirmCount": "{{count}} transacciones serán creadas",
     "confirm": "Crear",
+    "creating": "Creando…",
     "originNoteNote": "Cada transacción creada lleva la nota de origen {{note}}",
     "defaultTagNote": "Etiqueta de creación por defecto aplicada: {{tag}}",
     "attachmentWarning": "Creado, pero el adjunto falló: {{reason}}",
