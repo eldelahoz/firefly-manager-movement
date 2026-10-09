@@ -164,6 +164,7 @@
     "matched": "Matched",
     "missing": "Missing",
     "extra": "Extra",
+    "outsidePeriod": "Outside period",
     "selectAll": "Select all",
     "apply": "Create in Firefly III",
     "counterparty": "Counterparty account",

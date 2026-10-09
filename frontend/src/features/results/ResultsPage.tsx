@@ -195,6 +195,12 @@ export function ResultsPage() {
     ],
     [accounts.data, revenueAccounts.data, expenseAccounts.data],
   );
+  const statementRange = useMemo(() => {
+    const mv = detail.data?.movements ?? [];
+    if (mv.length === 0) return null;
+    const dates = mv.map((m) => m.date).sort();
+    return { min: dates[0], max: dates[dates.length - 1] };
+  }, [detail.data]);
   if (!Number.isFinite(id)) {
     return (
       <EmptyState
@@ -220,10 +226,13 @@ export function ResultsPage() {
       />
     );
   }
+  const isOutsidePeriod = (d: string) =>
+    !!statementRange && (d < statementRange.min || d > statementRange.max);
+  const extraRows = results.data.extra;
   const counts = {
     matched: results.data.matched.length,
     missing: results.data.missing.length,
-    extra: results.data.extra.length,
+    extra: extraRows.filter((t) => !isOutsidePeriod(t.date)).length,
   };
   const activeSelected = selected.filter((sid) => results.data.missing.some((m) => m.id === sid));
   const currency = detail.data?.batch.currency ?? 'EUR';
@@ -385,7 +394,7 @@ export function ResultsPage() {
           )}
         </TabsContent>
         <TabsContent value="extra">
-          {counts.extra === 0 ? (
+          {extraRows.length === 0 ? (
             <EmptyState title={t('results.extra')} />
           ) : (
             <>
@@ -395,9 +404,15 @@ export function ResultsPage() {
                 className="overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm"
               >
                 <VirtualList
-                  count={counts.extra}
+                  count={extraRows.length}
                   header={<TableHeader group="extra" />}
-                  renderItem={(i) => <ExtraRow tx={results.data.extra[i]} currency={currency} />}
+                  renderItem={(i) => (
+                    <ExtraRow
+                      tx={extraRows[i]}
+                      currency={currency}
+                      outsidePeriod={isOutsidePeriod(extraRows[i].date)}
+                    />
+                  )}
                 />
               </div>
             </>

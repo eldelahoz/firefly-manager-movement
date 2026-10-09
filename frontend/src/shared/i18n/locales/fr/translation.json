@@ -164,6 +164,7 @@
     "matched": "Rapprochés",
     "missing": "Manquants",
     "extra": "En trop",
+    "outsidePeriod": "Hors période",
     "selectAll": "Tout sélectionner",
     "apply": "Créer dans Firefly III",
     "counterparty": "Compte de contrepartie",
