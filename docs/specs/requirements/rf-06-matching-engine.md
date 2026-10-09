@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Version | Original (2026-08-14) — unamended |
+| Version | v0.10 (integrates PRD v0.10 amendment) |
 | Priority | P0 |
 | Use cases | CU-3 |
 | Depends on | RF-02 (parsed movements), RF-05 (FF3 transactions) |
@@ -17,7 +17,7 @@ The reconciliation engine compares the batch movements with the FF3 transactions
 3. **Date**: equality within a **configurable tolerance** - default ±0 days; allowed options ±1, ±2, ±3 days.
 4. **Account**: the reconciliation is always scoped to exactly one target FF3 asset account.
 
-**User-configurable parameters**: date tolerance (days) and search window around the statement dates (default ±7 days).
+**User-configurable parameter**: date tolerance (days). The Firefly III fetch window defaults to the tolerance — `[min date − T, max date + T]` — and can be overridden manually on the reconciliation step (PRD v0.10 amendment; formerly a fixed ±7-day search window). Rationale: padding beyond the tolerance can never yield a match — the engine pairs within T only — it merely inflates the extras group with transactions from outside the statement period.
 
 **Pairing algorithm**: both sets are grouped by exact amount; within each group, movements and transactions are paired **1-to-1 in chronological order** inside the date tolerance. Consequences:
 
@@ -62,3 +62,4 @@ The reconciliation engine compares the batch movements with the FF3 transactions
 
 - Each run persists its snapshot counters, match pairs and examined FF3 transactions (TRD section 2).
 - The 1-to-1 pairing invariant is enforced at the storage level, not just by convention (TRD section 2).
+- v0.10: the reconciliation step computes and displays the window from the tolerance (with manual override); the engine itself is unchanged.

@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Version | v0.8 (integrates v0.8 amendment) |
+| Version | v0.10 (integrates PRD v0.10 amendment) |
 | Priority | P0 |
 | Use cases | CU-4 |
 | Depends on | RF-06 (a reconciliation run exists) |
@@ -16,9 +16,9 @@ Results MUST be presented in **three groups** with visual highlighting of the ga
 | --- | --- | --- |
 | **Matched** (`matched`) | Movements present on both sides | None (read-only) |
 | **Missing** (`missing`) | In the statement, absent from FF3 | Create in FF3 - single or batch (RF-08) |
-| **Extras** (`extra`) | In FF3, absent from the statement | Informative in v1; deletion possible when flagged `duplicate` (RF-15) |
+| **Extras** (`extra`) | In FF3, absent from the statement | Informative in v1; deletion possible when flagged `duplicate` (RF-15). Extras dated outside the statement's min..max range carry an `Outside period` badge and are excluded from the displayed group count (v0.10 amendment) |
 
-A fourth, dedicated section lists **ignored** movements (RF-10). Duplicate-flagged transactions carry a visible badge in the extras group (RF-15). The results view MUST remain responsive with large lists (virtualized rendering).
+A fourth, dedicated section lists **ignored** movements (RF-10). Duplicate-flagged transactions carry a visible badge in the extras group (RF-15). An extra dated outside the statement movements' `min..max` range additionally carries an **`Outside period`** badge (PRD v0.10 amendment): it remains listed for information but is excluded from the displayed extras count, so informational rows are never mistaken for reconciliation gaps. The results view MUST remain responsive with large lists (virtualized rendering).
 
 ## Table layout (v0.8)
 
@@ -60,5 +60,6 @@ The Status column always reflects the movement's real state, including the post-
 - [ ] The results page renders three tabs/sections
 - [ ] Rows render with checkboxes, editable fields and duplicate flags
 - [ ] Each group renders as a table with column headers per the table layout (v0.8)
+- [ ] Out-of-period extras are badged `Outside period` and excluded from the displayed extras count
 - [ ] The Status column reflects the movement's real state, including post-apply report pills
 - [ ] Large lists stay performant

@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Project | firefly-manager-movement |
-| Version | 0.9 |
+| Version | 0.10 |
 | Created | 2026-08-14 |
-| Last modified | 2026-09-17 |
+| Last modified | 2026-10-09 |
 | Author | A. Delahoz |
 | Status | Draft in progress |
 
@@ -131,7 +131,7 @@ Matching criteria (RF-06):
 User-configurable parameters:
 
 - Date tolerance (days).
-- Search window around the statement (default: statement dates ±7 days).
+- Search window around the statement: **follows the date tolerance** (statement dates ± tolerance); the reconciliation step shows the computed window and allows a manual override (amendment v0.10; previously a ±7-day default).
 
 Special cases:
 
@@ -248,6 +248,11 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 > - The backend currency-mismatch rule is unchanged and remains the API-level guard (RF-12).
 
 > **Amendment (v0.9, 2026-09-17) — RF-02 explicit date format**: the column mapping gains an explicit date-format selector (six known formats + auto). Precedence: explicit selection > memorized-by-signature > global default (Settings) > auto-try. Explicit format mismatch ⇒ invalid line naming the format (RF-03); no silent reinterpretation. The mapping step previews parsed sample dates and warns on ambiguous values.
+
+> **Amendment (v0.10, 2026-10-09) — reconciliation search window and extras display (RF-05, RF-06, RF-07, RF-13)**:
+> - The Firefly III fetch window now **follows the date tolerance** by default: `[min date − T, max date + T]` over the statement dates. The previous ±7-day padding could never create a match (the engine pairs within the tolerance only) and merely inflated the Extras group with transactions outside the statement period (RF-05, RF-06).
+> - The reconciliation step displays the computed window and offers an **Edit** manual override (editable from/to date inputs) with **Auto** to return to the tolerance-derived values (RF-06, RF-13).
+> - Extras dated outside the statement's `min..max` range carry an **`Outside period`** badge and are excluded from the displayed extras count; the rows remain visible for information (RF-07). The persisted per-run `extra_count` snapshot stays the raw audit count of the run.
 
 ## 6. Non-functional requirements
 
