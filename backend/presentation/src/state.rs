@@ -26,4 +26,5 @@ pub struct AppState {
     pub firefly_manager: Arc<dyn FireflyConnectionManager>,
     pub firefly_factory: Arc<dyn FireflyClientFactory>,
     pub env_defaults: EnvDefaults,
+    pub settings_lock: Arc<tokio::sync::Mutex<()>>,
 }

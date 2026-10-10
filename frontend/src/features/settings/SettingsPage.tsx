@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { LoaderCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTheme } from '@/app/ThemeProvider';
 import { getSettings, putSettings, postVerifySettings, getTags } from '@/shared/api/endpoints';
+import type { SettingsResponse } from '@/shared/api/dto';
 import { queryKeys } from '@/shared/lib/keys';
 import { DATE_FORMATS } from '@/shared/lib/dates';
 import { Button } from '@/shared/ui/button';
@@ -18,9 +20,12 @@ const LANGUAGES = [
   { value: 'fr', label: 'Français' },
 ] as const;
 
+type SaveSource = 'connection' | 'creation' | 'import';
+
 export function SettingsPage() {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
+  const qc = useQueryClient();
   const current = i18n.resolvedLanguage ?? i18n.language;
 
   // --- Connection state ---
@@ -38,7 +43,7 @@ export function SettingsPage() {
   const originTrace = originTraceDraft ?? settings.data?.enable_origin_trace ?? true;
   const dateFormat = dateFormatDraft ?? settings.data?.default_date_format ?? 'auto';
 
-  const save = useMutation({
+  const save = useMutation<SettingsResponse, Error, SaveSource>({
     mutationFn: () =>
       putSettings({
         ff3_url: url.trim(),
@@ -52,6 +57,15 @@ export function SettingsPage() {
       setTagDraft(s.default_creation_tag ?? 'none');
       setOriginTraceDraft(s.enable_origin_trace ?? true);
       setDateFormatDraft(s.default_date_format ?? 'auto');
+      for (const key of [
+        queryKeys.settings,
+        queryKeys.tags,
+        queryKeys.categories,
+        queryKeys.budgets,
+        queryKeys.accounts,
+      ]) {
+        void qc.invalidateQueries({ queryKey: key });
+      }
     },
     onError: (e) => toast.error(e.message),
   });
@@ -101,11 +115,24 @@ export function SettingsPage() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button variant="outline" disabled={verify.isPending} onClick={() => verify.mutate()}>
-            {verify.isPending ? '…' : t('settings.testConnection')}
+          <Button
+            variant="outline"
+            disabled={verify.isPending}
+            aria-busy={verify.isPending}
+            onClick={() => verify.mutate()}
+          >
+            {verify.isPending && <LoaderCircle className="animate-spin" aria-hidden="true" />}
+            {t('settings.testConnection')}
           </Button>
-          <Button disabled={save.isPending} onClick={() => save.mutate()}>
-            {save.isPending ? '…' : t('settings.save')}
+          <Button
+            disabled={save.isPending}
+            aria-busy={save.isPending && save.variables === 'connection'}
+            onClick={() => save.mutate('connection')}
+          >
+            {save.isPending && save.variables === 'connection' && (
+              <LoaderCircle className="animate-spin" aria-hidden="true" />
+            )}
+            {t('settings.save')}
           </Button>
         </CardFooter>
       </Card>
@@ -140,8 +167,15 @@ export function SettingsPage() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button disabled={save.isPending} onClick={() => save.mutate()}>
-            {save.isPending ? '…' : t('settings.save')}
+          <Button
+            disabled={save.isPending}
+            aria-busy={save.isPending && save.variables === 'creation'}
+            onClick={() => save.mutate('creation')}
+          >
+            {save.isPending && save.variables === 'creation' && (
+              <LoaderCircle className="animate-spin" aria-hidden="true" />
+            )}
+            {t('settings.save')}
           </Button>
         </CardFooter>
       </Card>
@@ -169,8 +203,15 @@ export function SettingsPage() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button disabled={save.isPending} onClick={() => save.mutate()}>
-            {save.isPending ? '…' : t('settings.save')}
+          <Button
+            disabled={save.isPending}
+            aria-busy={save.isPending && save.variables === 'import'}
+            onClick={() => save.mutate('import')}
+          >
+            {save.isPending && save.variables === 'import' && (
+              <LoaderCircle className="animate-spin" aria-hidden="true" />
+            )}
+            {t('settings.save')}
           </Button>
         </CardFooter>
       </Card>

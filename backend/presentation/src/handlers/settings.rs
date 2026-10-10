@@ -106,6 +106,7 @@ pub async fn save_settings(
     State(state): State<AppState>,
     Json(body): Json<SaveSettingsRequest>,
 ) -> Result<Json<SettingsResponse>, ApiError> {
+    let _guard = state.settings_lock.lock().await;
     let view = SaveAppSettings::new(
         state.app_settings.clone(),
         state.firefly_manager.clone(),

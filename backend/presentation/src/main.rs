@@ -93,6 +93,7 @@ async fn main() {
             ff3_url: ff3_defaults.0,
             ff3_token: ff3_defaults.1,
         },
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
     };
 
     let app = app(state);

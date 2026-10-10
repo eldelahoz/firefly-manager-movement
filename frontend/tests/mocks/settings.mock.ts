@@ -6,6 +6,7 @@ const { settings, tags, categories, budgets } = fixtures;
 interface SettingsMockOptions {
   /** Override initial settings response */
   settingsOverrides?: Partial<typeof settings>;
+  onPut?: () => void;
 }
 
 export async function mockSettings(
@@ -18,6 +19,7 @@ export async function mockSettings(
     if (route.request().method() === 'GET') {
       await route.fulfill({ json: response });
     } else if (route.request().method() === 'PUT') {
+      opts.onPut?.();
       const body = route.request().postDataJSON();
       await route.fulfill({ json: { ...response, ...body } });
     } else {
