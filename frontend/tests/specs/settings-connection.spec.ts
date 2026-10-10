@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/api.fixture';
+import { mockSettings } from '../mocks';
 import { SettingsPage } from '../pages/SettingsPage';
 
 test.describe('Settings > Connection', () => {
@@ -73,5 +74,36 @@ test.describe('Settings > Connection', () => {
     const body = req.request().postDataJSON() as Record<string, unknown>;
     expect(body.ff3_token).toBeUndefined();
     await settings.expectToast('Settings saved');
+  });
+
+  test('S7 refetches FF3 tags after saving a new connection', async ({ page }) => {
+    const settings = new SettingsPage(page);
+    // Gate the tags list on "a PUT has been received": the refetch (triggered by
+    // the save's onSuccess) always arrives after the PUT was handled, so the
+    // flag is set deterministically, unlike waiting on the test-side promise.
+    let saved = false;
+    await page.unroute('**/api/settings');
+    await mockSettings(page, {
+      onPut: () => {
+        saved = true;
+      },
+    });
+    await page.unroute('**/api/firefly/tags');
+    await page.route('**/api/firefly/tags', async (route) => {
+      await route.fulfill({ json: saved ? ['new-connection-tag'] : ['ffm-import', 'vacation'] });
+    });
+    await settings.goto();
+
+    await settings.fillConnection('http://ff3.new', 'tok2');
+    const putPromise = page.waitForResponse(
+      (r) => r.url().includes('/api/settings') && r.request().method() === 'PUT',
+    );
+    await settings.saveConnectionButton.click();
+    await putPromise;
+
+    // Tags must refresh from the (now different) connection without a page reload.
+    await settings.tagSelect.click();
+    await expect(page.getByRole('option', { name: 'new-connection-tag' })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'vacation' })).toBeHidden();
   });
 });
