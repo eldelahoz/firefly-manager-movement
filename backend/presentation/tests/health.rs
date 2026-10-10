@@ -31,6 +31,7 @@ async fn health_returns_ok_json() {
         firefly_manager: Arc::new(FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(FakeFireflyClientFactory::new(FakeFireflyClient::ok())),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
     };
     let router = app(state);
 
@@ -69,6 +70,7 @@ async fn health_with_probe_ok() {
         firefly_manager: Arc::new(FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(FakeFireflyClientFactory::new(FakeFireflyClient::ok())),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
     };
     let router = app(state);
 
@@ -109,6 +111,7 @@ async fn health_with_probe_degraded() {
         firefly_manager: Arc::new(FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(FakeFireflyClientFactory::new(FakeFireflyClient::ok())),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
     };
     let router = app(state);
 
@@ -148,6 +151,7 @@ async fn openapi_json_is_served() {
         firefly_manager: Arc::new(FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(FakeFireflyClientFactory::new(FakeFireflyClient::ok())),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
     };
     let router = app(state);
 

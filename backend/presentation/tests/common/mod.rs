@@ -529,6 +529,12 @@ impl AppSettingsRepository for FakeAppSettingsRepository {
     }
 
     async fn save(&self, s: NewAppSettings) -> Result<AppSettings, ApplicationError> {
+        // Test hook: "http://lag" writes 40ms late, pairing with the settings
+        // manager's late reconfigure for "http://slow" to force a DB/memory
+        // write-push inversion when concurrent saves are not serialized.
+        if s.ff3_url == "http://lag" {
+            tokio::time::sleep(std::time::Duration::from_millis(40)).await;
+        }
         let row = AppSettings {
             ff3_url: s.ff3_url,
             ff3_token: s.ff3_token,

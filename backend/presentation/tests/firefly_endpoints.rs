@@ -54,6 +54,7 @@ async fn get_firefly_accounts_returns_accounts_and_syncs() {
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -98,6 +99,7 @@ async fn get_firefly_accounts_ff3_error_returns_502() {
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -141,6 +143,7 @@ async fn post_account_transactions_ok() {
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -194,6 +197,7 @@ async fn query_account_transactions_ok() {
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -286,6 +290,7 @@ async fn post_account_transactions_enriches_status_from_cache() {
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -341,6 +346,7 @@ async fn get_on_transactions_returns_405() {
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -379,6 +385,7 @@ async fn transactions_start_after_end_returns_400() {
         ff3_health_probe: false,
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),

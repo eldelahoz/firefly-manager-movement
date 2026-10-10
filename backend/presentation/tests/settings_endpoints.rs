@@ -27,7 +27,10 @@ impl Default for FakeSettingsManager {
 
 #[async_trait::async_trait]
 impl FireflyConnectionManager for FakeSettingsManager {
-    async fn reconfigure(&self, url: &str, token: &str) -> Result<(), ApplicationError> {
+    async fn reconfigure(&self, url: &str, token: &str) -> Result<(), ApplicationError> {.
+        if url == "http://slow" {
+            tokio::time::sleep(std::time::Duration::from_millis(80)).await;
+        }
         self.0
             .lock()
             .unwrap()
@@ -114,6 +117,7 @@ fn make_state_with_env(
         firefly_manager: Arc::new(manager),
         firefly_factory: Arc::new(factory),
         env_defaults,
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
     }
 }
 
@@ -304,6 +308,56 @@ async fn put_settings_keeps_existing_token_when_omitted() {
 
     let calls = manager.0.lock().unwrap();
     assert_eq!(calls[0].1, "keep_me");
+}
+
+#[tokio::test]
+async fn concurrent_saves_keep_reconfigure_in_sync_with_storage() {
+    let settings = FakeAppSettingsRepository::with_settings(AppSettings {
+        ff3_url: "http://old".into(),
+        ff3_token: "old_tok".into(),
+        default_creation_tag: None,
+        enable_origin_trace: true,
+        default_date_format: None,
+        updated_at: chrono::DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
+    });
+    let manager = FakeSettingsManager::default();
+    let state = make_state(settings, manager.clone(), FakeVerifyFactory { fail: false });
+
+    let put = |url: &str| {
+        Request::builder()
+            .method("PUT")
+            .uri("/api/settings")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                json!({ "ff3_url": url, "ff3_token": "tok" }).to_string(),
+            ))
+            .unwrap()
+    };
+
+    // "slow" writes first but records its reconfigure last; "lag" writes last
+    // and records immediately. Unserialized, the LAST reconfigure would match
+    // neither the persisted row (fast inversion at ~40ms vs ~80ms).
+    let (ra, rb) = tokio::join!(
+        app(state.clone()).oneshot(put("http://slow")),
+        app(state.clone()).oneshot(put("http://lag"))
+    );
+    assert_eq!(ra.unwrap().status(), StatusCode::OK);
+    assert_eq!(rb.unwrap().status(), StatusCode::OK);
+
+    let response = app(state)
+        .oneshot(
+            Request::builder()
+                .uri("/api/settings")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let stored: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let calls = manager.0.lock().unwrap();
+    assert_eq!(calls.len(), 2);
+    assert_eq!(stored["ff3_url"].as_str().unwrap(), calls.last().unwrap().0);
 }
 
 #[tokio::test]
