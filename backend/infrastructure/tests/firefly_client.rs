@@ -560,6 +560,62 @@ async fn account_transactions_split_netting_to_zero_is_skipped() {
 }
 
 #[tokio::test]
+async fn account_transactions_single_day_window_is_widened_and_clamped() {
+    let server = MockServer::start().await;
+    // FF3 rejects start == end (422). The client must widen the query by a
+    // day and drop the surplus transaction it brings back.
+    Mock::given(method("GET"))
+        .and(path("/api/v1/accounts/1/transactions"))
+        .and(query_param("start", "2026-10-18"))
+        .and(query_param("end", "2026-10-19"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [
+                {
+                    "id": "90",
+                    "attributes": {
+                        "transactions": [{
+                            "transaction_journal_id": "90",
+                            "type": "withdrawal",
+                            "date": "2026-10-18T00:00:00+00:00",
+                            "amount": "10.00",
+                            "description": "in window",
+                            "source_id": "1",
+                            "destination_id": "5"
+                        }]
+                    }
+                },
+                {
+                    "id": "91",
+                    "attributes": {
+                        "transactions": [{
+                            "transaction_journal_id": "91",
+                            "type": "withdrawal",
+                            "date": "2026-10-19T00:00:00+00:00",
+                            "amount": "20.00",
+                            "description": "past window",
+                            "source_id": "1",
+                            "destination_id": "5"
+                        }]
+                    }
+                }
+            ],
+            "meta": { "pagination": { "current_page": 1, "total_pages": 1 } }
+        })))
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let day = NaiveDate::from_ymd_opt(2026, 10, 18).unwrap();
+    let txs = client
+        .account_transactions(1, Some(day), Some(day))
+        .await
+        .unwrap();
+
+    assert_eq!(txs.len(), 1);
+    assert_eq!(txs[0].ff3_id, 90);
+}
+
+#[tokio::test]
 async fn account_transactions_split_only_counts_journals_inside_the_window() {
     let server = MockServer::start().await;
     // One group whose splits straddle the window edge: only the in-window

@@ -361,8 +361,17 @@ impl FireflyClient for ReqwestFireflyClient {
         // supply a sensible default: start=1970-01-03, end=today.
         let floor = start.unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 3).unwrap());
         let ceiling = end.unwrap_or_else(|| chrono::Utc::now().date_naive());
-        let start_str = floor.format("%Y-%m-%d");
-        let end_str = ceiling.format("%Y-%m-%d");
+        // FF3 rejects `start == end` with a 422, so a single-day window is
+        // queried one day wider; the extra day's transactions never make it
+        // into the run because `aggregate_group` keeps only the splits inside
+        // [floor, ceiling].
+        let (start_val, end_val) = if floor < ceiling {
+            (floor, ceiling)
+        } else {
+            (floor, ceiling + chrono::Duration::days(1))
+        };
+        let start_str = start_val.format("%Y-%m-%d");
+        let end_str = end_val.format("%Y-%m-%d");
         let account_id_str = account_ff3_id.to_string();
         loop {
             let resp: TransactionsResponse = match self

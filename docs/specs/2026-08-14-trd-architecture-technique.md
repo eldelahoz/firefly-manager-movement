@@ -208,6 +208,7 @@ Notes:
 | Date | Earliest in-window split date. |
 | Description | `attributes.group_title` when set, otherwise the distinct split descriptions joined with `" / "`. |
 
+**Window edges**: Firefly III rejects `start == end` and `start > end` (422), which a one-day statement window hits with tolerance 0. The client then queries `[start, end + 1 day]` instead; the extra day never reaches the run because the per-split `[floor, ceiling]` filter drops it, so a group straddling the window edge contributes only its in-window part.
 Backend configuration (environment variables):
 
 | Variable | Description |

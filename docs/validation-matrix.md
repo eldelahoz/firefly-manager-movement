@@ -112,7 +112,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 **Status:** implemented · **Last verified:** 2026-10-18 · **Spec @** `570f43e`
 
 > v0.10 amendment: fetch window = statement dates ± tolerance by default (was ±7), manual override editable on the reconcile step (Edit/Auto). Engine fetch semantics unchanged (arbitrary window in body).
-> 2026-10-18 bugfix (TRD §4): a split transaction is now aggregated per transaction group (sum of the splits touching the queried account, group id as identity, `group_title` or joined descriptions) instead of reading only the first split — a statement movement matched against a split FF3 transaction never paired before.
+> 2026-10-18 bugfix (TRD §4): a split transaction is now aggregated per transaction group (sum of the splits touching the queried account, group id as identity, `group_title` or joined descriptions) instead of reading only the first split — a statement movement matched against a split FF3 transaction never paired before. A single-day window, which FF3 rejects with 422, is queried one day wider and clamped back.
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -124,6 +124,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Infra** | `firefly_client.rs::account_transactions_split_excludes_splits_of_other_accounts` | Splits of other accounts are not summed |
 | **Infra** | `firefly_client.rs::account_transactions_split_netting_to_zero_is_skipped` | Group netting to 0 for the account is dropped |
 | **Infra** | `firefly_client.rs::account_transactions_split_only_counts_journals_inside_the_window` | Only in-window splits contribute to the total |
+| **Infra** | `firefly_client.rs::account_transactions_single_day_window_is_widened_and_clamped` | `start == end` queried one day wider, surplus day dropped |
 | **Infra** | `reconcile_flow_repo.rs` | End-to-end flow: batch → reconcile → transactions fetched |
 | **Pres** | `firefly_endpoints.rs` | `QUERY /api/firefly/accounts/{id}/transactions` with body `{start,end}` |
 | **FE** | `import-wizard.spec.ts::W6/W24` | POST body carries `window_start = min − T`, `window_end = max + T`; computed window displayed |
