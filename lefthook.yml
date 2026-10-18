@@ -7,7 +7,8 @@ commit-msg:
   commands:
     commitlint:
       # Validates <type>(<scope>): <subject> format, 100-char header cap
-      # (72 warns), closed type/scope lists, English-only subject.
+      # (72 warns), 120-char total message cap, closed type/scope lists,
+      # English-only subject.
       run: pnpm exec commitlint --edit {1}
     refs-trailer:
       # Requires a "Refs: RF-XX[, NFR-YY]" footer when requirement docs are staged.

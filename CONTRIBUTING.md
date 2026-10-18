@@ -272,6 +272,7 @@ Refs: RF-XX, NFR-YY
 Rules (hard failures unless noted):
 
 - **Header (the whole first line) <= 100 chars**; >= 72 emits a warning - push details into the body.
+- **Whole message (header + body + footers, trimmed) <= 120 chars** - the per-line caps do not bound the total; keep it one short message.
 - **One scope per commit** (`docs(a,b): ...` is rejected; the body carries the detail).
 - **Subject in English, imperative mood, no trailing period** (`feat(backend): add ...`, not `feat(backend): Añade ...` or `feat(backend): added.`). The hook rejects obvious Spanish residues (letters like `ñ á é í ó ú ü ¿ ¡` and function words `con|por|para|sin|...`); it does not catch fluent Spanglish - reviewers are the last line for wording quality.
 - **`Refs: RF-XX, NFR-YY` footer is required** whenever the commit touches `docs/specs/requirements/**` (checked by the `commit-msg` hook). For implementation changes covered by a requirement, the PR checklist carries the same duty.
