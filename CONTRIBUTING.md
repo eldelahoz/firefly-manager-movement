@@ -289,15 +289,15 @@ Valid / invalid (real history rewrites):
 
 ### Pull Requests
 
-Every new PR is pre-filled with `.github/PULL_REQUEST_TEMPLATE.md` (English). The PR title follows the same convention as commits (`<type>(<scope>): <subject>`, <= 100 chars, English) and is linted in CI (`lint-pr-title` job). The head branch is deleted automatically when the PR merges (repo setting `delete_branch_on_merge`; for `gh pr merge` pass `--delete-branch` to be explicit).
+Every new PR is pre-filled with `.github/PULL_REQUEST_TEMPLATE.md` (English). The PR title follows the same convention as commits (`<type>(<scope>): <subject>`, <= 100 chars, English) and is linted in CI (`lint-pr-title` job). The head branch is deleted automatically when the PR merges.
 
-**Merge style: squash only.** Merge commits and rebase merges are disabled repo-wide (`gh pr merge --squash`, or the UI default). The resulting commit on `main` is `<PR title> (#NN)` - so every commit visible in `git log main` is a conventional, linted one-liner that references its PR.
+**Merge style: merge commits.** Branch history is preserved on `main`: never squash and never rebase, so each conventional commit of a PR stays individually attributable. The head commit on `main` is `Merge pull request #NN from <branch>`. `git log main` stays conventional because CI lints every commit in the PR range, not just one.
 
 No direct pushes to `main`, enforced in layers:
 
-1. **GitHub branch protection** (`main`: require a PR + the `lint-commits` / `lint-pr-title` / `guard-main` status checks). *Not yet active:* the repository is on the free private plan, where the protection/ruleset APIs return 403 - apply via `PUT /repos/eldelahoz/firefly-manager-movement/branches/main/protection` once the plan allows it (required contexts: `lint-commits`, `lint-pr-title`, `guard-main`; `allowed_merge_methods: ["squash"]`). Until then, layers 2 and 3 are the enforcement.
+1. **GitHub branch protection** on `main` (require a PR + the `lint-commits` / `lint-pr-title` / `guard-main` status checks).
 2. **Local pre-push hook** (`lefthook`): `git push origin main` is rejected with an English message pointing at `git switch -c <type>/<scope>-<desc> && git push -u origin HEAD && gh pr create`.
-3. **CI `guard-main` job**: the head commit of any push to `main` must end with the PR marker ` (#NN)` (produced by the squash merge UI); otherwise the pipeline fails.
+3. **CI `guard-main` job**: the head commit of any push to `main` must be a PR merge result; anything else fails the pipeline.
 
 `--no-verify` is banned except for documented hotfixes (justify in the PR template section); CI and protection still catch the violation.
 

@@ -52,10 +52,10 @@ jobs:
         run: |
           # Judge by the HEAD commit of the push, not every pushed commit: a
           # merge-commit push to main legitimately includes all branch commits
-          # (which lack the (#NN) marker). A head commit produced by the merge
-          # UI is either:
-          #  - merge:  subject starts with "Merge pull request #NN from ..."
-          #  - squash: subject ends with " (#NN)"
+          # (which lack the (#NN) marker). Merge commits are the only allowed
+          # merge method (branch history is preserved on main), so the head
+          # commit of a legitimate push is produced by the merge UI and its
+          # subject starts with "Merge pull request #NN from ...".
           # Anything else means the push was not the result of a merged PR.
           if [ -z "$HEAD_MSG" ]; then
             echo "No new commits (branch deletion or empty push) - nothing to judge."
@@ -67,10 +67,6 @@ jobs:
               echo "OK: merge commit from PR UI."
               exit 0 ;;
           esac
-          if printf '%s' "$first_line" | grep -Eq ' \(#[0-9]+\)$'; then
-            echo "OK: squash commit from PR UI."
-            exit 0
-          fi
-          echo "::error::Direct push to main detected: head commit '$first_line' is not a PR merge/squash result."
+          echo "::error::Direct push to main detected: head commit '$first_line' is not a PR merge commit."
           echo "Fix: revert main to the last merged state and use the PR workflow (see CONTRIBUTING.md)."
           exit 1
