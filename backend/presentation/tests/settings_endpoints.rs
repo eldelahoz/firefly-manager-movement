@@ -27,7 +27,7 @@ impl Default for FakeSettingsManager {
 
 #[async_trait::async_trait]
 impl FireflyConnectionManager for FakeSettingsManager {
-    async fn reconfigure(&self, url: &str, token: &str) -> Result<(), ApplicationError> {.
+    async fn reconfigure(&self, url: &str, token: &str) -> Result<(), ApplicationError> {
         if url == "http://slow" {
             tokio::time::sleep(std::time::Duration::from_millis(80)).await;
         }

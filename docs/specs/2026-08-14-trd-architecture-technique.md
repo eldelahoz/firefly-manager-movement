@@ -198,6 +198,17 @@ Notes:
 
 `transfer` is never generated: a bank statement movement is always money in or out of the reconciled account (internal transfers visible on one side only are handled by ignoring the movement, RF-10). The counterparty is optional (PRD v0.8): when the user omits it, the counterparty-side `source_id`/`destination_id` is not sent and Firefly III applies its default handling for the movement type.
 
+**Reading side - transaction groups and splits**: the FF3 API returns one entry per **transaction group**; a split transaction is a group with several journals in `attributes.transactions[]`, each carrying its own amount and description. The bank statement shows that purchase as **one movement equal to the sum of the splits**, so the client collapses each group into a single row (2026-10-18 bugfix):
+
+| Rule | Behavior |
+| --- | --- |
+| Sense | Per split: the queried account on the `source_id` side is money out (negative), on the `destination_id` side money in (positive). A split touching neither side belongs to another account and is not summed. |
+| Amount | Sum of the splits of that group that touch the queried account **and** fall inside the requested window. A group netting to 0 is dropped (no statement movement). |
+| Identity | The **group id** (`data[].id`), not the journal id: it is what `DELETE /api/v1/transactions/{id}` expects and keeps the run cache and `matches` 1-to-1. Deleting a duplicate removes the whole split group. |
+| Date | Earliest in-window split date. |
+| Description | `attributes.group_title` when set, otherwise the distinct split descriptions joined with `" / "`. |
+
+**Window edges**: Firefly III rejects `start == end` and `start > end` (422), which a one-day statement window hits with tolerance 0. The client then queries `[start, end + 1 day]` instead; the extra day never reaches the run because the per-split `[floor, ceiling]` filter drops it, so a group straddling the window edge contributes only its in-window part.
 Backend configuration (environment variables):
 
 | Variable | Description |

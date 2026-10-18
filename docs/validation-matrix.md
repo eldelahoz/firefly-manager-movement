@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `3af9851` · TRD `a439e81` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `570f43e` · TRD `3647854` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
@@ -109,15 +109,22 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-05  Fetch target account transactions via FF3 API over date window
 
-**Status:** implemented · **Last verified:** 2026-10-09 · **Spec @** `3af9851`
+**Status:** implemented · **Last verified:** 2026-10-18 · **Spec @** `570f43e`
 
 > v0.10 amendment: fetch window = statement dates ± tolerance by default (was ±7), manual override editable on the reconcile step (Edit/Auto). Engine fetch semantics unchanged (arbitrary window in body).
+> 2026-10-18 bugfix (TRD §4): a split transaction is now aggregated per transaction group (sum of the splits touching the queried account, group id as identity, `group_title` or joined descriptions) instead of reading only the first split — a statement movement matched against a split FF3 transaction never paired before. A single-day window, which FF3 rejects with 422, is queried one day wider and clamped back.
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `reconcile_batch.rs::fixture_eur` + all tests | `FireflyClient.account_transactions(ff3_id, start, end)` called with window |
 | **App** | `get_account_transactions.rs` | `GetAccountTransactions` use case with pagination |
 | **Infra** | `firefly_client.rs` | Exhaustive pagination over `GET /api/v1/accounts/{id}/transactions` |
+| **Infra** | `firefly_client.rs::account_transactions_aggregates_split_group` | Split group → one row with the sum and the group title |
+| **Infra** | `firefly_client.rs::account_transactions_split_without_group_title_joins_descriptions` | No title → distinct descriptions joined, earliest split date |
+| **Infra** | `firefly_client.rs::account_transactions_split_excludes_splits_of_other_accounts` | Splits of other accounts are not summed |
+| **Infra** | `firefly_client.rs::account_transactions_split_netting_to_zero_is_skipped` | Group netting to 0 for the account is dropped |
+| **Infra** | `firefly_client.rs::account_transactions_split_only_counts_journals_inside_the_window` | Only in-window splits contribute to the total |
+| **Infra** | `firefly_client.rs::account_transactions_single_day_window_is_widened_and_clamped` | `start == end` queried one day wider, surplus day dropped |
 | **Infra** | `reconcile_flow_repo.rs` | End-to-end flow: batch → reconcile → transactions fetched |
 | **Pres** | `firefly_endpoints.rs` | `QUERY /api/firefly/accounts/{id}/transactions` with body `{start,end}` |
 | **FE** | `import-wizard.spec.ts::W6/W24` | POST body carries `window_start = min − T`, `window_end = max + T`; computed window displayed |
@@ -127,7 +134,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-06  Reconciliation engine with configurable date tolerance
 
-**Status:** implemented · **Last verified:** 2026-10-09 · **Spec @** `3af9851`
+**Status:** implemented · **Last verified:** 2026-10-09 · **Spec @** `570f43e`
 
 > v0.10 amendment: the search window is no longer an independent ±7 parameter — it defaults to the tolerance (`[min − T, max + T]`, manual override editable). The engine itself is unchanged; tolerance semantics (±0..±3) are unchanged.
 
@@ -147,7 +154,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-07  Results in 3 groups (matched / missing / extras) with visual gap highlighting
 
-**Status:** implemented · **Last verified:** 2026-10-09 · **Spec @** `3af9851`
+**Status:** implemented · **Last verified:** 2026-10-09 · **Spec @** `570f43e`
 
 > v0.10 amendment: extras dated outside the statement `min..max` carry an `Outside period` badge and are excluded from the displayed extras count (persisted run snapshot count unchanged).
 
@@ -256,7 +263,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-13  Re-run reconciliation on existing batch
 
-**Status:** implemented · **Last verified:** 2026-10-09 · **Spec @** `3af9851`
+**Status:** implemented · **Last verified:** 2026-10-09 · **Spec @** `570f43e`
 
 > v0.10 amendment: the search window follows the tolerance on re-runs (recomputed from the new tolerance unless manually overridden).
 

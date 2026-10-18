@@ -34,6 +34,9 @@ export default {
     // header-max-length is the correct enforcement point.
     'header-max-length': [2, 'always', 100],
     'header-soft-length': [1, 'always', 72],
+    // X = 120 on the WHOLE message (header + body + footers, trimmed), so the
+    // header/body/footer per-line caps above can never add up to a long message.
+    'message-total-max-length': [2, 'always', 120],
     'subject-english': [2, 'always'],
     'body-max-line-length': [2, 'always', 100],
     'footer-max-line-length': [2, 'always', 100],

@@ -1,4 +1,4 @@
-// commitlint plugin: language + subject-shape rules (English-only policy).
+// commitlint plugin: language + shape/length rules (English-only policy).
 // Deny-list keeps Spanish content words + high-signal function words with word
 // boundaries; ambiguous short words (de/el/la/y) are excluded to avoid false
 // positives like "de-Spanish" or "y-axis". Remaining Spanglish is caught by
@@ -26,6 +26,13 @@ export default {
       !header || header.length <= target,
       `header is ${header?.length} chars (recommended <= ${target}; hard cap 100)`,
     ],
+    // Hard cap on the WHOLE message (header + body + footers), trimmed. The
+    // built-in per-line limits leave a multi-paragraph body free to grow; this
+    // bounds the total so a rebased/squash-merged message stays readable in full.
+    'message-total-max-length': ({ raw }, _when, target) => {
+      const total = (raw ?? '').trim().length;
+      return [total <= target, `message is ${total} chars total (max ${target})`];
+    },
     'scope-single': ({ scope }) => [
       !scope || !/[,\s/]/.test(scope),
       `use one scope per commit, not "${scope}" (detail goes in the body)`,
