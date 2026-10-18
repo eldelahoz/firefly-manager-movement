@@ -327,6 +327,290 @@ async fn account_transactions_transfer_sign_follows_queried_account() {
 }
 
 #[tokio::test]
+async fn account_transactions_aggregates_split_group() {
+    let server = MockServer::start().await;
+    // Real FF3 payload: one group (id 48) split in two journals (49, 48).
+    // The statement shows the group total, so the run must see a single
+    // transaction of -1000.00, not the first split.
+    Mock::given(method("GET"))
+        .and(path("/api/v1/accounts/1/transactions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [{
+                "id": "48",
+                "attributes": {
+                    "group_title": "Prueba split FFM",
+                    "transactions": [
+                        {
+                            "transaction_journal_id": "49",
+                            "type": "withdrawal",
+                            "date": "2026-10-18T07:00:00-05:00",
+                            "amount": "600.000000000000",
+                            "description": "Split parte A",
+                            "source_id": "1",
+                            "destination_id": "5"
+                        },
+                        {
+                            "transaction_journal_id": "48",
+                            "type": "withdrawal",
+                            "date": "2026-10-18T07:00:00-05:00",
+                            "amount": "400.000000000000",
+                            "description": "Split parte B",
+                            "source_id": "1",
+                            "destination_id": "5"
+                        }
+                    ]
+                }
+            }],
+            "meta": { "pagination": { "current_page": 1, "total_pages": 1 } }
+        })))
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let start = NaiveDate::from_ymd_opt(2026, 10, 16).unwrap();
+    let end = NaiveDate::from_ymd_opt(2026, 10, 20).unwrap();
+    let txs = client
+        .account_transactions(1, Some(start), Some(end))
+        .await
+        .unwrap();
+
+    assert_eq!(txs.len(), 1);
+    assert_eq!(txs[0].ff3_id, 48);
+    assert_eq!(txs[0].date, NaiveDate::from_ymd_opt(2026, 10, 18).unwrap());
+    assert_eq!(txs[0].amount_cents.as_i64(), -100000);
+    assert_eq!(txs[0].description, "Prueba split FFM");
+}
+
+#[tokio::test]
+async fn account_transactions_split_without_group_title_joins_descriptions() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/accounts/1/transactions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [{
+                "id": "60",
+                "attributes": {
+                    "group_title": "",
+                    "transactions": [
+                        {
+                            "transaction_journal_id": "61",
+                            "type": "withdrawal",
+                            "date": "2026-10-01T12:00:00+00:00",
+                            "amount": "30.00",
+                            "description": "Supermercado",
+                            "source_id": "1",
+                            "destination_id": "5"
+                        },
+                        {
+                            "transaction_journal_id": "62",
+                            "type": "withdrawal",
+                            "date": "2026-10-01T12:00:00+00:00",
+                            "amount": "20.00",
+                            "description": "Farmacia",
+                            "source_id": "1",
+                            "destination_id": "5"
+                        },
+                        {
+                            "transaction_journal_id": "63",
+                            "type": "withdrawal",
+                            "date": "2026-10-02T12:00:00+00:00",
+                            "amount": "10.00",
+                            "description": "Farmacia",
+                            "source_id": "1",
+                            "destination_id": "5"
+                        }
+                    ]
+                }
+            }],
+            "meta": { "pagination": { "current_page": 1, "total_pages": 1 } }
+        })))
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let start = NaiveDate::from_ymd_opt(2026, 10, 1).unwrap();
+    let end = NaiveDate::from_ymd_opt(2026, 10, 31).unwrap();
+    let txs = client
+        .account_transactions(1, Some(start), Some(end))
+        .await
+        .unwrap();
+
+    assert_eq!(txs.len(), 1);
+    assert_eq!(txs[0].amount_cents.as_i64(), -6000);
+    // Earliest split date wins, descriptions are deduplicated in order.
+    assert_eq!(txs[0].date, NaiveDate::from_ymd_opt(2026, 10, 1).unwrap());
+    assert_eq!(txs[0].description, "Supermercado / Farmacia");
+}
+
+#[tokio::test]
+async fn account_transactions_split_excludes_splits_of_other_accounts() {
+    let server = MockServer::start().await;
+    // Split group where one journal moves money between two OTHER accounts:
+    // it does not touch account 5, so it must not be summed.
+    Mock::given(method("GET"))
+        .and(path("/api/v1/accounts/5/transactions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [{
+                "id": "70",
+                "attributes": {
+                    "transactions": [
+                        {
+                            "transaction_journal_id": "72",
+                            "type": "withdrawal",
+                            "date": "2026-04-01T00:00:00+00:00",
+                            "amount": "999.00",
+                            "description": "other accounts",
+                            "source_id": "6",
+                            "destination_id": "8"
+                        },
+                        {
+                            "transaction_journal_id": "71",
+                            "type": "withdrawal",
+                            "date": "2026-04-01T00:00:00+00:00",
+                            "amount": "45.00",
+                            "description": "from account 5",
+                            "source_id": "5",
+                            "destination_id": "8"
+                        }
+                    ]
+                }
+            }],
+            "meta": { "pagination": { "current_page": 1, "total_pages": 1 } }
+        })))
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let start = NaiveDate::from_ymd_opt(2026, 4, 1).unwrap();
+    let end = NaiveDate::from_ymd_opt(2026, 4, 30).unwrap();
+    let txs = client
+        .account_transactions(5, Some(start), Some(end))
+        .await
+        .unwrap();
+
+    assert_eq!(txs.len(), 1);
+    assert_eq!(txs[0].amount_cents.as_i64(), -4500);
+    assert_eq!(txs[0].description, "from account 5");
+}
+
+#[tokio::test]
+async fn account_transactions_split_netting_to_zero_is_skipped() {
+    let server = MockServer::start().await;
+    // Money out of and back into the same account within one group: no net
+    // movement for the statement, so the group must be dropped.
+    Mock::given(method("GET"))
+        .and(path("/api/v1/accounts/5/transactions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [
+                {
+                    "id": "80",
+                    "attributes": {
+                        "transactions": [
+                            {
+                                "transaction_journal_id": "81",
+                                "type": "withdrawal",
+                                "date": "2026-05-01T00:00:00+00:00",
+                                "amount": "50.00",
+                                "description": "out",
+                                "source_id": "5",
+                                "destination_id": "9"
+                            },
+                            {
+                                "transaction_journal_id": "82",
+                                "type": "deposit",
+                                "date": "2026-05-01T00:00:00+00:00",
+                                "amount": "50.00",
+                                "description": "back in",
+                                "source_id": "9",
+                                "destination_id": "5"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "id": "83",
+                    "attributes": {
+                        "transactions": [{
+                            "transaction_journal_id": "84",
+                            "type": "withdrawal",
+                            "date": "2026-05-02T00:00:00+00:00",
+                            "amount": "10.00",
+                            "description": "kept",
+                            "source_id": "5",
+                            "destination_id": "9"
+                        }]
+                    }
+                }
+            ],
+            "meta": { "pagination": { "current_page": 1, "total_pages": 1 } }
+        })))
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let start = NaiveDate::from_ymd_opt(2026, 5, 1).unwrap();
+    let end = NaiveDate::from_ymd_opt(2026, 5, 31).unwrap();
+    let txs = client
+        .account_transactions(5, Some(start), Some(end))
+        .await
+        .unwrap();
+
+    assert_eq!(txs.len(), 1);
+    assert_eq!(txs[0].ff3_id, 83);
+}
+
+#[tokio::test]
+async fn account_transactions_split_only_counts_journals_inside_the_window() {
+    let server = MockServer::start().await;
+    // One group whose splits straddle the window edge: only the in-window
+    // journal belongs to the reconciled period.
+    Mock::given(method("GET"))
+        .and(path("/api/v1/accounts/1/transactions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [{
+                "id": "95",
+                "attributes": {
+                    "transactions": [
+                        {
+                            "transaction_journal_id": "95",
+                            "type": "withdrawal",
+                            "date": "2026-10-31T00:00:00+00:00",
+                            "amount": "70.00",
+                            "description": "October part",
+                            "source_id": "1",
+                            "destination_id": "5"
+                        },
+                        {
+                            "transaction_journal_id": "96",
+                            "type": "withdrawal",
+                            "date": "2026-11-02T00:00:00+00:00",
+                            "amount": "30.00",
+                            "description": "November part",
+                            "source_id": "1",
+                            "destination_id": "5"
+                        }
+                    ]
+                }
+            }],
+            "meta": { "pagination": { "current_page": 1, "total_pages": 1 } }
+        })))
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let start = NaiveDate::from_ymd_opt(2026, 10, 1).unwrap();
+    let end = NaiveDate::from_ymd_opt(2026, 10, 31).unwrap();
+    let txs = client
+        .account_transactions(1, Some(start), Some(end))
+        .await
+        .unwrap();
+
+    assert_eq!(txs.len(), 1);
+    assert_eq!(txs[0].amount_cents.as_i64(), -7000);
+    assert_eq!(txs[0].description, "October part");
+}
+
+#[tokio::test]
 async fn account_transactions_amount_parse_error() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))

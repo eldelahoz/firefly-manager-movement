@@ -59,11 +59,6 @@ struct TransactionGroupData {
 }
 
 #[derive(Deserialize)]
-struct TransactionGroupAttributes {
-    transactions: Vec<TransactionSplit>,
-}
-
-#[derive(Deserialize)]
 struct TransactionSplit {
     date: String,
     amount: String,
@@ -72,6 +67,15 @@ struct TransactionSplit {
     transaction_type: Option<String>,
     #[serde(default)]
     source_id: Option<String>,
+    #[serde(default)]
+    destination_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct TransactionGroupAttributes {
+    #[serde(default)]
+    group_title: Option<String>,
+    transactions: Vec<TransactionSplit>,
 }
 
 #[derive(Deserialize)]
@@ -125,6 +129,13 @@ struct AttachmentCreateData {
     id: String,
 }
 
+/// A transaction group collapsed into a single movement for one account.
+struct SplitAggregate {
+    date: NaiveDate,
+    signed_cents: i64,
+    description: String,
+}
+
 // ── Client ─────────────────────────────────────────────────────────────
 
 pub struct ReqwestFireflyClient {
@@ -175,6 +186,84 @@ impl ReqwestFireflyClient {
         let sign = if cents < 0 { "-" } else { "" };
         let abs = cents.unsigned_abs();
         format!("{}{}.{:02}", sign, abs / 100, abs % 100)
+    }
+
+    /// A transaction group collapsed into what it means for one account.
+    /// Firefly III returns one entry per transaction group; a split
+    /// transaction is several journals of that group, and the bank statement
+    /// shows their total as a single movement. Returns `None` when the group
+    /// has no journal on the queried account inside `[floor, ceiling]`.
+    fn aggregate_group(
+        group_title: Option<String>,
+        splits: Vec<TransactionSplit>,
+        account_id_str: &str,
+        floor: NaiveDate,
+        ceiling: NaiveDate,
+    ) -> Result<Option<SplitAggregate>, ApplicationError> {
+        let mut total_cents: i64 = 0;
+        let mut dates: Vec<NaiveDate> = Vec::with_capacity(splits.len());
+        let mut descriptions: Vec<String> = Vec::new();
+
+        for split in splits {
+            let is_source = split.source_id.as_deref() == Some(account_id_str);
+            let is_destination = split.destination_id.as_deref() == Some(account_id_str);
+            // A split can also carry no account reference at all; the old
+            // behavior was to accept whatever the group returned first.
+            let unattributed = split.source_id.is_none() && split.destination_id.is_none();
+            if !(is_source || is_destination || unattributed) {
+                continue;
+            }
+
+            let date = split
+                .date
+                .get(..10)
+                .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
+                .ok_or_else(|| {
+                    ApplicationError::Parse(format!("invalid transaction date: {}", split.date))
+                })?;
+            // FF3 v1 always returns `amount` positive; the sense comes from
+            // which side of the split the queried account is on.
+            let magnitude = AmountCents::from_api_str(&split.amount).map_err(|e| {
+                ApplicationError::Parse(format!(
+                    "invalid transaction amount '{}': {:?}",
+                    split.amount, e
+                ))
+            })?;
+            let leaves = match (is_source, is_destination) {
+                (true, _) => true,
+                (false, true) => false,
+                // Unattributed split: fall back to the transaction type.
+                (false, false) => split.transaction_type.as_deref() == Some("withdrawal"),
+            };
+            let signed = if leaves {
+                -magnitude.as_i64().abs()
+            } else {
+                magnitude.as_i64().abs()
+            };
+
+            if date < floor || date > ceiling {
+                continue;
+            }
+            total_cents += signed;
+            dates.push(date);
+            let description = split.description.trim().to_string();
+            if !description.is_empty() && !descriptions.contains(&description) {
+                descriptions.push(description);
+            }
+        }
+
+        if dates.is_empty() || total_cents == 0 {
+            return Ok(None);
+        }
+        dates.sort_unstable();
+        let title = group_title
+            .map(|t| t.trim().to_string())
+            .filter(|t| !t.is_empty());
+        Ok(Some(SplitAggregate {
+            date: dates[0],
+            signed_cents: total_cents,
+            description: title.unwrap_or_else(|| descriptions.join(" / ")),
+        }))
     }
 
     async fn paged_accounts(&self, query: &str) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
@@ -270,10 +359,11 @@ impl FireflyClient for ReqwestFireflyClient {
         // FF3 requires both start and end when one is present (422 otherwise) and
         // start must be > 1970-01-02 (FF3 error in Spanish otherwise). For open ranges,
         // supply a sensible default: start=1970-01-03, end=today.
-        let start_val = start.unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 3).unwrap());
-        let end_val = end.unwrap_or_else(|| chrono::Utc::now().date_naive());
-        let start_str = start_val.format("%Y-%m-%d");
-        let end_str = end_val.format("%Y-%m-%d");
+        let floor = start.unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 3).unwrap());
+        let ceiling = end.unwrap_or_else(|| chrono::Utc::now().date_naive());
+        let start_str = floor.format("%Y-%m-%d");
+        let end_str = ceiling.format("%Y-%m-%d");
+        let account_id_str = account_ff3_id.to_string();
         loop {
             let resp: TransactionsResponse = match self
                 .get_json::<TransactionsResponse>(&format!(
@@ -292,47 +382,25 @@ impl FireflyClient for ReqwestFireflyClient {
             };
             let total_pages = resp.meta.pagination.total_pages;
             for group in resp.data {
-                if let Some(split) = group.attributes.transactions.first() {
-                    let date = split
-                        .date
-                        .get(..10)
-                        .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
-                        .ok_or_else(|| {
-                            ApplicationError::Parse(format!(
-                                "invalid transaction date: {}",
-                                split.date
-                            ))
-                        })?;
-                    let magnitude = AmountCents::from_api_str(&split.amount).map_err(|e| {
-                        ApplicationError::Parse(format!(
-                            "invalid transaction amount '{}': {:?}",
-                            split.amount, e
-                        ))
-                    })?;
-                    // FF3 v1 returns `amount` positive and conveys the
-                    // sense via `type` (+ source/destination for the rest).
-                    // Normalize to the queried account's perspective:
-                    // money leaving the account is negative.
-                    let account_id_str = account_ff3_id.to_string();
-                    let cents = magnitude.as_i64();
-                    let signed = match split.transaction_type.as_deref() {
-                        Some("withdrawal") => -cents.abs(),
-                        Some("deposit") => cents.abs(),
-                        _ if split.source_id.as_deref() == Some(account_id_str.as_str()) => {
-                            -cents.abs()
-                        }
-                        _ => cents,
-                    };
-                    let ff3_id = group.id.parse::<i64>().map_err(|e| {
-                        ApplicationError::Parse(format!("invalid FF3 transaction id: {e}"))
-                    })?;
-                    all.push(Ff3TransactionDto {
-                        ff3_id,
-                        date,
-                        amount_cents: AmountCents::new(signed),
-                        description: split.description.clone(),
-                    });
-                }
+                let Some(aggregate) = Self::aggregate_group(
+                    group.attributes.group_title,
+                    group.attributes.transactions,
+                    &account_id_str,
+                    floor,
+                    ceiling,
+                )?
+                else {
+                    continue;
+                };
+                let ff3_id = group.id.parse::<i64>().map_err(|e| {
+                    ApplicationError::Parse(format!("invalid FF3 transaction id: {e}"))
+                })?;
+                all.push(Ff3TransactionDto {
+                    ff3_id,
+                    date: aggregate.date,
+                    amount_cents: AmountCents::new(aggregate.signed_cents),
+                    description: aggregate.description,
+                });
             }
             if page >= total_pages {
                 break;
