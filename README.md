@@ -81,4 +81,6 @@ Entry point: [docs/README.md](docs/README.md) - every RF/NFR is reachable in ≤
 
 ## License
 
-Private project - all rights reserved.
+Licensed under the [Apache License 2.0](LICENSE). Redistributions and derivative works must keep the
+[NOTICE](NOTICE) file, which credits this repository:
+<https://github.com/eldelahoz/firefly-manager-movement>.
