@@ -340,3 +340,10 @@ reading view by default, readable line length (~704px).
 - **Committed (curated):** `docs/.obsidian/app.json`, `appearance.json`, `core-plugins.json`, `snippets/docs-reading.css`, `themes/Minimal/` (`theme.css`, `manifest.json`, `LICENSE`).
 - **Gitignored (volatile/personal):** everything else under `docs/.obsidian/` - `workspace.json`, `workspace-mobile.json`, plugins, caches, and any themes/snippets you add locally.
 - The docs remain plain Markdown: GitHub/VSCode rendering is unaffected, and agents (AGENTS.md) do not depend on Obsidian.
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE). By submitting a contribution you
+agree it is licensed under the same terms (Apache-2.0, section 5). Do not remove or alter the
+[NOTICE](NOTICE) file: any redistribution or derivative work must carry it, crediting
+<https://github.com/eldelahoz/firefly-manager-movement>.
