@@ -28,6 +28,18 @@ pub struct Ff3TransactionDto {
     pub date: NaiveDate,
     pub amount_cents: AmountCents,
     pub description: String,
+    /// In-window splits on the queried account when the group has 2 or
+    /// more; empty otherwise. `amount_cents` is their total.
+    pub splits: Vec<Ff3SplitDto>,
+}
+
+/// One journal of a split transaction group, signed for the queried account.
+#[derive(Debug, Clone)]
+pub struct Ff3SplitDto {
+    pub journal_id: i64,
+    pub date: NaiveDate,
+    pub amount_cents: AmountCents,
+    pub description: String,
 }
 
 /// Reconciliation status of an FF3 transaction, derived from the local

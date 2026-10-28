@@ -376,6 +376,7 @@ impl ReconciliationRepository for FakeReconciliationStore {
                 *next_tx += 1;
                 ff3_local.insert(t.ff3_id, *next_tx);
                 self.tx_rows.lock().unwrap().push(Ff3Transaction {
+                    ff3_journal_id: 0,
                     id: ffm_domain::ids::Ff3TransactionId::new(*next_tx),
                     reconciliation_id: recon_id,
                     ff3_id: t.ff3_id,

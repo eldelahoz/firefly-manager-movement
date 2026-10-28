@@ -146,12 +146,13 @@ async fn save_run_tx(
 
     // 2. Per-run FF3 transaction cache (row-by-row to capture each
     //    generated local id).
-    let mut ff3_local: HashMap<i64, i64> = HashMap::new();
+    let mut ff3_local: HashMap<(i64, i64), i64> = HashMap::new();
     for t in run.ff3_transactions {
         diesel::insert_into(ff3_transactions::table)
             .values(&NewFf3TransactionModel {
                 reconciliation_id: recon_id,
                 ff3_id: t.ff3_id,
+                ff3_journal_id: t.ff3_journal_id,
                 date: t.date,
                 amount_cents: t.amount_cents.as_i64(),
                 description: t.description,
@@ -166,14 +167,17 @@ async fn save_run_tx(
         .get_result(conn)
         .await
         .map_err(map_diesel_err)?;
-        ff3_local.insert(t.ff3_id, local);
+        ff3_local.insert((t.ff3_id, t.ff3_journal_id), local);
     }
 
-    // 3. 1-to-1 matches (resolve ff3_id → local row id).
+    // 3. 1-to-1 matches (resolve (ff3_id, ff3_journal_id) → local row id).
     for m in run.matches {
-        let ff3_transaction_id = ff3_local.get(&m.ff3_id).copied().ok_or_else(|| {
-            ApplicationError::Database(format!("match references unknown ff3_id {}", m.ff3_id))
-        })?;
+        let ff3_transaction_id = ff3_local
+            .get(&(m.ff3_id, m.ff3_journal_id))
+            .copied()
+            .ok_or_else(|| {
+                ApplicationError::Database(format!("match references unknown ff3_id {}", m.ff3_id))
+            })?;
         diesel::insert_into(matches::table)
             .values(&NewMatchModel {
                 reconciliation_id: recon_id,

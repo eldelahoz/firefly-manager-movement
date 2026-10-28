@@ -47,6 +47,7 @@ pub struct NewCreation {
 #[derive(Debug, Clone)]
 pub struct RunFf3Transaction {
     pub ff3_id: i64,
+    pub ff3_journal_id: i64,
     pub date: NaiveDate,
     pub amount_cents: AmountCents,
     pub description: String,
@@ -59,6 +60,7 @@ pub struct RunFf3Transaction {
 pub struct RunMatch {
     pub movement_id: MovementId,
     pub ff3_id: i64,
+    pub ff3_journal_id: i64,
 }
 
 /// Whole rapprochement run to persist atomically (R8): reconciliation

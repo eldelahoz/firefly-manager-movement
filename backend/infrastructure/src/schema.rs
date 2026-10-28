@@ -88,6 +88,7 @@ diesel::table! {
         id -> Bigint,
         reconciliation_id -> Bigint,
         ff3_id -> Bigint,
+        ff3_journal_id -> Bigint,
         date -> Date,
         amount_cents -> Bigint,
         description -> Text,

@@ -264,6 +264,7 @@ impl FakeRunStore {
         });
         store.tx_rows.lock().unwrap().extend([
             Ff3Transaction {
+                ff3_journal_id: 0,
                 id: Ff3TransactionId::new(30),
                 reconciliation_id: ReconciliationId::new(10),
                 ff3_id: 300,
@@ -274,6 +275,7 @@ impl FakeRunStore {
                 created_at: epoch(),
             },
             Ff3Transaction {
+                ff3_journal_id: 0,
                 id: Ff3TransactionId::new(31),
                 reconciliation_id: ReconciliationId::new(10),
                 ff3_id: 310,
@@ -329,6 +331,7 @@ impl ReconciliationRepository for FakeRunStore {
                 *next_tx += 1;
                 ff3_local.insert(t.ff3_id, *next_tx);
                 self.tx_rows.lock().unwrap().push(Ff3Transaction {
+                    ff3_journal_id: 0,
                     id: Ff3TransactionId::new(*next_tx),
                     reconciliation_id: recon_id,
                     ff3_id: t.ff3_id,
