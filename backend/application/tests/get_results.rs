@@ -213,6 +213,7 @@ fn movement(id: i64, status: MovementStatus) -> Movement {
 
 fn ff3_tx(local_id: i64, ff3_id: i64, dup: bool) -> Ff3Transaction {
     Ff3Transaction {
+        ff3_journal_id: 0,
         id: Ff3TransactionId::new(local_id),
         reconciliation_id: ReconciliationId::new(10),
         ff3_id,

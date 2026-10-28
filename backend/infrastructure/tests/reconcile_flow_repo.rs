@@ -235,6 +235,7 @@ async fn save_run_persists_whole_run_atomically() {
         ff3_transactions: vec![
             RunFf3Transaction {
                 ff3_id: 101,
+                ff3_journal_id: 0,
                 date: NaiveDate::from_ymd_opt(2026, 1, 5).unwrap(),
                 amount_cents: AmountCents::new(12340),
                 description: "lunch ff3".into(),
@@ -242,6 +243,7 @@ async fn save_run_persists_whole_run_atomically() {
             },
             RunFf3Transaction {
                 ff3_id: 102,
+                ff3_journal_id: 0,
                 date: NaiveDate::from_ymd_opt(2026, 1, 9).unwrap(),
                 amount_cents: AmountCents::new(999),
                 description: "unrelated".into(),
@@ -249,6 +251,7 @@ async fn save_run_persists_whole_run_atomically() {
             },
         ],
         matches: vec![RunMatch {
+            ff3_journal_id: 0,
             movement_id: lunch.id,
             ff3_id: 101,
         }],
@@ -298,6 +301,98 @@ async fn save_run_persists_whole_run_atomically() {
 }
 
 #[tokio::test]
+async fn save_run_persists_each_matched_split_of_one_group() {
+    let pool = common::setup_pool().await;
+    common::clean(&pool).await;
+    let batches = MysqlBatchRepository::new(pool.clone());
+    let movements = MysqlMovementRepository::new(pool.clone());
+    let reconciliations = MysqlReconciliationRepository::new(pool.clone());
+    let transactions = MysqlFf3TransactionRepository::new(pool.clone());
+    let matches = MysqlMatchRepository::new(pool.clone());
+
+    let batch_id = batches
+        .insert(NewBatch {
+            filename: "split.csv".into(),
+            file_hash: "h".into(),
+            format: "csv".into(),
+            currency: "COP".into(),
+            account_id: None,
+            status: BatchStatus::Parsed,
+            headers: vec![],
+            detected_delimiter: ";".into(),
+        })
+        .await
+        .expect("insert batch");
+    let date = NaiveDate::from_ymd_opt(2026, 10, 15).unwrap();
+    let mov = |line_no, cents| NewMovement {
+        batch_id,
+        line_no,
+        date,
+        amount_cents: AmountCents::new(cents),
+        description: format!("line {line_no}"),
+        raw_json: "{}".into(),
+        status: MovementStatus::Imported,
+    };
+    movements
+        .insert_batch(vec![mov(1, -167898300), mov(2, -639530)])
+        .await
+        .expect("insert movements");
+    let movs = movements.by_batch(batch_id).await.expect("movements");
+    let line = |n| movs.iter().find(|m| m.line_no == n).unwrap();
+    let (pesos, dolar) = (line(1), line(2));
+
+    // Group 900 split in journals 901 and 902, each matched to its own line.
+    let split = |journal, cents| RunFf3Transaction {
+        ff3_id: 900,
+        ff3_journal_id: journal,
+        date,
+        amount_cents: AmountCents::new(cents),
+        description: format!("split {journal}"),
+        is_duplicate: false,
+    };
+    let run = ReconciliationRun {
+        reconciliation: NewReconciliation {
+            batch_id,
+            tolerance_days: 0,
+            window_start: date,
+            window_end: date,
+            matched_count: 2,
+            missing_count: 0,
+            extra_count: 0,
+        },
+        ff3_transactions: vec![split(901, -167898300), split(902, -639530)],
+        matches: vec![
+            RunMatch {
+                movement_id: pesos.id,
+                ff3_id: 900,
+                ff3_journal_id: 901,
+            },
+            RunMatch {
+                movement_id: dolar.id,
+                ff3_id: 900,
+                ff3_journal_id: 902,
+            },
+        ],
+        movement_status_updates: vec![],
+    };
+
+    let rec_id = reconciliations.save_run(run).await.expect("save_run");
+
+    let txs = transactions.by_reconciliation(rec_id).await.expect("txs");
+    let mts = matches.by_reconciliation(rec_id).await.expect("matches");
+    assert_eq!(txs.len(), 2);
+    assert_eq!(mts.len(), 2);
+    for (movement, journal) in [(pesos, 901), (dolar, 902)] {
+        let tx = txs.iter().find(|t| t.ff3_journal_id == journal).unwrap();
+        assert_eq!(tx.ff3_id, 900);
+        let m = mts.iter().find(|m| m.movement_id == movement.id).unwrap();
+        assert_eq!(m.ff3_transaction_id, tx.id);
+    }
+
+    common::clean(&pool).await;
+}
+
+#[tokio::test]
 async fn latest_by_ff3_id_returns_most_recent_cached_row() {
     let pool = common::setup_pool().await;
     common::clean(&pool).await;
@@ -331,6 +426,7 @@ async fn latest_by_ff3_id_returns_most_recent_cached_row() {
         },
         ff3_transactions: vec![RunFf3Transaction {
             ff3_id: 777,
+            ff3_journal_id: 0,
             date: NaiveDate::from_ymd_opt(2026, 1, 10).unwrap(),
             amount_cents: AmountCents::new(-1000),
             description: "same ff3 id across runs".into(),

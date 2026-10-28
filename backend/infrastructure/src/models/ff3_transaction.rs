@@ -14,6 +14,7 @@ pub struct Ff3TransactionModel {
     pub id: i64,
     pub reconciliation_id: i64,
     pub ff3_id: i64,
+    pub ff3_journal_id: i64,
     pub date: NaiveDate,
     pub amount_cents: i64,
     pub description: String,
@@ -27,6 +28,7 @@ impl From<Ff3TransactionModel> for Ff3Transaction {
             id: Ff3TransactionId::new(m.id),
             reconciliation_id: ReconciliationId::new(m.reconciliation_id),
             ff3_id: m.ff3_id,
+            ff3_journal_id: m.ff3_journal_id,
             date: m.date,
             amount_cents: AmountCents::new(m.amount_cents),
             description: m.description,
@@ -41,6 +43,7 @@ impl From<Ff3TransactionModel> for Ff3Transaction {
 pub struct NewFf3TransactionModel {
     pub reconciliation_id: i64,
     pub ff3_id: i64,
+    pub ff3_journal_id: i64,
     pub date: NaiveDate,
     pub amount_cents: i64,
     pub description: String,
@@ -52,6 +55,7 @@ impl From<NewFf3Transaction> for NewFf3TransactionModel {
         Self {
             reconciliation_id: d.reconciliation_id.as_i64(),
             ff3_id: d.ff3_id,
+            ff3_journal_id: 0,
             date: d.date,
             amount_cents: d.amount_cents.as_i64(),
             description: d.description,

@@ -43,6 +43,12 @@ where
                     "FF3 transaction {ff3_id} not found in any run cache (reconcile first)"
                 ))
             })?;
+        // FF3 deletes the whole group, including splits matched to a movement.
+        if tx.ff3_journal_id != 0 {
+            return Err(ApplicationError::Conflict(format!(
+                "FF3 transaction {ff3_id} is a split matched per split; edit its splits in Firefly III"
+            )));
+        }
 
         // Point-in-time snapshot of what is about to be deleted
         // (denormalized on purpose, TRD §2).

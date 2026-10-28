@@ -193,6 +193,7 @@ async fn account_transactions_single_page() {
     assert_eq!(txs[0].date, NaiveDate::from_ymd_opt(2026, 1, 5).unwrap());
     assert_eq!(txs[0].amount_cents.as_i64(), -12345);
     assert_eq!(txs[0].description, "lunch");
+    assert!(txs[0].splits.is_empty());
 }
 
 #[tokio::test]
@@ -379,6 +380,23 @@ async fn account_transactions_aggregates_split_group() {
     assert_eq!(txs[0].date, NaiveDate::from_ymd_opt(2026, 10, 18).unwrap());
     assert_eq!(txs[0].amount_cents.as_i64(), -100000);
     assert_eq!(txs[0].description, "Prueba split FFM");
+    // The statement may also show each split as its own line instead.
+    let splits: Vec<_> = txs[0]
+        .splits
+        .iter()
+        .map(|s| {
+            (
+                s.journal_id,
+                s.amount_cents.as_i64(),
+                s.description.as_str(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        splits,
+        vec![(49, -60000, "Split parte A"), (48, -40000, "Split parte B")]
+    );
+    assert_eq!(txs[0].splits[0].date, txs[0].date);
 }
 
 #[tokio::test]

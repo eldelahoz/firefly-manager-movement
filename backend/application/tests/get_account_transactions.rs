@@ -131,11 +131,13 @@ fn live(ff3_id: i64) -> Ff3TransactionDto {
         date: d(2026, 8, 1),
         amount_cents: AmountCents::new(-100),
         description: format!("tx{ff3_id}"),
+        splits: vec![],
     }
 }
 
 fn cached(local_id: i64, ff3_id: i64, dup: bool) -> Ff3Transaction {
     Ff3Transaction {
+        ff3_journal_id: 0,
         id: Ff3TransactionId::new(local_id),
         reconciliation_id: ReconciliationId::new(local_id),
         ff3_id,

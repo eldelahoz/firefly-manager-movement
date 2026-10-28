@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Project | firefly-manager-movement |
-| Version | 0.8 |
+| Version | 0.9 |
 | Created | 2026-08-14 |
-| Last modified | 2026-09-17 |
+| Last modified | 2026-10-27 |
 | Related PRD | [`2026-08-14-prd-rapprochement-bancaire.md`](./2026-08-14-prd-rapprochement-bancaire.md) |
 | Status | Draft in progress |
 
@@ -87,6 +87,7 @@ erDiagram
         bigint id PK
         bigint reconciliation_id FK
         bigint ff3_id
+        bigint ff3_journal_id "0 = whole group (v0.9)"
         date date
         bigint amount_cents "signed"
         text description
@@ -133,7 +134,7 @@ Key constraints:
 - `movements`: `UNIQUE(batch_id, line_no)`, `CHECK amount_cents != 0`. No `direction` column: the direction is derived from the sign of `amount_cents` (matching rule "direction" = sign comparison).
 - `matches`: `UNIQUE(reconciliation_id, movement_id)` + `UNIQUE(reconciliation_id, ff3_transaction_id)` → 1-to-1 is guaranteed by the schema, not just by convention. Historized per reconciliation run.
 - `creations`: `UNIQUE(movement_id)` → creation idempotency (NFR-05). Holds the actual creation date and the provenance ("created by us").
-- `ff3_transactions`: `UNIQUE(reconciliation_id, ff3_id)`. Per-run cache: the `extra` group and the `duplicate` flag live there (solves RF-13 re-reconciliation and RF-15 duplicates).
+- `ff3_transactions`: `UNIQUE(reconciliation_id, ff3_id, ff3_journal_id)` (v0.9; `ff3_journal_id` NOT NULL DEFAULT 0 = the whole group, otherwise one row per split of a group matched split by split). Per-run cache: the `extra` group and the `duplicate` flag live there (solves RF-13 re-reconciliation and RF-15 duplicates).
 - `ff3_accounts`: `UNIQUE(ff3_id)`. Local cache synced on demand (when launching a reconciliation or via a dedicated endpoint); avoids repeated API calls and provides a displayable name.
 - `amount_cents`: signed BIGINT (cents), never floats (NFR-06).
 - `raw_json`: raw file line, for audit and re-parsing.
@@ -198,13 +199,13 @@ Notes:
 
 `transfer` is never generated: a bank statement movement is always money in or out of the reconciled account (internal transfers visible on one side only are handled by ignoring the movement, RF-10). The counterparty is optional (PRD v0.8): when the user omits it, the counterparty-side `source_id`/`destination_id` is not sent and Firefly III applies its default handling for the movement type.
 
-**Reading side - transaction groups and splits**: the FF3 API returns one entry per **transaction group**; a split transaction is a group with several journals in `attributes.transactions[]`, each carrying its own amount and description. The bank statement shows that purchase as **one movement equal to the sum of the splits**, so the client collapses each group into a single row (2026-10-18 bugfix):
+**Reading side - transaction groups and splits**: the FF3 API returns one entry per **transaction group**; a split transaction is a group with several journals in `attributes.transactions[]`, each carrying its own amount and description. The bank statement usually shows that purchase as **one movement equal to the sum of the splits**, so the client collapses each group into a single row (2026-10-18 bugfix). The statement can also list **each split as its own line** (v0.9, 2026-10-27: a card payment split PESOS/DOLAR in FF3 appears as two Bancolombia lines), so the row also carries its in-window splits on the queried account (journal id, date, signed amount, description) when the group has 2 or more; the engine uses them only as a fallback (§6):
 
 | Rule | Behavior |
 | --- | --- |
 | Sense | Per split: the queried account on the `source_id` side is money out (negative), on the `destination_id` side money in (positive). A split touching neither side belongs to another account and is not summed. |
 | Amount | Sum of the splits of that group that touch the queried account **and** fall inside the requested window. A group netting to 0 is dropped (no statement movement). |
-| Identity | The **group id** (`data[].id`), not the journal id: it is what `DELETE /api/v1/transactions/{id}` expects and keeps the run cache and `matches` 1-to-1. Deleting a duplicate removes the whole split group. |
+| Identity | The **group id** (`data[].id`): it is what `DELETE /api/v1/transactions/{id}` expects. Deleting a duplicate removes the whole split group. A group matched split by split is cached as one row per split, keyed `(group id, journal id)` (v0.9); deleting such a group is refused with 409, since it would also delete its matched splits (RF-15). |
 | Date | Earliest in-window split date. |
 | Description | `attributes.group_title` when set, otherwise the distinct split descriptions joined with `" / "`. |
 
@@ -236,7 +237,8 @@ The frontend never talks to Firefly III directly: everything goes through the ba
 2. Fetch the Firefly III transactions of the target account over `[min_date - window, max_date + window]`, exhaustive pagination.
 3. Index both sets by `amount_cents` key (the direction is encoded in the sign of each amount).
 4. For each key, pair 1-to-1 chronologically within the date tolerance; Firefly III transactions outnumbering a given bank movement are flagged `is_duplicate = true` (RF-15).
-5. Produce the 3 groups; persist a `reconciliations` row (snapshot counters) + the examined `ff3_transactions` (with `is_duplicate` flag) + the 1-to-1 `matches`; update the movement statuses (`imported` → `matched`/`missing`).
+5. **Split fallback (v0.9)**: for each split group left unmatched by its total, run steps 3-4 again with its splits against the movements still missing. A group with at least one matched split is cached split by split (`ff3_journal_id` = journal id); its unmatched splits stay in the extra group. A group whose total matched is never split.
+6. Produce the 3 groups; persist a `reconciliations` row (snapshot counters) + the examined `ff3_transactions` (with `is_duplicate` flag) + the 1-to-1 `matches`; update the movement statuses (`imported` → `matched`/`missing`).
 
 Target complexity: O(n log n) on the statement; 1,000 movements < 5 s excluding API latency (NFR-04).
 

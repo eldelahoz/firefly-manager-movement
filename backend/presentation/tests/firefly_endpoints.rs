@@ -127,6 +127,7 @@ async fn post_account_transactions_ok() {
         date: NaiveDate::from_ymd_opt(2026, 1, 5).unwrap(),
         amount_cents: AmountCents::from_str("-123.45").unwrap(),
         description: "lunch".into(),
+        splits: vec![],
     }];
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::with_transactions(txs)),
@@ -181,6 +182,7 @@ async fn query_account_transactions_ok() {
         date: NaiveDate::from_ymd_opt(2026, 3, 10).unwrap(),
         amount_cents: AmountCents::from_str("500.00").unwrap(),
         description: "deposit".into(),
+        splits: vec![],
     }];
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::with_transactions(txs)),
@@ -234,10 +236,12 @@ async fn post_account_transactions_enriches_status_from_cache() {
             date: NaiveDate::from_ymd_opt(2026, 1, 5).unwrap(),
             amount_cents: AmountCents::new(-100),
             description: format!("tx{ff3_id}"),
+            splits: vec![],
         }
     }
     fn cached(ff3_id: i64, dup: bool) -> RunFf3Transaction {
         RunFf3Transaction {
+            ff3_journal_id: 0,
             ff3_id,
             date: NaiveDate::from_ymd_opt(2026, 1, 5).unwrap(),
             amount_cents: AmountCents::new(-100),
@@ -262,6 +266,7 @@ async fn post_account_transactions_enriches_status_from_cache() {
             },
             ff3_transactions: vec![cached(1, false), cached(2, true), cached(3, false)],
             matches: vec![RunMatch {
+                ff3_journal_id: 0,
                 movement_id: MovementId::new(1),
                 ff3_id: 1,
             }],

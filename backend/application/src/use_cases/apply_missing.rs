@@ -303,6 +303,7 @@ where
                 .iter()
                 .map(|t| RunFf3Transaction {
                     ff3_id: t.ff3_id,
+                    ff3_journal_id: t.ff3_journal_id,
                     date: t.date,
                     amount_cents: t.amount_cents,
                     description: t.description.clone(),
@@ -322,6 +323,7 @@ where
                 let stmt = batch_movements.iter().find(|s| s.id == *movement).unwrap();
                 new_cached.push(RunFf3Transaction {
                     ff3_id: *ff3_id,
+                    ff3_journal_id: 0,
                     date: stmt.date,
                     amount_cents: stmt.amount_cents,
                     description: stmt.description.clone(),
@@ -343,6 +345,7 @@ where
                 .map(|(mid, &ff3_id)| RunMatch {
                     movement_id: *mid,
                     ff3_id,
+                    ff3_journal_id: 0,
                 })
                 .collect();
 
@@ -351,16 +354,19 @@ where
             // groups from match rows and would demote every old pair to `extra`.
             // Match rows reference the local cache row id (Ff3TransactionId);
             // RunMatch keys on the external ff3_id — remap via the cached rows.
-            let local_to_ff3: HashMap<Ff3TransactionId, i64> =
-                prev_tx_rows.iter().map(|t| (t.id, t.ff3_id)).collect();
+            let local_to_ff3: HashMap<Ff3TransactionId, (i64, i64)> = prev_tx_rows
+                .iter()
+                .map(|t| (t.id, (t.ff3_id, t.ff3_journal_id)))
+                .collect();
             let mut all_match_dtos: Vec<RunMatch> = previous_matches
                 .iter()
                 .filter_map(|m| {
                     local_to_ff3
                         .get(&m.ff3_transaction_id)
-                        .map(|&ff3_id| RunMatch {
+                        .map(|&(ff3_id, ff3_journal_id)| RunMatch {
                             movement_id: m.movement_id,
                             ff3_id,
+                            ff3_journal_id,
                         })
                 })
                 .collect();

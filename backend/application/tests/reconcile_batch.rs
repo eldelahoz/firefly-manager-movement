@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 
 use ffm_application::dtos::{
-    About, Ff3AccountDto, Ff3TransactionDto, NewBatch, NewFf3Account, NewFf3TransactionCreation,
-    NewMovement, ReconciliationRun,
+    About, Ff3AccountDto, Ff3SplitDto, Ff3TransactionDto, NewBatch, NewFf3Account,
+    NewFf3TransactionCreation, NewMovement, ReconciliationRun,
 };
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::{
@@ -377,6 +377,7 @@ fn tx(ff3_id: i64, date: NaiveDate, cents: i64) -> Ff3TransactionDto {
         date,
         amount_cents: AmountCents::new(cents),
         description: format!("tx{ff3_id}"),
+        splits: vec![],
     }
 }
 
@@ -661,4 +662,110 @@ async fn reconcile_syncs_ff3_account_cache() {
         .await
         .expect("account cached after sync");
     assert!(cached.is_some());
+}
+
+// ── Split transactions (statement may show the total or each split) ────
+
+/// Split group whose `amount_cents` is the total of `splits` (journal, date, cents).
+fn split_tx(ff3_id: i64, splits: &[(i64, NaiveDate, i64)]) -> Ff3TransactionDto {
+    Ff3TransactionDto {
+        ff3_id,
+        date: splits.iter().map(|s| s.1).min().unwrap(),
+        amount_cents: AmountCents::new(splits.iter().map(|s| s.2).sum()),
+        description: format!("group{ff3_id}"),
+        splits: splits
+            .iter()
+            .map(|&(journal_id, date, cents)| Ff3SplitDto {
+                journal_id,
+                date,
+                amount_cents: AmountCents::new(cents),
+                description: format!("split{journal_id}"),
+            })
+            .collect(),
+    }
+}
+
+/// (movement, ff3_id, journal) of every saved match.
+fn saved_pairs(f: &Fixture) -> HashSet<(i64, i64, i64)> {
+    f.reconciliations.saved_runs()[0]
+        .matches
+        .iter()
+        .map(|m| (m.movement_id.as_i64(), m.ff3_id, m.ff3_journal_id))
+        .collect()
+}
+
+/// (ff3_id, journal) of every cached FF3 row.
+fn saved_rows(f: &Fixture) -> HashSet<(i64, i64)> {
+    f.reconciliations.saved_runs()[0]
+        .ff3_transactions
+        .iter()
+        .map(|t| (t.ff3_id, t.ff3_journal_id))
+        .collect()
+}
+
+#[tokio::test]
+async fn reconcile_matches_each_split_when_the_statement_lists_them_apart() {
+    // Batch 609 case: the group total matches no line, each split matches one.
+    let f = fixture_eur();
+    *f.firefly_transactions.lock().unwrap() = vec![split_tx(
+        200,
+        &[(201, d(2026, 1, 5), 12340), (202, d(2026, 1, 6), -5000)],
+    )];
+
+    let result = f.uc().execute(f.input()).await.expect("reconcile ok");
+
+    assert_eq!(result.matched_count, 2);
+    assert_eq!(result.missing_count, 1);
+    assert_eq!(result.extra_count, 0);
+    assert_eq!(
+        saved_pairs(&f),
+        HashSet::from([(1, 200, 201), (2, 200, 202)])
+    );
+    assert_eq!(saved_rows(&f), HashSet::from([(200, 201), (200, 202)]));
+    let run = &f.reconciliations.saved_runs()[0];
+    assert_eq!(run.reconciliation.matched_count, 2);
+    assert_eq!(run.reconciliation.extra_count, 0);
+}
+
+#[tokio::test]
+async fn reconcile_keeps_unmatched_sibling_split_as_extra() {
+    let f = fixture_eur();
+    *f.firefly_transactions.lock().unwrap() = vec![
+        split_tx(
+            300,
+            &[(301, d(2026, 1, 5), 12340), (302, d(2026, 1, 5), 50)],
+        ),
+        tx(102, d(2026, 1, 6), -5000),
+    ];
+
+    let result = f.uc().execute(f.input()).await.expect("reconcile ok");
+
+    assert_eq!(result.matched_count, 2);
+    assert_eq!(result.missing_count, 1);
+    assert_eq!(result.extra_count, 1);
+    assert_eq!(saved_pairs(&f), HashSet::from([(1, 300, 301), (2, 102, 0)]));
+    assert_eq!(
+        saved_rows(&f),
+        HashSet::from([(102, 0), (300, 301), (300, 302)])
+    );
+}
+
+#[tokio::test]
+async fn reconcile_matches_split_group_total_first() {
+    let f = fixture_eur();
+    *f.firefly_transactions.lock().unwrap() = vec![
+        tx(101, d(2026, 1, 5), 12340),
+        tx(102, d(2026, 1, 6), -5000),
+        split_tx(400, &[(401, d(2026, 1, 8), 700), (402, d(2026, 1, 8), 77)]),
+    ];
+
+    let result = f.uc().execute(f.input()).await.expect("reconcile ok");
+
+    assert_eq!(result.matched_count, 3);
+    assert_eq!(result.missing_count, 0);
+    assert_eq!(result.extra_count, 0);
+    assert_eq!(
+        saved_pairs(&f),
+        HashSet::from([(1, 101, 0), (2, 102, 0), (4, 400, 0)])
+    );
 }

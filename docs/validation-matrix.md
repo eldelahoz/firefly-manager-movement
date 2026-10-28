@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `570f43e` · TRD `3647854` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `570f43e` · TRD `5e9ba4b` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
@@ -134,9 +134,11 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-06  Reconciliation engine with configurable date tolerance
 
-**Status:** implemented · **Last verified:** 2026-10-09 · **Spec @** `570f43e`
+**Status:** implemented · **Last verified:** 2026-10-27 · **Spec @** `5e9ba4b`
 
 > v0.10 amendment: the search window is no longer an independent ±7 parameter — it defaults to the tolerance (`[min − T, max + T]`, manual override editable). The engine itself is unchanged; tolerance semantics (±0..±3) are unchanged.
+
+> TRD v0.9 delta (2026-10-27): a split FF3 transaction unmatched by its total falls back to split-by-split matching against the still-missing movements; matched splits are cached per split (`ff3_journal_id`), unmatched splits stay `extra`.
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -148,6 +150,11 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `reconcile_batch.rs::reconcile_currency_mismatch_is_blocked` | Batch currency ≠ account currency → blocked |
 | **App** | `reconcile_batch.rs::reconcile_rerun_creates_new_reconciliation` | RF-13 re-reconciliation updates counts |
 | **App** | `exact_user_rows.rs` | Real-world row scenarios |
+| **App** | `reconcile_batch.rs::reconcile_matches_each_split_when_the_statement_lists_them_apart` | Split total matches no line → each split matched to its own line (TRD v0.9) |
+| **App** | `reconcile_batch.rs::reconcile_keeps_unmatched_sibling_split_as_extra` | One split matched, sibling split kept as extra |
+| **App** | `reconcile_batch.rs::reconcile_matches_split_group_total_first` | Total matches → group never split |
+| **Infra** | `firefly_client.rs::account_transactions_aggregates_split_group` | Client returns the group total plus its in-window splits |
+| **Infra** | `reconcile_flow_repo.rs::save_run_persists_each_matched_split_of_one_group` | Two split rows of one group cached + matched 1-to-1 |
 | **FE** | `import-wizard.spec.ts::W6/W24/W25` | Window follows tolerance (with override); tolerance segmented control intact |
 
 ---
@@ -292,7 +299,9 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-15  Flag duplicates; delete with double confirmation + audit snapshot
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-10-27 · **Spec @** `5e9ba4b`
+
+> TRD v0.9 delta (2026-10-27): deleting an FF3 transaction cached split by split is refused with 409 (Firefly III would delete its matched splits too).
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -300,6 +309,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Domain** | `matching_engine.rs::duplicate_of_already_matched_movement` | 3 FF3 for 2 movements → 2 matches + 1 duplicate |
 | **App** | `reconcile_batch.rs::reconcile_persists_run_and_updates_statuses` | `is_duplicate=true` on cached FF3 transactions |
 | **App** | `delete_firefly_transaction.rs` | `DeleteFireflyTransaction` use case: double confirm, JSON snapshot in `deleted_audit` |
+| **App** | `delete_firefly_transaction.rs::delete_split_group_cached_per_split_is_refused` | Split-matched group → `Conflict` (409), nothing deleted or audited (TRD v0.9) |
 | **App** | `get_results.rs::results_exclude_deleted_ff3_transactions_from_extra` | Deleted FF3 tx removed from extras list after deletion (spec: "removed from the extras list") |
 | **Infra** | `deleted_audit_repo.rs::insert_returns_increasing_ids` | `DeletedAuditRepository` inserts snapshot + `deleted_ff3_ids` lists deleted ids |
 | **Infra** | `firefly_client.rs::delete_transaction_not_found_maps_to_not_found` | Already-deleted FF3 tx → `NotFound` (API 404, spec exception reported) |

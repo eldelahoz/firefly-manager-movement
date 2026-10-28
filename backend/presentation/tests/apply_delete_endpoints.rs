@@ -276,6 +276,7 @@ async fn seeded_run_store(movements: Arc<FakeMovementRepo>) -> Arc<FakeReconcili
         },
         ff3_transactions: vec![ffm_application::dtos::RunFf3Transaction {
             ff3_id: 999,
+            ff3_journal_id: 0,
             date: d(2026, 1, 12),
             amount_cents: AmountCents::new(-4200),
             description: "dupe".into(),

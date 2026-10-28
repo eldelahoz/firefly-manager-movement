@@ -10,6 +10,8 @@ pub struct Ff3Transaction {
     pub id: Ff3TransactionId,
     pub reconciliation_id: ReconciliationId,
     pub ff3_id: i64,
+    /// Matched journal of a split group; 0 = the whole group.
+    pub ff3_journal_id: i64,
     pub date: NaiveDate,
     pub amount_cents: AmountCents,
     pub description: String,

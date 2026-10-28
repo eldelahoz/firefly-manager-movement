@@ -235,24 +235,28 @@ fn default_txs() -> Vec<Ff3TransactionDto> {
             date: d(2026, 1, 5),
             amount_cents: AmountCents::new(12340),
             description: "tx101".into(),
+            splits: vec![],
         },
         Ff3TransactionDto {
             ff3_id: 102,
             date: d(2026, 1, 6),
             amount_cents: AmountCents::new(-5000),
             description: "tx102".into(),
+            splits: vec![],
         },
         Ff3TransactionDto {
             ff3_id: 103,
             date: d(2026, 1, 6),
             amount_cents: AmountCents::new(-5000),
             description: "tx103".into(),
+            splits: vec![],
         },
         Ff3TransactionDto {
             ff3_id: 104,
             date: d(2026, 1, 20),
             amount_cents: AmountCents::new(9900),
             description: "tx104".into(),
+            splits: vec![],
         },
     ]
 }
@@ -439,6 +443,7 @@ async fn reconcile_rerun_updates_results() {
             date: d(2026, 1, 8),
             amount_cents: AmountCents::new(777),
             description: "tx105".into(),
+            splits: vec![],
         });
 
     let response = t

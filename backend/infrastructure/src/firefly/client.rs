@@ -4,7 +4,9 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 use serde::Deserialize;
 
-use ffm_application::dtos::{About, Ff3AccountDto, Ff3TransactionDto, NewFf3TransactionCreation};
+use ffm_application::dtos::{
+    About, Ff3AccountDto, Ff3SplitDto, Ff3TransactionDto, NewFf3TransactionCreation,
+};
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::FireflyClient;
 use ffm_domain::value_objects::AmountCents;
@@ -60,6 +62,8 @@ struct TransactionGroupData {
 
 #[derive(Deserialize)]
 struct TransactionSplit {
+    #[serde(default)]
+    transaction_journal_id: Option<String>,
     date: String,
     amount: String,
     description: String,
@@ -134,6 +138,7 @@ struct SplitAggregate {
     date: NaiveDate,
     signed_cents: i64,
     description: String,
+    splits: Vec<Ff3SplitDto>,
 }
 
 // ── Client ─────────────────────────────────────────────────────────────
@@ -203,6 +208,7 @@ impl ReqwestFireflyClient {
         let mut total_cents: i64 = 0;
         let mut dates: Vec<NaiveDate> = Vec::with_capacity(splits.len());
         let mut descriptions: Vec<String> = Vec::new();
+        let mut kept: Vec<Ff3SplitDto> = Vec::new();
 
         for split in splits {
             let is_source = split.source_id.as_deref() == Some(account_id_str);
@@ -247,6 +253,16 @@ impl ReqwestFireflyClient {
             total_cents += signed;
             dates.push(date);
             let description = split.description.trim().to_string();
+            kept.push(Ff3SplitDto {
+                journal_id: split
+                    .transaction_journal_id
+                    .as_deref()
+                    .and_then(|id| id.parse().ok())
+                    .unwrap_or(0),
+                date,
+                amount_cents: AmountCents::new(signed),
+                description: description.clone(),
+            });
             if !description.is_empty() && !descriptions.contains(&description) {
                 descriptions.push(description);
             }
@@ -254,6 +270,13 @@ impl ReqwestFireflyClient {
 
         if dates.is_empty() || total_cents == 0 {
             return Ok(None);
+        }
+        if kept.len() < 2 {
+            kept.clear();
+        } else if kept.iter().any(|s| s.journal_id == 0) {
+            return Err(ApplicationError::Parse(
+                "split transaction without a valid transaction_journal_id".into(),
+            ));
         }
         dates.sort_unstable();
         let title = group_title
@@ -263,6 +286,7 @@ impl ReqwestFireflyClient {
             date: dates[0],
             signed_cents: total_cents,
             description: title.unwrap_or_else(|| descriptions.join(" / ")),
+            splits: kept,
         }))
     }
 
@@ -409,6 +433,7 @@ impl FireflyClient for ReqwestFireflyClient {
                     date: aggregate.date,
                     amount_cents: AmountCents::new(aggregate.signed_cents),
                     description: aggregate.description,
+                    splits: aggregate.splits,
                 });
             }
             if page >= total_pages {

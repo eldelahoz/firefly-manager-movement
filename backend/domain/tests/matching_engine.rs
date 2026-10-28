@@ -30,6 +30,7 @@ fn mv(id: i64, date: &str, cents: i64) -> Movement {
 
 fn ff3(id: i64, date: &str, cents: i64) -> Ff3Transaction {
     Ff3Transaction {
+        ff3_journal_id: 0,
         id: Ff3TransactionId::new(id),
         reconciliation_id: ReconciliationId::new(1),
         ff3_id: id * 1000,
@@ -239,6 +240,7 @@ fn benchmark_1000_movements_under_5s_nfr04() {
 
     let ff3_txs: Vec<Ff3Transaction> = (0..n)
         .map(|i| Ff3Transaction {
+            ff3_journal_id: 0,
             id: Ff3TransactionId::new(i + 1),
             reconciliation_id: ReconciliationId::new(1),
             ff3_id: (i + 1) * 1000,

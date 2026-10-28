@@ -117,6 +117,7 @@ impl DeletedAuditRepository for FakeDeletedAuditRepo {
 
 fn cached_tx(local_id: i64, ff3_id: i64, dup: bool) -> Ff3Transaction {
     Ff3Transaction {
+        ff3_journal_id: 0,
         id: ffm_domain::ids::Ff3TransactionId::new(local_id),
         reconciliation_id: ReconciliationId::new(10),
         ff3_id,
@@ -200,5 +201,19 @@ async fn delete_ff3_failure_leaves_no_audit() {
     let f = fx(true, vec![cached_tx(1, 999, true)]);
     let err = f.uc().execute(999).await.expect_err("must fail");
     assert!(matches!(err, ApplicationError::FireflyClient(_)));
+    assert!(f.audits.rows.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn delete_split_group_cached_per_split_is_refused() {
+    // Deleting the group would also delete its split that matched a movement.
+    let split = Ff3Transaction {
+        ff3_journal_id: 902,
+        ..cached_tx(1, 900, false)
+    };
+    let f = fx(false, vec![split]);
+    let err = f.uc().execute(900).await.expect_err("must fail");
+    assert!(matches!(err, ApplicationError::Conflict(_)));
+    assert!(f.firefly.deleted.lock().unwrap().is_empty());
     assert!(f.audits.rows.lock().unwrap().is_empty());
 }
