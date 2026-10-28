@@ -57,9 +57,11 @@ The reconciliation engine compares the batch movements with the FF3 transactions
 - [ ] The run persists snapshots and updates statuses
 - [ ] Currency mismatch is blocked
 - [ ] Re-runs create a new reconciliation run
+- [ ] A split FF3 transaction matches either by its total or, when no movement has that total, split by split; unmatched splits stay `extra` (TRD v0.9)
 
 ## Notes
 
 - Each run persists its snapshot counters, match pairs and examined FF3 transactions (TRD section 2).
 - The 1-to-1 pairing invariant is enforced at the storage level, not just by convention (TRD section 2).
 - v0.10: the reconciliation step computes and displays the window from the tolerance (with manual override); the engine itself is unchanged.
+- TRD v0.9 (2026-10-27): the statement usually shows a split FF3 transaction as one line (the total), but can list each split apart; the engine tries the total first and falls back to the splits (TRD section 6).

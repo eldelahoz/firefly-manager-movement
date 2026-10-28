@@ -64,3 +64,4 @@ No deletion happens without this explicit double confirmation. **No automatic or
 ## Notes
 
 - The pre-deletion audit snapshot is stored server-side (TRD section 2).
+- TRD v0.9 (2026-10-27): an FF3 transaction matched split by split cannot be deleted from the app (409) - Firefly III deletes the whole group, including its matched splits.
