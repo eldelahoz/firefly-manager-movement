@@ -18,11 +18,17 @@ export function ReconcileDialog({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (batchId === null) return null;
+  // The dialog stays mounted in ReconcileProvider, so its state outlives each run.
+  const close = () => {
+    setSubmitting(false);
+    setError(null);
+    onClose();
+  };
   return (
     <Dialog
       open
       onOpenChange={(o) => {
-        if (!o) onClose();
+        if (!o) close();
       }}
     >
       <DialogContent showCloseButton={false} className="sm:max-w-md">
@@ -44,10 +50,10 @@ export function ReconcileDialog({
             setError(m);
           }}
           onDone={(id) => {
-            onClose();
+            close();
             navigate(`/results/${id}`);
           }}
-          onCancel={onClose}
+          onCancel={close}
         />
       </DialogContent>
     </Dialog>
