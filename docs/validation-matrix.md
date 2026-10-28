@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `570f43e` · TRD `3647854` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `570f43e` · TRD `5e9ba4b` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
@@ -134,7 +134,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-06  Reconciliation engine with configurable date tolerance
 
-**Status:** implemented · **Last verified:** 2026-10-27 · **Spec @** `570f43e`
+**Status:** implemented · **Last verified:** 2026-10-27 · **Spec @** `5e9ba4b`
 
 > v0.10 amendment: the search window is no longer an independent ±7 parameter — it defaults to the tolerance (`[min − T, max + T]`, manual override editable). The engine itself is unchanged; tolerance semantics (±0..±3) are unchanged.
 
@@ -299,7 +299,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-15  Flag duplicates; delete with double confirmation + audit snapshot
 
-**Status:** implemented · **Last verified:** 2026-10-27 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-10-27 · **Spec @** `5e9ba4b`
 
 > TRD v0.9 delta (2026-10-27): deleting an FF3 transaction cached split by split is refused with 409 (Firefly III would delete its matched splits too).
 
