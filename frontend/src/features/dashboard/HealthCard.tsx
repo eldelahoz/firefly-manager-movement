@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { getHealth } from '@/shared/api/endpoints';
 import { queryKeys } from '@/shared/lib/keys';
 import { Button } from '@/shared/ui/button';
-import { Skeleton } from '@/shared/ui/Skeleton';
 
 export function HealthCard() {
   const { t } = useTranslation();
@@ -13,7 +12,8 @@ export function HealthCard() {
     queryFn: getHealth,
     refetchInterval: 60_000,
   });
-  if (isPending) return <Skeleton className="h-28 w-full" />;
+  // Nothing while pending, so a healthy dashboard never flashes a card that then disappears.
+  if (isPending) return null;
   if (isError || data.status === 'degraded') {
     return (
       <div
@@ -34,15 +34,15 @@ export function HealthCard() {
     );
   }
   // "ok" without an ff3 block means the backend did not probe Firefly III (FF3_HEALTH_PROBE off).
-  const connected = data.ff3?.reachable === true;
+  // Connected is already shown by the sidebar chip; the card only speaks up when something is off.
+  if (data.ff3?.reachable === true) return null;
   return (
     <div
-      title={connected ? undefined : t('health.probeHint')}
+      title={t('health.probeHint')}
       className="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4 shadow-sm"
     >
-      <span className={`size-3 rounded-full ${connected ? 'bg-status-matched' : 'bg-text-3'}`} />
-      <span className="font-medium">{t(connected ? 'health.ok' : 'health.unknown')}</span>
-      {data.ff3?.version && <span className="text-text-3">FF3 v{data.ff3.version}</span>}
+      <span className="size-3 rounded-full bg-text-3" />
+      <span className="font-medium">{t('health.unknown')}</span>
     </div>
   );
 }

@@ -53,7 +53,6 @@
   },
   "dashboard": {
     "title": "Tableau de bord",
-    "totalBatches": "Lots au total",
     "noReconciled": "Aucun rapprochement pour l'instant",
     "recentBatches": "Lots récents",
     "date": "Date",
@@ -62,7 +61,15 @@
     "browseFrom": "Du",
     "browseTo": "Au",
     "browseEmpty": "Aucune transaction dans cette période",
-    "deleteDuplicate": "Supprimer le doublon"
+    "deleteDuplicate": "Supprimer le doublon",
+    "needsYou": "À traiter",
+    "review": "Examiner",
+    "reviewBatch": "Examiner {{filename}}",
+    "resumeBatch": "Reprendre {{filename}}",
+    "notFinished": "Import non terminé",
+    "nothingNeeded": "Rien à traiter pour l'instant.",
+    "firstRun": "Importez votre premier relevé bancaire",
+    "actions": "Actions"
   },
   "imports": {
     "title": "Imports",

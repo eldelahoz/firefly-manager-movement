@@ -57,6 +57,22 @@ export function ResultsSummary({
           </span>
         )}
       </div>
+      <SummaryBreakdown counts={counts} failed={failed} />
+    </section>
+  );
+}
+
+/** Proportional bar plus per-group legend; shared by the Results summary and the dashboard. */
+export function SummaryBreakdown({
+  counts,
+  failed = 0,
+}: {
+  counts: SummaryCounts;
+  failed?: number;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
       <div
         aria-hidden="true"
         className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-border-subtle"
@@ -84,7 +100,7 @@ export function ResultsSummary({
           </li>
         )}
       </ul>
-    </section>
+    </>
   );
 }
 

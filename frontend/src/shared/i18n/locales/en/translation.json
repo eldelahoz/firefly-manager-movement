@@ -53,7 +53,6 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "totalBatches": "Total batches",
     "noReconciled": "No reconciliation yet",
     "recentBatches": "Recent batches",
     "date": "Date",
@@ -62,7 +61,15 @@
     "browseFrom": "From",
     "browseTo": "To",
     "browseEmpty": "No transactions in this range",
-    "deleteDuplicate": "Delete duplicate"
+    "deleteDuplicate": "Delete duplicate",
+    "needsYou": "Needs you",
+    "review": "Review",
+    "reviewBatch": "Review {{filename}}",
+    "resumeBatch": "Resume {{filename}}",
+    "notFinished": "Import not finished",
+    "nothingNeeded": "Nothing needs you right now.",
+    "firstRun": "Import your first bank statement",
+    "actions": "Actions"
   },
   "imports": {
     "title": "Imports",

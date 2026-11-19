@@ -53,7 +53,6 @@
   },
   "dashboard": {
     "title": "Panel",
-    "totalBatches": "Lotes totales",
     "noReconciled": "Aún no hay conciliaciones",
     "recentBatches": "Lotes recientes",
     "date": "Fecha",
@@ -62,7 +61,15 @@
     "browseFrom": "Desde",
     "browseTo": "Hasta",
     "browseEmpty": "Sin transacciones en este rango",
-    "deleteDuplicate": "Eliminar duplicado"
+    "deleteDuplicate": "Eliminar duplicado",
+    "needsYou": "Pendiente",
+    "review": "Revisar",
+    "reviewBatch": "Revisar {{filename}}",
+    "resumeBatch": "Reanudar {{filename}}",
+    "notFinished": "Importación sin terminar",
+    "nothingNeeded": "Nada pendiente por ahora.",
+    "firstRun": "Importa tu primer extracto bancario",
+    "actions": "Acciones"
   },
   "imports": {
     "title": "Importaciones",

@@ -1,13 +1,22 @@
 import type { ReactNode } from 'react';
 
-export function Table({ head, children }: { head: ReactNode[]; children: ReactNode }) {
+export function Table({
+  head,
+  headClassNames = [],
+  children,
+}: {
+  head: ReactNode[];
+  /** Optional per-column classes for the header cells (e.g. hide a column on phones). */
+  headClassNames?: string[];
+  children: ReactNode;
+}) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-border-subtle bg-surface shadow-sm">
+    <div className="relative overflow-x-auto rounded-xl border border-border-subtle bg-surface shadow-sm">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-strong bg-table-header text-left text-xs uppercase tracking-wide text-text-2">
             {head.map((h, i) => (
-              <th key={i} className="px-4 py-3 font-medium">
+              <th key={i} className={`px-4 py-3 font-medium ${headClassNames[i] ?? ''}`}>
                 {h}
               </th>
             ))}
