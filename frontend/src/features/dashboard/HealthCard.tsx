@@ -33,10 +33,15 @@ export function HealthCard() {
       </div>
     );
   }
+  // "ok" without an ff3 block means the backend did not probe Firefly III (FF3_HEALTH_PROBE off).
+  const connected = data.ff3?.reachable === true;
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4 shadow-sm">
-      <span className="size-3 rounded-full bg-status-matched" />
-      <span className="font-medium">{t('health.ok')}</span>
+    <div
+      title={connected ? undefined : t('health.probeHint')}
+      className="flex items-center gap-3 rounded-xl border border-border-subtle bg-surface p-4 shadow-sm"
+    >
+      <span className={`size-3 rounded-full ${connected ? 'bg-status-matched' : 'bg-text-3'}`} />
+      <span className="font-medium">{t(connected ? 'health.ok' : 'health.unknown')}</span>
       {data.ff3?.version && <span className="text-text-3">FF3 v{data.ff3.version}</span>}
     </div>
   );

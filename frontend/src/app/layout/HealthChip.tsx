@@ -10,14 +10,16 @@ export function HealthChip() {
     queryFn: getHealth,
     refetchInterval: 60_000,
   });
-  const ok = !isError && data?.status === 'ok';
+  const ok = !isError && data?.ff3?.reachable === true;
+  // No ff3 block = backend did not probe Firefly III, so the state is unknown, not connected.
+  const unknown = isError || !data || (data.status === 'ok' && !data.ff3);
   return (
     <span
       title={t('health.probeHint')}
       className="flex items-center gap-2 rounded-full border border-border-subtle bg-canvas px-3 py-1 text-sm text-text-2"
     >
       <span className={`size-2 rounded-full ${ok ? 'bg-status-matched' : 'bg-status-extra'}`} />
-      {isError || !data ? t('health.unknown') : ok ? t('health.ok') : t('health.degraded')}
+      {unknown ? t('health.unknown') : ok ? t('health.ok') : t('health.degraded')}
     </span>
   );
 }

@@ -46,7 +46,7 @@
     "ok": "Firefly III connected",
     "degraded": "Firefly III unreachable",
     "unknown": "Health unknown",
-    "probeHint": "The connectivity probe requires FF3_HEALTH_PROBE=true on the backend"
+    "probeHint": "Check the Firefly III URL and token in Settings"
   },
   "dashboard": {
     "title": "Dashboard",

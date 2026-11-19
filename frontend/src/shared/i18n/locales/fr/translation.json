@@ -46,7 +46,7 @@
     "ok": "Firefly III connecté",
     "degraded": "Firefly III inaccessible",
     "unknown": "État inconnu",
-    "probeHint": "La sonde de connectivité nécessite FF3_HEALTH_PROBE=true sur le backend"
+    "probeHint": "Vérifiez l'URL et le jeton Firefly III dans les Paramètres"
   },
   "dashboard": {
     "title": "Tableau de bord",
