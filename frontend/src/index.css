@@ -190,3 +190,24 @@
     transition: rotate var(--dur-2) var(--ease-move);
   }
 }
+
+/* Edit sheet: 280ms in / 210ms out; under reduced motion a short fade, no slide. */
+.ffm-sheet[data-state='open'] {
+  animation-duration: var(--dur-3);
+  animation-timing-function: var(--ease-enter);
+}
+.ffm-sheet[data-state='closed'] {
+  animation-duration: var(--dur-3-exit);
+  animation-timing-function: var(--ease-exit);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ffm-sheet[data-state] {
+    --tw-enter-translate-x: 0;
+    --tw-enter-translate-y: 0;
+    --tw-exit-translate-x: 0;
+    --tw-exit-translate-y: 0;
+    --tw-enter-opacity: 0;
+    --tw-exit-opacity: 0;
+    animation-duration: var(--dur-1);
+  }
+}

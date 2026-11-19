@@ -33,8 +33,7 @@ import { BulkBar } from './BulkBar';
 import { MissingRow } from './MissingRow';
 import { IgnoredRow } from './IgnoredRow';
 import { ExtraRow } from './ExtraRow';
-import { BulkPersonalizeDialog } from './BulkPersonalizeDialog';
-import { EditMovementDialog } from './EditMovementDialog';
+import { EditSheet } from './EditSheet';
 import { ConfirmCreateDialog } from './ConfirmCreateDialog';
 import { TableHeader, CELL, GRID_COLS, GROUP_ACCENT, TABLE_WRAPPER } from './tableLayout';
 
@@ -331,12 +330,19 @@ export function ResultsPage() {
         customization: customizations[sid] ?? {},
       };
     });
-  const editingMovement =
-    editingId != null ? (missingRows.find((m) => m.id === editingId) ?? null) : null;
+  // Not found (e.g. the row was ignored or the batch changed) = the sheet closes.
+  const editingIndex = editingId != null ? missingRows.findIndex((m) => m.id === editingId) : -1;
+  const editingMovement = editingIndex >= 0 ? missingRows[editingIndex] : null;
+  const sheetLists = {
+    defaultTag,
+    accounts: allAccounts,
+    tags: tags.data ?? [],
+    categories: categories.data ?? [],
+    budgets: budgets.data ?? [],
+  };
 
   function handleBulkApply(fields: BulkFields) {
     setCustomizations((prev) => applyBulkFillOnly(prev, activeSelected, fields));
-    setBulkOpen(false);
   }
 
   function openPersonalize() {
@@ -559,27 +565,33 @@ export function ResultsPage() {
         </section>
       )}
       {editingMovement && (
-        <EditMovementDialog
+        <EditSheet
           movement={editingMovement}
+          position={{ index: editingIndex, total: missingRows.length }}
           initial={customizations[editingMovement.id] ?? {}}
-          defaultTag={defaultTag}
           currency={currency}
-          accounts={allAccounts}
-          tags={tags.data ?? []}
-          categories={categories.data ?? []}
-          budgets={budgets.data ?? []}
+          {...sheetLists}
+          onNavigate={(step) => setEditingId(missingRows[editingIndex + step]?.id ?? editingId)}
           onSave={(c) => {
             setCustomizations((prev) => ({ ...prev, [editingMovement.id]: c }));
-            setEditingId(null);
           }}
           onClose={() => setEditingId(null)}
         />
       )}
-      {bulkOpen && activeTab === 'missing' && (
-        <BulkPersonalizeDialog
-          count={activeSelected.length}
-          defaultTag={defaultTag}
-          onApply={handleBulkApply}
+      {bulkOpen && activeTab === 'missing' && activeSelected.length > 1 && (
+        <EditSheet
+          bulkCount={activeSelected.length}
+          bulkDirection={
+            movementSummaries.every((m) => m.amountCents < 0)
+              ? 'withdrawal'
+              : movementSummaries.every((m) => m.amountCents >= 0)
+                ? 'deposit'
+                : undefined
+          }
+          initial={{}}
+          currency={currency}
+          {...sheetLists}
+          onSave={handleBulkApply}
           onClose={() => setBulkOpen(false)}
         />
       )}

@@ -243,7 +243,13 @@
       "ignored_other": "{{count}} ignorados",
       "failed_one": "{{count}} fallido",
       "failed_other": "{{count}} fallidos"
-    }
+    },
+    "prevMovement": "Movimiento anterior",
+    "nextMovement": "Movimiento siguiente",
+    "position": "Movimiento {{index}} de {{total}}",
+    "line": "Línea {{line}}",
+    "attachFile": "Adjuntar archivo",
+    "removeAttachment": "Quitar adjunto"
   },
   "status": {
     "imported": "Importado",

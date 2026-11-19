@@ -243,7 +243,13 @@
       "ignored_other": "{{count}} ignored",
       "failed_one": "{{count}} failed",
       "failed_other": "{{count}} failed"
-    }
+    },
+    "prevMovement": "Previous movement",
+    "nextMovement": "Next movement",
+    "position": "Movement {{index}} of {{total}}",
+    "line": "Line {{line}}",
+    "attachFile": "Attach file",
+    "removeAttachment": "Remove attachment"
   },
   "status": {
     "imported": "Imported",
