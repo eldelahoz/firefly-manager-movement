@@ -1,1 +1,0 @@
-ALTER TABLE app_settings MODIFY ff3_token VARCHAR(255) NOT NULL

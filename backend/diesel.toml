@@ -1,7 +1,6 @@
-# Configuración de Diesel CLI (backend MySQL).
-# La spec de esquema se genera en el crate de infraestructura.
-[print_schema]
-file = "infrastructure/src/schema.rs"
+# Configuración de Diesel CLI (backend SQLite).
+# No [print_schema]: schema.rs is hand-maintained (BigInt ids, Timestamp) and
+# `diesel migration run` would overwrite it (SQLite INTEGER PRIMARY KEY -> Integer/i32).
 
 [migrations_directory]
 dir = "infrastructure/migrations"

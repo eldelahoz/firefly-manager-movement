@@ -1,4 +1,4 @@
-//! `MysqlDeletedAuditRepository` - implements `DeletedAuditRepository`.
+//! `SqliteDeletedAuditRepository` - implements `DeletedAuditRepository`.
 
 use std::collections::HashSet;
 
@@ -15,11 +15,11 @@ use crate::models::NewDeletedAuditModel;
 use crate::persistence::pool::DbPool;
 use crate::schema::deleted_audit;
 
-pub struct MysqlDeletedAuditRepository {
+pub struct SqliteDeletedAuditRepository {
     pool: DbPool,
 }
 
-impl MysqlDeletedAuditRepository {
+impl SqliteDeletedAuditRepository {
     pub fn new(pool: DbPool) -> Self {
         Self { pool }
     }
@@ -34,7 +34,7 @@ fn map_diesel_err(e: diesel::result::Error) -> ApplicationError {
 }
 
 #[async_trait]
-impl DeletedAuditRepository for MysqlDeletedAuditRepository {
+impl DeletedAuditRepository for SqliteDeletedAuditRepository {
     async fn insert(&self, audit: NewDeletedAudit) -> Result<DeletedAuditId, ApplicationError> {
         let mut conn = self
             .pool
@@ -44,16 +44,11 @@ impl DeletedAuditRepository for MysqlDeletedAuditRepository {
         let model = NewDeletedAuditModel::from(audit);
         diesel::insert_into(deleted_audit::table)
             .values(&model)
-            .execute(&mut conn)
+            .returning(deleted_audit::id)
+            .get_result::<i64>(&mut conn)
             .await
-            .map_err(map_diesel_err)?;
-        diesel::select(diesel::dsl::sql::<diesel::sql_types::BigInt>(
-            "LAST_INSERT_ID()",
-        ))
-        .get_result::<i64>(&mut conn)
-        .await
-        .map(DeletedAuditId::new)
-        .map_err(map_diesel_err)
+            .map(DeletedAuditId::new)
+            .map_err(map_diesel_err)
     }
 
     async fn deleted_ff3_ids(&self) -> Result<HashSet<i64>, ApplicationError> {

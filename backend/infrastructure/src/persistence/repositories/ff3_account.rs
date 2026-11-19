@@ -1,6 +1,6 @@
-//! `MysqlFf3AccountRepository` - implements `Ff3AccountRepository`.
-//! The upsert uses raw SQL with `ON DUPLICATE KEY UPDATE` (MySQL has no
-//! Postgres `ON CONFLICT`). The `type` column is named `type_` in diesel.
+//! `SqliteFf3AccountRepository` - implements `Ff3AccountRepository`.
+//! The upsert uses raw SQL `ON CONFLICT(ff3_id) DO UPDATE`.
+//! The `type` column is named `type_` in diesel.
 
 use async_trait::async_trait;
 use diesel::prelude::*;
@@ -15,18 +15,18 @@ use crate::models::Ff3AccountModel;
 use crate::persistence::pool::DbPool;
 use crate::schema::ff3_accounts;
 
-pub struct MysqlFf3AccountRepository {
+pub struct SqliteFf3AccountRepository {
     pool: DbPool,
 }
 
-impl MysqlFf3AccountRepository {
+impl SqliteFf3AccountRepository {
     pub fn new(pool: DbPool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait]
-impl Ff3AccountRepository for MysqlFf3AccountRepository {
+impl Ff3AccountRepository for SqliteFf3AccountRepository {
     async fn upsert_batch(&self, accounts: Vec<NewFf3Account>) -> Result<(), ApplicationError> {
         let mut conn = self
             .pool
@@ -37,9 +37,9 @@ impl Ff3AccountRepository for MysqlFf3AccountRepository {
             diesel::sql_query(
                 "INSERT INTO ff3_accounts (ff3_id, name, type, currency, iban, account_number) \
                  VALUES (?, ?, ?, ?, ?, ?) \
-                 ON DUPLICATE KEY UPDATE name = VALUES(name), type = VALUES(type), \
-                 currency = VALUES(currency), iban = VALUES(iban), \
-                 account_number = VALUES(account_number), synced_at = CURRENT_TIMESTAMP",
+                 ON CONFLICT(ff3_id) DO UPDATE SET name = excluded.name, type = excluded.type, \
+                 currency = excluded.currency, iban = excluded.iban, \
+                 account_number = excluded.account_number, synced_at = CURRENT_TIMESTAMP",
             )
             .bind::<diesel::sql_types::Integer, _>(account.ff3_id as i32)
             .bind::<diesel::sql_types::Varchar, _>(&account.name)

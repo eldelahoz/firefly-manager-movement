@@ -1,0 +1,10 @@
+DROP TABLE app_settings;
+DROP TABLE creations;
+DROP TABLE matches;
+DROP TABLE ff3_transactions;
+DROP TABLE reconciliations;
+DROP TABLE movements;
+DROP TABLE batches;
+DROP TABLE deleted_audit;
+DROP TABLE csv_mappings;
+DROP TABLE ff3_accounts;

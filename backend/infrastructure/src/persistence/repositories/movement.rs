@@ -1,10 +1,10 @@
-//! `MysqlMovementRepository` - implements `MovementRepository`.
+//! `SqliteMovementRepository` - implements `MovementRepository`.
 
 use std::collections::HashMap;
 
 use async_trait::async_trait;
 use diesel::prelude::*;
-use diesel_async::RunQueryDsl;
+use diesel_async::{AsyncConnection, RunQueryDsl};
 
 use ffm_application::dtos::NewMovement;
 use ffm_application::error::ApplicationError;
@@ -17,18 +17,18 @@ use crate::models::{MovementModel, NewMovementModel};
 use crate::persistence::pool::DbPool;
 use crate::schema::movements;
 
-pub struct MysqlMovementRepository {
+pub struct SqliteMovementRepository {
     pool: DbPool,
 }
 
-impl MysqlMovementRepository {
+impl SqliteMovementRepository {
     pub fn new(pool: DbPool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait]
-impl MovementRepository for MysqlMovementRepository {
+impl MovementRepository for SqliteMovementRepository {
     async fn insert_batch(&self, movements: Vec<NewMovement>) -> Result<(), ApplicationError> {
         let mut conn = self
             .pool
@@ -39,12 +39,19 @@ impl MovementRepository for MysqlMovementRepository {
         if models.is_empty() {
             return Ok(());
         }
-        diesel::insert_into(movements::table)
-            .values(&models)
-            .execute(&mut conn)
-            .await
-            .map_err(|e| ApplicationError::Database(e.to_string()))?;
-        Ok(())
+        // Diesel's SQLite multi-row INSERT is sync-only (not reachable via SyncConnectionWrapper):
+        // one row per statement in a single tx keeps it atomic and under the bound-variable limit.
+        conn.transaction(async |c| {
+            for m in &models {
+                diesel::insert_into(movements::table)
+                    .values(m)
+                    .execute(c)
+                    .await?;
+            }
+            Ok::<_, diesel::result::Error>(())
+        })
+        .await
+        .map_err(|e| ApplicationError::Database(e.to_string()))
     }
 
     async fn by_batch(&self, batch_id: BatchId) -> Result<Vec<Movement>, ApplicationError> {

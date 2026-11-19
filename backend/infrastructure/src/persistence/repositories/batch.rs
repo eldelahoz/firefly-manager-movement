@@ -1,4 +1,4 @@
-//! `MysqlBatchRepository` - implements `BatchRepository`.
+//! `SqliteBatchRepository` - implements `BatchRepository`.
 
 use async_trait::async_trait;
 use diesel::prelude::*;
@@ -15,11 +15,11 @@ use crate::models::{BatchModel, NewBatchModel};
 use crate::persistence::pool::DbPool;
 use crate::schema::batches;
 
-pub struct MysqlBatchRepository {
+pub struct SqliteBatchRepository {
     pool: DbPool,
 }
 
-impl MysqlBatchRepository {
+impl SqliteBatchRepository {
     pub fn new(pool: DbPool) -> Self {
         Self { pool }
     }
@@ -34,7 +34,7 @@ fn map_diesel_err(e: diesel::result::Error) -> ApplicationError {
 }
 
 #[async_trait]
-impl BatchRepository for MysqlBatchRepository {
+impl BatchRepository for SqliteBatchRepository {
     async fn insert(&self, batch: NewBatch) -> Result<BatchId, ApplicationError> {
         let mut conn = self
             .pool
@@ -44,18 +44,11 @@ impl BatchRepository for MysqlBatchRepository {
         let model = NewBatchModel::from(batch);
         diesel::insert_into(batches::table)
             .values(&model)
-            .execute(&mut conn)
+            .returning(batches::id)
+            .get_result::<i64>(&mut conn)
             .await
-            .map_err(map_diesel_err)?;
-        // MySQL does not support RETURNING in diesel 2.x: the auto-increment
-        // is read with `LAST_INSERT_ID()` on the same connection.
-        diesel::select(diesel::dsl::sql::<diesel::sql_types::BigInt>(
-            "LAST_INSERT_ID()",
-        ))
-        .get_result::<i64>(&mut conn)
-        .await
-        .map(BatchId::new)
-        .map_err(map_diesel_err)
+            .map(BatchId::new)
+            .map_err(map_diesel_err)
     }
 
     async fn get(&self, id: BatchId) -> Result<Batch, ApplicationError> {
@@ -128,7 +121,7 @@ impl BatchRepository for MysqlBatchRepository {
             .get()
             .await
             .map_err(|e| ApplicationError::Database(e.to_string()))?;
-        // MySQL collation (utf8mb4_*) es case-insensitive: `=` basta.
+        // `filename` is COLLATE NOCASE (RF-16): `=` is case-insensitive (ASCII only).
         batches::table
             .filter(batches::filename.eq(filename))
             .order(batches::id.desc())

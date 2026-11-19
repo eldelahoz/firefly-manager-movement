@@ -3,14 +3,12 @@ mod common;
 use ffm_application::dtos::NewBatch;
 use ffm_application::ports::BatchRepository;
 use ffm_domain::value_objects::BatchStatus;
-use ffm_infrastructure::persistence::repositories::batch::MysqlBatchRepository;
+use ffm_infrastructure::persistence::repositories::batch::SqliteBatchRepository;
 
 #[tokio::test]
 async fn insert_get_list_update_batch() {
-    let _db = common::DB_LOCK.lock().await;
     let pool = common::setup_pool().await;
-    common::clean(&pool).await;
-    let repo = MysqlBatchRepository::new(pool.clone());
+    let repo = SqliteBatchRepository::new(pool.clone());
 
     let id = repo
         .insert(NewBatch {
@@ -43,16 +41,12 @@ async fn insert_get_list_update_batch() {
         .expect("update_status");
     let updated = repo.get(id).await.expect("get after update");
     assert_eq!(updated.status, BatchStatus::Reconciled);
-
-    common::clean(&pool).await;
 }
 
 #[tokio::test]
 async fn find_by_filename_and_delete_batch() {
-    let _db = common::DB_LOCK.lock().await;
     let pool = common::setup_pool().await;
-    common::clean(&pool).await;
-    let repo = MysqlBatchRepository::new(pool.clone());
+    let repo = SqliteBatchRepository::new(pool.clone());
 
     let id = repo
         .insert(NewBatch {
@@ -76,6 +70,32 @@ async fn find_by_filename_and_delete_batch() {
     let found = repo.find_by_filename("dup-check.csv").await.expect("find");
     assert!(found.is_empty());
     assert!(repo.get(id).await.is_err());
+}
 
-    common::clean(&pool).await;
+/// RF-16: duplicate filename check ignores case (`filename TEXT COLLATE NOCASE`, ASCII only).
+#[tokio::test]
+async fn find_by_filename_is_case_insensitive() {
+    let pool = common::setup_pool().await;
+    let repo = SqliteBatchRepository::new(pool.clone());
+
+    let id = repo
+        .insert(NewBatch {
+            filename: "Extracto-SEP.csv".into(),
+            file_hash: "hash-case".into(),
+            format: "csv".into(),
+            currency: "EUR".into(),
+            account_id: None,
+            status: BatchStatus::Parsed,
+            headers: vec![],
+            detected_delimiter: ",".into(),
+        })
+        .await
+        .expect("insert");
+
+    let found = repo
+        .find_by_filename("extracto-sep.CSV")
+        .await
+        .expect("find");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].id, id);
 }

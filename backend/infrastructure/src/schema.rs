@@ -3,36 +3,27 @@
 diesel::table! {
     app_settings (id) {
         id -> Integer,
-        #[max_length = 255]
-        ff3_url -> Varchar,
+        ff3_url -> Text,
         ff3_token -> Text,
-        #[max_length = 255]
-        default_creation_tag -> Nullable<Varchar>,
-        updated_at -> Datetime,
+        default_creation_tag -> Nullable<Text>,
+        updated_at -> Timestamp,
         enable_origin_trace -> Bool,
-        #[max_length = 16]
-        default_date_format -> Nullable<Varchar>,
+        default_date_format -> Nullable<Text>,
     }
 }
 
 diesel::table! {
     batches (id) {
         id -> Bigint,
-        #[max_length = 255]
-        filename -> Varchar,
-        #[max_length = 255]
-        file_hash -> Varchar,
-        #[max_length = 50]
-        format -> Varchar,
-        #[max_length = 3]
-        currency -> Char,
+        filename -> Text,
+        file_hash -> Text,
+        format -> Text,
+        currency -> Text,
         account_id -> Nullable<Bigint>,
-        #[max_length = 20]
-        status -> Varchar,
-        created_at -> Datetime,
+        status -> Text,
+        created_at -> Timestamp,
         headers_json -> Json,
-        #[max_length = 8]
-        detected_delimiter -> Varchar,
+        detected_delimiter -> Text,
     }
 }
 
@@ -41,17 +32,16 @@ diesel::table! {
         id -> Bigint,
         movement_id -> Bigint,
         ff3_id -> Bigint,
-        created_at -> Datetime,
+        created_at -> Timestamp,
     }
 }
 
 diesel::table! {
     csv_mappings (id) {
         id -> Bigint,
-        #[max_length = 255]
-        header_signature -> Varchar,
+        header_signature -> Text,
         mapping_json -> Json,
-        created_at -> Datetime,
+        created_at -> Timestamp,
     }
 }
 
@@ -60,7 +50,7 @@ diesel::table! {
         id -> Bigint,
         ff3_id -> Bigint,
         snapshot_json -> Json,
-        deleted_at -> Datetime,
+        deleted_at -> Timestamp,
     }
 }
 
@@ -68,18 +58,13 @@ diesel::table! {
     ff3_accounts (id) {
         id -> Bigint,
         ff3_id -> Integer,
-        #[max_length = 255]
-        name -> Varchar,
+        name -> Text,
         #[sql_name = "type"]
-        #[max_length = 50]
-        type_ -> Varchar,
-        #[max_length = 3]
-        currency -> Char,
-        #[max_length = 64]
-        iban -> Nullable<Varchar>,
-        #[max_length = 255]
-        account_number -> Nullable<Varchar>,
-        synced_at -> Datetime,
+        type_ -> Text,
+        currency -> Text,
+        iban -> Nullable<Text>,
+        account_number -> Nullable<Text>,
+        synced_at -> Timestamp,
     }
 }
 
@@ -93,7 +78,7 @@ diesel::table! {
         amount_cents -> Bigint,
         description -> Text,
         is_duplicate -> Bool,
-        created_at -> Datetime,
+        created_at -> Timestamp,
     }
 }
 
@@ -103,7 +88,7 @@ diesel::table! {
         reconciliation_id -> Bigint,
         movement_id -> Bigint,
         ff3_transaction_id -> Bigint,
-        matched_at -> Datetime,
+        matched_at -> Timestamp,
     }
 }
 
@@ -116,9 +101,8 @@ diesel::table! {
         amount_cents -> Bigint,
         description -> Text,
         raw_json -> Json,
-        #[max_length = 20]
-        status -> Varchar,
-        created_at -> Datetime,
+        status -> Text,
+        created_at -> Timestamp,
     }
 }
 
@@ -132,7 +116,7 @@ diesel::table! {
         matched_count -> Integer,
         missing_count -> Integer,
         extra_count -> Integer,
-        ran_at -> Datetime,
+        ran_at -> Timestamp,
     }
 }
 

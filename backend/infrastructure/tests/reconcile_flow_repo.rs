@@ -11,23 +11,22 @@ use ffm_application::ports::{
 };
 use ffm_domain::ids::BatchId;
 use ffm_domain::value_objects::{AmountCents, BatchStatus, MovementStatus};
-use ffm_infrastructure::persistence::repositories::batch::MysqlBatchRepository;
-use ffm_infrastructure::persistence::repositories::creation::MysqlCreationRepository;
-use ffm_infrastructure::persistence::repositories::ff3_transaction::MysqlFf3TransactionRepository;
-use ffm_infrastructure::persistence::repositories::match_repo::MysqlMatchRepository;
-use ffm_infrastructure::persistence::repositories::movement::MysqlMovementRepository;
-use ffm_infrastructure::persistence::repositories::reconciliation::MysqlReconciliationRepository;
+use ffm_infrastructure::persistence::repositories::batch::SqliteBatchRepository;
+use ffm_infrastructure::persistence::repositories::creation::SqliteCreationRepository;
+use ffm_infrastructure::persistence::repositories::ff3_transaction::SqliteFf3TransactionRepository;
+use ffm_infrastructure::persistence::repositories::match_repo::SqliteMatchRepository;
+use ffm_infrastructure::persistence::repositories::movement::SqliteMovementRepository;
+use ffm_infrastructure::persistence::repositories::reconciliation::SqliteReconciliationRepository;
 
 #[tokio::test]
 async fn reconcile_flow_ff3_transactions_matches_creations() {
     let pool = common::setup_pool().await;
-    common::clean(&pool).await;
-    let batches = MysqlBatchRepository::new(pool.clone());
-    let movements = MysqlMovementRepository::new(pool.clone());
-    let reconciliations = MysqlReconciliationRepository::new(pool.clone());
-    let transactions = MysqlFf3TransactionRepository::new(pool.clone());
-    let matches = MysqlMatchRepository::new(pool.clone());
-    let creations = MysqlCreationRepository::new(pool.clone());
+    let batches = SqliteBatchRepository::new(pool.clone());
+    let movements = SqliteMovementRepository::new(pool.clone());
+    let reconciliations = SqliteReconciliationRepository::new(pool.clone());
+    let transactions = SqliteFf3TransactionRepository::new(pool.clone());
+    let matches = SqliteMatchRepository::new(pool.clone());
+    let creations = SqliteCreationRepository::new(pool.clone());
 
     let batch_id: BatchId = batches
         .insert(NewBatch {
@@ -164,19 +163,16 @@ async fn reconcile_flow_ff3_transactions_matches_creations() {
         .await
         .expect("by_movement none")
         .is_none());
-
-    common::clean(&pool).await;
 }
 
 #[tokio::test]
 async fn save_run_persists_whole_run_atomically() {
     let pool = common::setup_pool().await;
-    common::clean(&pool).await;
-    let batches = MysqlBatchRepository::new(pool.clone());
-    let movements = MysqlMovementRepository::new(pool.clone());
-    let reconciliations = MysqlReconciliationRepository::new(pool.clone());
-    let transactions = MysqlFf3TransactionRepository::new(pool.clone());
-    let matches = MysqlMatchRepository::new(pool.clone());
+    let batches = SqliteBatchRepository::new(pool.clone());
+    let movements = SqliteMovementRepository::new(pool.clone());
+    let reconciliations = SqliteReconciliationRepository::new(pool.clone());
+    let transactions = SqliteFf3TransactionRepository::new(pool.clone());
+    let matches = SqliteMatchRepository::new(pool.clone());
 
     let batch_id = batches
         .insert(NewBatch {
@@ -296,19 +292,16 @@ async fn save_run_persists_whole_run_atomically() {
         movs.iter().find(|m| m.id == cash.id).unwrap().status,
         MovementStatus::Missing
     );
-
-    common::clean(&pool).await;
 }
 
 #[tokio::test]
 async fn save_run_persists_each_matched_split_of_one_group() {
     let pool = common::setup_pool().await;
-    common::clean(&pool).await;
-    let batches = MysqlBatchRepository::new(pool.clone());
-    let movements = MysqlMovementRepository::new(pool.clone());
-    let reconciliations = MysqlReconciliationRepository::new(pool.clone());
-    let transactions = MysqlFf3TransactionRepository::new(pool.clone());
-    let matches = MysqlMatchRepository::new(pool.clone());
+    let batches = SqliteBatchRepository::new(pool.clone());
+    let movements = SqliteMovementRepository::new(pool.clone());
+    let reconciliations = SqliteReconciliationRepository::new(pool.clone());
+    let transactions = SqliteFf3TransactionRepository::new(pool.clone());
+    let matches = SqliteMatchRepository::new(pool.clone());
 
     let batch_id = batches
         .insert(NewBatch {
@@ -388,17 +381,14 @@ async fn save_run_persists_each_matched_split_of_one_group() {
         let m = mts.iter().find(|m| m.movement_id == movement.id).unwrap();
         assert_eq!(m.ff3_transaction_id, tx.id);
     }
-
-    common::clean(&pool).await;
 }
 
 #[tokio::test]
 async fn latest_by_ff3_id_returns_most_recent_cached_row() {
     let pool = common::setup_pool().await;
-    common::clean(&pool).await;
-    let batches = MysqlBatchRepository::new(pool.clone());
-    let reconciliations = MysqlReconciliationRepository::new(pool.clone());
-    let transactions = MysqlFf3TransactionRepository::new(pool.clone());
+    let batches = SqliteBatchRepository::new(pool.clone());
+    let reconciliations = SqliteReconciliationRepository::new(pool.clone());
+    let transactions = SqliteFf3TransactionRepository::new(pool.clone());
 
     let batch_id = batches
         .insert(NewBatch {
@@ -457,6 +447,4 @@ async fn latest_by_ff3_id_returns_most_recent_cached_row() {
         .expect("latest run")
         .expect("some");
     assert_eq!(latest.reconciliation_id, run2.id);
-
-    common::clean(&pool).await;
 }

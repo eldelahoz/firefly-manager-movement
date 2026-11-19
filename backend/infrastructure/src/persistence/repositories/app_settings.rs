@@ -1,4 +1,4 @@
-//! `MysqlAppSettingsRepository` - single-row (id = 1) settings storage.
+//! `SqliteAppSettingsRepository` - single-row (id = 1) settings storage.
 
 use async_trait::async_trait;
 use diesel::prelude::*;
@@ -13,18 +13,18 @@ use crate::models::AppSettingsModel;
 use crate::persistence::pool::DbPool;
 use crate::schema::app_settings;
 
-pub struct MysqlAppSettingsRepository {
+pub struct SqliteAppSettingsRepository {
     pool: DbPool,
 }
 
-impl MysqlAppSettingsRepository {
+impl SqliteAppSettingsRepository {
     pub fn new(pool: DbPool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait]
-impl AppSettingsRepository for MysqlAppSettingsRepository {
+impl AppSettingsRepository for SqliteAppSettingsRepository {
     async fn get(&self) -> Result<Option<AppSettings>, ApplicationError> {
         let mut conn = self
             .pool
@@ -51,10 +51,10 @@ impl AppSettingsRepository for MysqlAppSettingsRepository {
         diesel::sql_query(
             "INSERT INTO app_settings (id, ff3_url, ff3_token, default_creation_tag, enable_origin_trace, default_date_format) \
              VALUES (1, ?, ?, ?, ?, ?) \
-             ON DUPLICATE KEY UPDATE ff3_url = VALUES(ff3_url), ff3_token = VALUES(ff3_token), \
-             default_creation_tag = VALUES(default_creation_tag), \
-             enable_origin_trace = VALUES(enable_origin_trace), \
-             default_date_format = VALUES(default_date_format), updated_at = CURRENT_TIMESTAMP",
+             ON CONFLICT(id) DO UPDATE SET ff3_url = excluded.ff3_url, ff3_token = excluded.ff3_token, \
+             default_creation_tag = excluded.default_creation_tag, \
+             enable_origin_trace = excluded.enable_origin_trace, \
+             default_date_format = excluded.default_date_format, updated_at = CURRENT_TIMESTAMP",
         )
         .bind::<diesel::sql_types::Varchar, _>(&settings.ff3_url)
         .bind::<diesel::sql_types::Varchar, _>(&settings.ff3_token)

@@ -1,8 +1,8 @@
-//! `MysqlFf3TransactionRepository` - implements `Ff3TransactionRepository`.
+//! `SqliteFf3TransactionRepository` - implements `Ff3TransactionRepository`.
 
 use async_trait::async_trait;
 use diesel::prelude::*;
-use diesel_async::RunQueryDsl;
+use diesel_async::{AsyncConnection, RunQueryDsl};
 
 use ffm_application::dtos::NewFf3Transaction;
 use ffm_application::error::ApplicationError;
@@ -14,18 +14,18 @@ use crate::models::{Ff3TransactionModel, NewFf3TransactionModel};
 use crate::persistence::pool::DbPool;
 use crate::schema::ff3_transactions;
 
-pub struct MysqlFf3TransactionRepository {
+pub struct SqliteFf3TransactionRepository {
     pool: DbPool,
 }
 
-impl MysqlFf3TransactionRepository {
+impl SqliteFf3TransactionRepository {
     pub fn new(pool: DbPool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait]
-impl Ff3TransactionRepository for MysqlFf3TransactionRepository {
+impl Ff3TransactionRepository for SqliteFf3TransactionRepository {
     async fn insert_batch(
         &self,
         transactions: Vec<NewFf3Transaction>,
@@ -40,12 +40,19 @@ impl Ff3TransactionRepository for MysqlFf3TransactionRepository {
         if models.is_empty() {
             return Ok(());
         }
-        diesel::insert_into(ff3_transactions::table)
-            .values(&models)
-            .execute(&mut conn)
-            .await
-            .map_err(|e| ApplicationError::Database(e.to_string()))?;
-        Ok(())
+        // Diesel's SQLite multi-row INSERT is sync-only (not reachable via SyncConnectionWrapper):
+        // one row per statement in a single tx keeps it atomic and under the bound-variable limit.
+        conn.transaction(async |c| {
+            for m in &models {
+                diesel::insert_into(ff3_transactions::table)
+                    .values(m)
+                    .execute(c)
+                    .await?;
+            }
+            Ok::<_, diesel::result::Error>(())
+        })
+        .await
+        .map_err(|e| ApplicationError::Database(e.to_string()))
     }
 
     async fn by_reconciliation(

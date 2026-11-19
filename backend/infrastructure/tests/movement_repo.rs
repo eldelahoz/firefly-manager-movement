@@ -4,15 +4,14 @@ use chrono::NaiveDate;
 use ffm_application::dtos::{NewBatch, NewMovement};
 use ffm_application::ports::{BatchRepository, MovementRepository};
 use ffm_domain::value_objects::{AmountCents, BatchStatus, MovementStatus};
-use ffm_infrastructure::persistence::repositories::batch::MysqlBatchRepository;
-use ffm_infrastructure::persistence::repositories::movement::MysqlMovementRepository;
+use ffm_infrastructure::persistence::repositories::batch::SqliteBatchRepository;
+use ffm_infrastructure::persistence::repositories::movement::SqliteMovementRepository;
 
 #[tokio::test]
 async fn insert_batch_and_by_batch_movements() {
     let pool = common::setup_pool().await;
-    common::clean(&pool).await;
-    let batches = MysqlBatchRepository::new(pool.clone());
-    let movements = MysqlMovementRepository::new(pool.clone());
+    let batches = SqliteBatchRepository::new(pool.clone());
+    let movements = SqliteMovementRepository::new(pool.clone());
 
     let batch_id = batches
         .insert(NewBatch {
@@ -70,16 +69,13 @@ async fn insert_batch_and_by_batch_movements() {
         after.iter().find(|m| m.id == got[0].id).unwrap().status,
         MovementStatus::Matched
     );
-
-    common::clean(&pool).await;
 }
 
 #[tokio::test]
 async fn delete_by_batch_removes_movements() {
     let pool = common::setup_pool().await;
-    common::clean(&pool).await;
-    let batches = MysqlBatchRepository::new(pool.clone());
-    let movements = MysqlMovementRepository::new(pool.clone());
+    let batches = SqliteBatchRepository::new(pool.clone());
+    let movements = SqliteMovementRepository::new(pool.clone());
 
     let batch_id = batches
         .insert(NewBatch {
@@ -118,6 +114,4 @@ async fn delete_by_batch_removes_movements() {
 
     let after = movements.by_batch(batch_id).await.expect("by_batch after");
     assert!(after.is_empty());
-
-    common::clean(&pool).await;
 }

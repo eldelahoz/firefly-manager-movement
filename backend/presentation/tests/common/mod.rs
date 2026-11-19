@@ -299,7 +299,7 @@ fn test_epoch() -> NaiveDateTime {
 }
 
 /// In-memory store implementing the three run-related ports. Mirrors the
-/// MySQL adapter: `save_run` splits the run into `ff3_transactions` rows
+/// SQL adapter: `save_run` splits the run into `ff3_transactions` rows
 /// (assigning local ids) + `matches` rows, so `GetResults` can read them.
 #[derive(Default)]
 pub struct FakeReconciliationStore {

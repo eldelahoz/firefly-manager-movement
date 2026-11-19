@@ -1,61 +1,21 @@
-//! Helper for integration tests: creates the pool and cleans tables before each test.
+//! Helper for integration tests: a fresh, migrated SQLite file per test.
 
-use diesel_async::pooled_connection::deadpool::Pool;
-use diesel_async::pooled_connection::AsyncDieselConnectionManager;
-use diesel_async::AsyncMysqlConnection;
-use diesel_async::RunQueryDsl;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use ffm_infrastructure::schema::{
-    app_settings, batches, creations, csv_mappings, deleted_audit, ff3_accounts, ff3_transactions,
-    matches, movements, reconciliations,
-};
+pub use ffm_infrastructure::persistence::pool::DbPool;
+use ffm_infrastructure::persistence::{migrations::run_migrations, pool::create_pool};
 
-pub type DbPool = Pool<AsyncMysqlConnection>;
-
-/// `diesel::delete` on each table over the same connection (tables have
-/// distinct types, so a heterogeneous array cannot be iterated).
-macro_rules! truncate {
-    ($conn:expr, $($table:expr),+ $(,)?) => {
-        $(
-            diesel::delete($table).execute($conn).await.expect("delete");
-        )+
-    };
-}
-
+/// Each call gets its own DB file, so tests stay isolated while running in parallel.
 pub async fn setup_pool() -> DbPool {
-    let url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "mysql://ffm:devffmpass@127.0.0.1:3306/firefly_manager".to_string());
-    let config = AsyncDieselConnectionManager::<AsyncMysqlConnection>::new(url);
-    Pool::builder(config).max_size(4).build().expect("pool")
+    static NEXT: AtomicUsize = AtomicUsize::new(0);
+    let path = std::env::temp_dir().join(format!(
+        "ffm-test-{}-{}.db",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    ));
+    // shortcut: files are left in the temp dir after the run; add cleanup if they pile up.
+    let _ = std::fs::remove_file(&path);
+    let pool = create_pool(path.to_str().expect("utf-8 temp path")).expect("pool");
+    run_migrations(&pool).await.expect("migrations");
+    pool
 }
-
-/// Truncates all tables (with FK checks disabled) for a clean state.
-pub async fn clean(db: &DbPool) {
-    let mut conn = db.get().await.expect("conn");
-    diesel::sql_query("SET FOREIGN_KEY_CHECKS = 0")
-        .execute(&mut conn)
-        .await
-        .expect("disable fk");
-    truncate!(
-        &mut conn,
-        matches::table,
-        creations::table,
-        ff3_transactions::table,
-        movements::table,
-        reconciliations::table,
-        batches::table,
-        csv_mappings::table,
-        deleted_audit::table,
-        ff3_accounts::table,
-        app_settings::table,
-    );
-    diesel::sql_query("SET FOREIGN_KEY_CHECKS = 1")
-        .execute(&mut conn)
-        .await
-        .expect("enable fk");
-}
-
-/// Tests within one binary run in parallel threads against the same dev MySQL,
-/// so tests that assert on table-wide state (e.g. `list()`) must serialize.
-#[allow(dead_code)] // not every test binary asserts on table-wide state
-pub static DB_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
