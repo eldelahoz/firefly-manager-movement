@@ -1,2 +1,1 @@
-allowBuilds:
-  msw: true
+# Keeps frontend/ its own pnpm workspace root, separate from the repo-root tooling workspace.

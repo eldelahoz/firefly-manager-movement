@@ -1,4 +1,4 @@
-//! Persistence adapters (MySQL via async Diesel).
+//! Persistence adapters (SQLite via async Diesel).
 
 pub mod migrations;
 pub mod pool;

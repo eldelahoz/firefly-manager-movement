@@ -1,8 +1,29 @@
+# Dev-only helper: a local Firefly III (+ its MySQL) to point the app at. Not part of the product.
 services:
+  mysql:
+    image: mysql:9.7.2
+    container_name: ffm-ff3-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: devrootpass
+      MYSQL_DATABASE: fireflyiii
+      MYSQL_USER: ffm
+      MYSQL_PASSWORD: devffmpass
+    volumes:
+      - ffm-ff3-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pdevrootpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   fireflyiii:
     image: fireflyiii/core:version-6.6.6
     container_name: ffm-fireflyiii
     restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
     ports:
       - "8080:8080"
     environment:
@@ -15,12 +36,7 @@ services:
       DB_PASSWORD: devffmpass
     volumes:
       - ffm-firefly-uploads:/var/www/html/storage/upload
-    networks:
-      - ffm-net
 
 volumes:
+  ffm-ff3-mysql-data:
   ffm-firefly-uploads:
-
-networks:
-  ffm-net:
-    external: true

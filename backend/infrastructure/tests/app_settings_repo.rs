@@ -2,30 +2,18 @@
 
 mod common;
 
-use diesel_async::SimpleAsyncConnection;
+use diesel_async::AsyncMigrationHarness;
+use diesel_migrations::MigrationHarness;
 use ffm_application::dtos::NewAppSettings;
 use ffm_application::ports::AppSettingsRepository;
 use ffm_domain::value_objects::DateFormat;
-use ffm_infrastructure::persistence::repositories::app_settings::MysqlAppSettingsRepository;
+use ffm_infrastructure::persistence::migrations::MIGRATIONS;
+use ffm_infrastructure::persistence::repositories::app_settings::SqliteAppSettingsRepository;
 
-const UP_SQL: &str = include_str!("../migrations/2026-09-03-100000-0006_app_settings/up.sql");
-const DOWN_SQL: &str = include_str!("../migrations/2026-09-03-100000-0006_app_settings/down.sql");
-// Re-apply later migrations after the 0006 down->up cycle so the restored
-// schema matches the current one (0008 widened ff3_token to TEXT).
-const UP_TOKEN_SQL: &str =
-    include_str!("../migrations/2026-09-05-100000-0008_ff3_token_text/up.sql");
-const UP_ORIGIN_TRACE_SQL: &str = include_str!(
-    "../migrations/2026-09-06-010721-0000_add_enable_origin_trace_to_app_settings/up.sql"
-);
-const UP_DATE_FORMAT_SQL: &str = include_str!(
-    "../migrations/2026-09-17-120000-0000_add_default_date_format_to_app_settings/up.sql"
-);
-
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")] // AsyncMigrationHarness blocks in place
 async fn app_settings_repo_roundtrip_and_reversible_migration() {
     let db = common::setup_pool().await;
-    common::clean(&db).await;
-    let repo = MysqlAppSettingsRepository::new(db.clone());
+    let repo = SqliteAppSettingsRepository::new(db.clone());
 
     // empty by default
     assert!(repo.get().await.unwrap().is_none());
@@ -76,16 +64,11 @@ async fn app_settings_repo_roundtrip_and_reversible_migration() {
     let loaded = repo.get().await.unwrap().unwrap();
     assert_eq!(loaded.ff3_token, long_token);
 
-    // migration is reversible: down then up, then the table still works.
-    // DDL must go through the text protocol (batch_execute), not the
-    // prepared-statement protocol.
+    // migrations are reversible: revert all, then re-apply.
     {
-        let mut conn = db.get().await.unwrap();
-        conn.batch_execute(DOWN_SQL).await.unwrap();
-        conn.batch_execute(UP_SQL).await.unwrap();
-        conn.batch_execute(UP_TOKEN_SQL).await.unwrap();
-        conn.batch_execute(UP_ORIGIN_TRACE_SQL).await.unwrap();
-        conn.batch_execute(UP_DATE_FORMAT_SQL).await.unwrap();
+        let mut harness = AsyncMigrationHarness::new(db.get().await.unwrap());
+        harness.revert_all_migrations(MIGRATIONS).unwrap();
+        harness.run_pending_migrations(MIGRATIONS).unwrap();
     }
     assert!(repo.get().await.unwrap().is_none());
 }

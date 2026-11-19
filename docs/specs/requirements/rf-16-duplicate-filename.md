@@ -48,3 +48,4 @@ Rationale: duplicate names would make the import history ambiguous and break res
 ## Notes
 
 - The mechanism for case-insensitive comparison is specified in the TRD (section 2).
+- TRD v0.10 (2026-11-18): with SQLite (`COLLATE NOCASE`) the server-side comparison folds **ASCII letters only** - `Stmt.csv` = `stmt.csv`, but `Ñ`/`ñ` or `É`/`é` count as different names.

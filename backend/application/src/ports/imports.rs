@@ -21,7 +21,7 @@ pub trait BatchRepository: Send + Sync {
         id: BatchId,
         account_id: Ff3AccountId,
     ) -> Result<(), ApplicationError>;
-    /// Batches whose filename matches (MySQL collation is case-insensitive).
+    /// Batches whose filename matches (case-insensitive, RF-16).
     /// Default: empty (fakes that do not implement it).
     async fn find_by_filename(&self, _filename: &str) -> Result<Vec<Batch>, ApplicationError> {
         Ok(Vec::new())

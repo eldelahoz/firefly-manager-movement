@@ -10,7 +10,10 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 use utoipa_scalar::Scalar;
 
+use axum::http::StatusCode;
+use axum::routing::any;
 use tower_http::limit::RequestBodyLimitLayer;
+use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 
 use crate::handlers::firefly::{
@@ -131,4 +134,72 @@ pub fn app(state: AppState) -> axum::Router {
         .layer(RequestBodyLimitLayer::new(10 * 1024 * 1024))
         // Request tracking: logs each incoming request (method, path, status, latency) at INFO.
         .layer(TraceLayer::new_for_http())
+}
+
+/// Serves the built SPA from `dist` for every path the API does not handle.
+/// Unknown paths get `index.html` with 200 (client-side routing); unknown `/api/*` stay 404.
+pub fn serve_frontend(router: axum::Router, dist: &std::path::Path) -> axum::Router {
+    let spa = ServeDir::new(dist).fallback(ServeFile::new(dist.join("index.html")));
+    router
+        .route("/api/{*rest}", any(|| async { StatusCode::NOT_FOUND }))
+        .fallback_service(spa)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+
+    async fn get(router: &axum::Router, uri: &str) -> (StatusCode, String) {
+        let res = router
+            .clone()
+            .oneshot(Request::get(uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        let status = res.status();
+        let body = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        (status, String::from_utf8_lossy(&body).into_owned())
+    }
+
+    #[tokio::test]
+    async fn spa_fallback_serves_index_and_api_wins() {
+        let dist = std::env::temp_dir().join(format!("ffm-dist-{}", std::process::id()));
+        std::fs::create_dir_all(dist.join("assets")).unwrap();
+        std::fs::write(dist.join("index.html"), "<html>spa</html>").unwrap();
+        std::fs::write(dist.join("assets/app.js"), "console.log(1)").unwrap();
+        let api = axum::Router::new()
+            .route("/health", get_route())
+            .route("/api/imports", get_route());
+        let router = serve_frontend(api, &dist);
+
+        assert_eq!(
+            get(&router, "/health").await,
+            (StatusCode::OK, "api".into())
+        );
+        assert_eq!(
+            get(&router, "/api/imports").await,
+            (StatusCode::OK, "api".into())
+        );
+        assert_eq!(get(&router, "/api/nope").await.0, StatusCode::NOT_FOUND);
+        assert_eq!(
+            get(&router, "/assets/app.js").await,
+            (StatusCode::OK, "console.log(1)".into())
+        );
+        assert_eq!(
+            get(&router, "/").await,
+            (StatusCode::OK, "<html>spa</html>".into())
+        );
+        assert_eq!(
+            get(&router, "/imports/42/results").await,
+            (StatusCode::OK, "<html>spa</html>".into())
+        );
+    }
+
+    fn get_route() -> axum::routing::MethodRouter {
+        axum::routing::get(|| async { "api" })
+    }
 }

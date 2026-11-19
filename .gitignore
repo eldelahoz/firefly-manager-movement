@@ -26,3 +26,7 @@ docs/.obsidian/snippets/**
 docs/.obsidian/themes/**
 !docs/.obsidian/themes/Minimal/
 !docs/.obsidian/themes/Minimal/**
+# SQLite database files
+*.db
+*.db-wal
+*.db-shm

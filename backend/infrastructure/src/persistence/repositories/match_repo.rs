@@ -1,11 +1,11 @@
-//! `MysqlMatchRepository` - implements `MatchRepository`.
+//! `SqliteMatchRepository` - implements `MatchRepository`.
 //! The module is named `match_repo` because `match` is a reserved keyword.
 
 use std::collections::HashSet;
 
 use async_trait::async_trait;
 use diesel::prelude::*;
-use diesel_async::RunQueryDsl;
+use diesel_async::{AsyncConnection, RunQueryDsl};
 
 use ffm_application::dtos::NewMatch;
 use ffm_application::error::ApplicationError;
@@ -17,18 +17,18 @@ use crate::models::{MatchModel, NewMatchModel};
 use crate::persistence::pool::DbPool;
 use crate::schema::{ff3_transactions, matches};
 
-pub struct MysqlMatchRepository {
+pub struct SqliteMatchRepository {
     pool: DbPool,
 }
 
-impl MysqlMatchRepository {
+impl SqliteMatchRepository {
     pub fn new(pool: DbPool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait]
-impl MatchRepository for MysqlMatchRepository {
+impl MatchRepository for SqliteMatchRepository {
     async fn insert_batch(&self, matches: Vec<NewMatch>) -> Result<(), ApplicationError> {
         let mut conn = self
             .pool
@@ -39,12 +39,19 @@ impl MatchRepository for MysqlMatchRepository {
         if models.is_empty() {
             return Ok(());
         }
-        diesel::insert_into(crate::schema::matches::table)
-            .values(&models)
-            .execute(&mut conn)
-            .await
-            .map_err(|e| ApplicationError::Database(e.to_string()))?;
-        Ok(())
+        // Diesel's SQLite multi-row INSERT is sync-only (not reachable via SyncConnectionWrapper):
+        // one row per statement in a single tx keeps it atomic and under the bound-variable limit.
+        conn.transaction(async |c| {
+            for m in &models {
+                diesel::insert_into(crate::schema::matches::table)
+                    .values(m)
+                    .execute(c)
+                    .await?;
+            }
+            Ok::<_, diesel::result::Error>(())
+        })
+        .await
+        .map_err(|e| ApplicationError::Database(e.to_string()))
     }
 
     async fn by_reconciliation(

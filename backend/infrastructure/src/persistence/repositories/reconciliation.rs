@@ -1,10 +1,10 @@
-//! `MysqlReconciliationRepository` - implements `ReconciliationRepository`.
+//! `SqliteReconciliationRepository` - implements `ReconciliationRepository`.
 
 use std::collections::HashMap;
 
 use async_trait::async_trait;
 use diesel::prelude::*;
-use diesel_async::RunQueryDsl;
+use diesel_async::{AsyncConnection, RunQueryDsl};
 
 use ffm_application::dtos::{NewReconciliation, ReconciliationRun};
 use ffm_application::error::ApplicationError;
@@ -15,14 +15,14 @@ use ffm_domain::ids::{BatchId, ReconciliationId};
 use crate::models::{
     NewFf3TransactionModel, NewMatchModel, NewReconciliationModel, ReconciliationModel,
 };
-use crate::persistence::pool::DbPool;
+use crate::persistence::pool::{DbConnection, DbPool};
 use crate::schema::{ff3_transactions, matches, movements, reconciliations};
 
-pub struct MysqlReconciliationRepository {
+pub struct SqliteReconciliationRepository {
     pool: DbPool,
 }
 
-impl MysqlReconciliationRepository {
+impl SqliteReconciliationRepository {
     pub fn new(pool: DbPool) -> Self {
         Self { pool }
     }
@@ -37,7 +37,7 @@ fn map_diesel_err(e: diesel::result::Error) -> ApplicationError {
 }
 
 #[async_trait]
-impl ReconciliationRepository for MysqlReconciliationRepository {
+impl ReconciliationRepository for SqliteReconciliationRepository {
     async fn insert(
         &self,
         reconciliation: NewReconciliation,
@@ -50,16 +50,11 @@ impl ReconciliationRepository for MysqlReconciliationRepository {
         let model = NewReconciliationModel::from(reconciliation);
         diesel::insert_into(reconciliations::table)
             .values(&model)
-            .execute(&mut conn)
+            .returning(reconciliations::id)
+            .get_result::<i64>(&mut conn)
             .await
-            .map_err(map_diesel_err)?;
-        diesel::select(diesel::dsl::sql::<diesel::sql_types::BigInt>(
-            "LAST_INSERT_ID()",
-        ))
-        .get_result::<i64>(&mut conn)
-        .await
-        .map(ReconciliationId::new)
-        .map_err(map_diesel_err)
+            .map(ReconciliationId::new)
+            .map_err(map_diesel_err)
     }
 
     async fn latest_by_batch(
@@ -86,8 +81,6 @@ impl ReconciliationRepository for MysqlReconciliationRepository {
     }
 
     async fn save_run(&self, run: ReconciliationRun) -> Result<ReconciliationId, ApplicationError> {
-        use diesel_async::TransactionManager;
-
         let mut conn = self
             .pool
             .get()
@@ -95,60 +88,27 @@ impl ReconciliationRepository for MysqlReconciliationRepository {
             .map_err(|e| ApplicationError::Database(e.to_string()))?;
 
         // Single transaction (R8): all statements commit together or none.
-        // (Reborrow the inner connection of the pool object.)
-        let inner: &mut diesel_async::AsyncMysqlConnection = &mut conn;
-        <diesel_async::AnsiTransactionManager as TransactionManager<
-            diesel_async::AsyncMysqlConnection,
-        >>::begin_transaction(inner)
-        .await
-        .map_err(map_diesel_err)?;
-
-        match save_run_tx(&mut conn, run).await {
-            Ok(recon_id) => {
-                let inner: &mut diesel_async::AsyncMysqlConnection = &mut conn;
-                <diesel_async::AnsiTransactionManager as TransactionManager<
-                    diesel_async::AsyncMysqlConnection,
-                >>::commit_transaction(inner)
-                .await
-                .map_err(map_diesel_err)?;
-                Ok(ReconciliationId::new(recon_id))
-            }
-            Err(e) => {
-                // Best-effort rollback; the original error is the meaningful one.
-                let inner: &mut diesel_async::AsyncMysqlConnection = &mut conn;
-                let _ = <diesel_async::AnsiTransactionManager as TransactionManager<
-                    diesel_async::AsyncMysqlConnection,
-                >>::rollback_transaction(inner)
-                .await;
-                Err(e)
-            }
-        }
+        conn.transaction(async |c| save_run_tx(c, run).await)
+            .await
+            .map(ReconciliationId::new)
+            .map_err(map_diesel_err)
     }
 }
 
 // Body of the atomic run persistence, executed inside a transaction.
-async fn save_run_tx(
-    conn: &mut diesel_async::AsyncMysqlConnection,
-    run: ReconciliationRun,
-) -> Result<i64, ApplicationError> {
+async fn save_run_tx(conn: &mut DbConnection, run: ReconciliationRun) -> QueryResult<i64> {
     // 1. Reconciliation snapshot.
-    diesel::insert_into(reconciliations::table)
+    let recon_id: i64 = diesel::insert_into(reconciliations::table)
         .values(&NewReconciliationModel::from(run.reconciliation))
-        .execute(conn)
-        .await
-        .map_err(map_diesel_err)?;
-    let recon_id: i64 = diesel::select(diesel::dsl::sql::<diesel::sql_types::BigInt>(
-        "LAST_INSERT_ID()",
-    ))
-    .get_result(conn)
-    .await
-    .map_err(map_diesel_err)?;
+        .returning(reconciliations::id)
+        .get_result(conn)
+        .await?;
 
     // 2. Per-run FF3 transaction cache (row-by-row to capture each
     //    generated local id).
     let mut ff3_local: HashMap<(i64, i64), i64> = HashMap::new();
     for t in run.ff3_transactions {
-        diesel::insert_into(ff3_transactions::table)
+        let local: i64 = diesel::insert_into(ff3_transactions::table)
             .values(&NewFf3TransactionModel {
                 reconciliation_id: recon_id,
                 ff3_id: t.ff3_id,
@@ -158,15 +118,9 @@ async fn save_run_tx(
                 description: t.description,
                 is_duplicate: t.is_duplicate,
             })
-            .execute(conn)
-            .await
-            .map_err(map_diesel_err)?;
-        let local: i64 = diesel::select(diesel::dsl::sql::<diesel::sql_types::BigInt>(
-            "LAST_INSERT_ID()",
-        ))
-        .get_result(conn)
-        .await
-        .map_err(map_diesel_err)?;
+            .returning(ff3_transactions::id)
+            .get_result(conn)
+            .await?;
         ff3_local.insert((t.ff3_id, t.ff3_journal_id), local);
     }
 
@@ -176,7 +130,9 @@ async fn save_run_tx(
             .get(&(m.ff3_id, m.ff3_journal_id))
             .copied()
             .ok_or_else(|| {
-                ApplicationError::Database(format!("match references unknown ff3_id {}", m.ff3_id))
+                diesel::result::Error::QueryBuilderError(
+                    format!("match references unknown ff3_id {}", m.ff3_id).into(),
+                )
             })?;
         diesel::insert_into(matches::table)
             .values(&NewMatchModel {
@@ -185,8 +141,7 @@ async fn save_run_tx(
                 ff3_transaction_id,
             })
             .execute(conn)
-            .await
-            .map_err(map_diesel_err)?;
+            .await?;
     }
 
     // 4. Movement statuses.
@@ -194,8 +149,7 @@ async fn save_run_tx(
         diesel::update(movements::table.filter(movements::id.eq(movement_id.as_i64())))
             .set(movements::status.eq(status.as_str()))
             .execute(conn)
-            .await
-            .map_err(map_diesel_err)?;
+            .await?;
     }
 
     Ok(recon_id)

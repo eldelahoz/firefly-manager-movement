@@ -9,10 +9,3 @@ export const queryClient = new QueryClient({
     onError: (error) => toast.error(error.message),
   }),
 });
-
-export function testQueryClient(): QueryClient {
-  return new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-    queryCache: new QueryCache({}),
-  });
-}

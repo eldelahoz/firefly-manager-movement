@@ -3,7 +3,7 @@ mod common;
 use ffm_application::dtos::NewCsvMapping;
 use ffm_application::ports::CsvMappingRepository;
 use ffm_domain::value_objects::HeaderSignature;
-use ffm_infrastructure::persistence::repositories::csv_mapping::MysqlCsvMappingRepository;
+use ffm_infrastructure::persistence::repositories::csv_mapping::SqliteCsvMappingRepository;
 
 fn signature() -> HeaderSignature {
     HeaderSignature::from_headers(&[
@@ -16,8 +16,7 @@ fn signature() -> HeaderSignature {
 #[tokio::test]
 async fn upsert_and_by_signature_idempotent() {
     let pool = common::setup_pool().await;
-    common::clean(&pool).await;
-    let repo = MysqlCsvMappingRepository::new(pool.clone());
+    let repo = SqliteCsvMappingRepository::new(pool.clone());
 
     let sig = signature();
     assert!(repo
@@ -63,6 +62,4 @@ async fn upsert_and_by_signature_idempotent() {
         updated.mapping_json,
         r#"{"amount":"importe","date":"fecha"}"#
     );
-
-    common::clean(&pool).await;
 }

@@ -1,18 +1,8 @@
 mod common;
 
-use std::sync::{Mutex, OnceLock};
-
 use ffm_application::dtos::NewFf3Account;
 use ffm_application::ports::Ff3AccountRepository;
-use ffm_infrastructure::persistence::repositories::ff3_account::MysqlFf3AccountRepository;
-
-/// Serializes tests sharing the dev database (clean() truncates all tables).
-fn db_lock() -> std::sync::MutexGuard<'static, ()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(()))
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-}
+use ffm_infrastructure::persistence::repositories::ff3_account::SqliteFf3AccountRepository;
 
 fn account(ff3_id: i64, name: &str, account_type: &str) -> NewFf3Account {
     NewFf3Account {
@@ -28,10 +18,8 @@ fn account(ff3_id: i64, name: &str, account_type: &str) -> NewFf3Account {
 #[allow(clippy::await_holding_lock)]
 #[tokio::test]
 async fn upsert_stores_iban_and_account_number() {
-    let _guard = db_lock();
     let pool = common::setup_pool().await;
-    common::clean(&pool).await;
-    let repo = MysqlFf3AccountRepository::new(pool.clone());
+    let repo = SqliteFf3AccountRepository::new(pool.clone());
 
     repo.upsert_batch(vec![NewFf3Account {
         ff3_id: 7,
@@ -62,17 +50,13 @@ async fn upsert_stores_iban_and_account_number() {
     let a = repo.by_ff3_id(7).await.expect("get").expect("some");
     assert_eq!(a.iban.as_deref(), Some("FR14 2004 1010 0505 0001 3M02 606"));
     assert_eq!(a.account_number, None);
-
-    common::clean(&pool).await;
 }
 
 #[allow(clippy::await_holding_lock)]
 #[tokio::test]
 async fn upsert_by_ff3_id_and_all_asset() {
-    let _guard = db_lock();
     let pool = common::setup_pool().await;
-    common::clean(&pool).await;
-    let repo = MysqlFf3AccountRepository::new(pool.clone());
+    let repo = SqliteFf3AccountRepository::new(pool.clone());
 
     assert!(repo.by_ff3_id(1).await.expect("missing none").is_none());
 
@@ -110,6 +94,4 @@ async fn upsert_by_ff3_id_and_all_asset() {
         .await
         .expect("by id none")
         .is_none());
-
-    common::clean(&pool).await;
 }

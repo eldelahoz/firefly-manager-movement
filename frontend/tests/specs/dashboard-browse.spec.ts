@@ -5,7 +5,9 @@ import { fixtures } from '../fixtures/fixtures';
 const { txs } = fixtures;
 
 test.describe('Dashboard > BrowseWidget', () => {
-  test.beforeEach(async ({ mockDashboard }) => {
+  test.beforeEach(async ({ page, mockDashboard }) => {
+    // Default range is [1st of month, today]; fixtures live in Sep 2026.
+    await page.clock.setFixedTime(new Date('2026-09-09T12:00:00Z'));
     await mockDashboard();
   });
 

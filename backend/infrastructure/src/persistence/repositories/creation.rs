@@ -1,4 +1,4 @@
-//! `MysqlCreationRepository` - implements `CreationRepository`.
+//! `SqliteCreationRepository` - implements `CreationRepository`.
 
 use async_trait::async_trait;
 use diesel::prelude::*;
@@ -14,11 +14,11 @@ use crate::models::{CreationModel, NewCreationModel};
 use crate::persistence::pool::DbPool;
 use crate::schema::{creations, movements};
 
-pub struct MysqlCreationRepository {
+pub struct SqliteCreationRepository {
     pool: DbPool,
 }
 
-impl MysqlCreationRepository {
+impl SqliteCreationRepository {
     pub fn new(pool: DbPool) -> Self {
         Self { pool }
     }
@@ -33,7 +33,7 @@ fn map_diesel_err(e: diesel::result::Error) -> ApplicationError {
 }
 
 #[async_trait]
-impl CreationRepository for MysqlCreationRepository {
+impl CreationRepository for SqliteCreationRepository {
     async fn insert(&self, creation: NewCreation) -> Result<CreationId, ApplicationError> {
         let mut conn = self
             .pool
@@ -43,16 +43,11 @@ impl CreationRepository for MysqlCreationRepository {
         let model = NewCreationModel::from(creation);
         diesel::insert_into(creations::table)
             .values(&model)
-            .execute(&mut conn)
+            .returning(creations::id)
+            .get_result::<i64>(&mut conn)
             .await
-            .map_err(map_diesel_err)?;
-        diesel::select(diesel::dsl::sql::<diesel::sql_types::BigInt>(
-            "LAST_INSERT_ID()",
-        ))
-        .get_result::<i64>(&mut conn)
-        .await
-        .map(CreationId::new)
-        .map_err(map_diesel_err)
+            .map(CreationId::new)
+            .map_err(map_diesel_err)
     }
 
     async fn by_movement(

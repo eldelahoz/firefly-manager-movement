@@ -268,7 +268,7 @@ struct FakeReconciliationRepo {
     runs: Mutex<Vec<(ReconciliationId, ReconciliationRun)>>,
     next_id: Mutex<i64>,
     /// Mirrors the real `save_run`: movement status updates are applied
-    /// as part of the run (single tx in the MySQL adapter).
+    /// as part of the run (single tx in the SQL adapter).
     movements: Option<Arc<FakeMovementRepo>>,
 }
 

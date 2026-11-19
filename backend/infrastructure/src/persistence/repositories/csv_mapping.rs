@@ -1,7 +1,6 @@
-//! `MysqlCsvMappingRepository` - implements `CsvMappingRepository`.
-//! Upsert by `header_signature` (UNIQUE) with `ON DUPLICATE KEY UPDATE`;
-//! `LAST_INSERT_ID(id)` in the UPDATE keeps the row id accessible to a
-//! subsequent `LAST_INSERT_ID()` (whether it inserted or updated).
+//! `SqliteCsvMappingRepository` - implements `CsvMappingRepository`.
+//! Upsert by `header_signature` (UNIQUE) with `ON CONFLICT DO UPDATE ... RETURNING id`
+//! (returns the row id whether it inserted or updated).
 
 use async_trait::async_trait;
 use diesel::prelude::*;
@@ -18,11 +17,11 @@ use crate::models::{CsvMappingModel, NewCsvMappingModel};
 use crate::persistence::pool::DbPool;
 use crate::schema::csv_mappings;
 
-pub struct MysqlCsvMappingRepository {
+pub struct SqliteCsvMappingRepository {
     pool: DbPool,
 }
 
-impl MysqlCsvMappingRepository {
+impl SqliteCsvMappingRepository {
     pub fn new(pool: DbPool) -> Self {
         Self { pool }
     }
@@ -37,7 +36,7 @@ fn map_diesel_err(e: diesel::result::Error) -> ApplicationError {
 }
 
 #[async_trait]
-impl CsvMappingRepository for MysqlCsvMappingRepository {
+impl CsvMappingRepository for SqliteCsvMappingRepository {
     async fn by_signature(
         &self,
         signature: HeaderSignature,
@@ -65,22 +64,17 @@ impl CsvMappingRepository for MysqlCsvMappingRepository {
             .await
             .map_err(|e| ApplicationError::Database(e.to_string()))?;
         let model = NewCsvMappingModel::from(mapping);
-        diesel::sql_query(
-            "INSERT INTO csv_mappings (header_signature, mapping_json) VALUES (?, ?) \
-             ON DUPLICATE KEY UPDATE mapping_json = VALUES(mapping_json), \
-             id = LAST_INSERT_ID(id)",
-        )
-        .bind::<diesel::sql_types::Varchar, _>(&model.header_signature)
-        .bind::<diesel::sql_types::Json, _>(&model.mapping_json)
-        .execute(&mut conn)
-        .await
-        .map_err(map_diesel_err)?;
-        diesel::select(diesel::dsl::sql::<diesel::sql_types::BigInt>(
-            "LAST_INSERT_ID()",
-        ))
-        .get_result::<i64>(&mut conn)
-        .await
-        .map(CsvMappingId::new)
-        .map_err(map_diesel_err)
+        diesel::insert_into(csv_mappings::table)
+            .values(&model)
+            .on_conflict(csv_mappings::header_signature)
+            .do_update()
+            .set(
+                csv_mappings::mapping_json.eq(diesel::upsert::excluded(csv_mappings::mapping_json)),
+            )
+            .returning(csv_mappings::id)
+            .get_result::<i64>(&mut conn)
+            .await
+            .map(CsvMappingId::new)
+            .map_err(map_diesel_err)
     }
 }

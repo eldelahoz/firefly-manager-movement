@@ -2,17 +2,19 @@
 
 | Field | Value |
 | --- | --- |
-| Version | Original (2026-08-14) — unamended |
+| Version | v0.11 (integrates PRD v0.11 amendment) |
 | Category | Privacy |
 | Related | NFR-02 |
 
 ## Description
 
-The application is **self-hosted only**. It MUST NOT collect or transmit telemetry, analytics or crash reports. The only outbound network calls are: to the configured Firefly III instance and to the MySQL database.
+The application is **self-hosted only**. It MUST NOT collect or transmit telemetry, analytics or crash reports. The only outbound network calls are to the configured Firefly III instance; the database is an embedded local file (SQLite) and involves no network call.
+
+> **Amendment (v0.11, 2026-11-18)**: the MySQL database is no longer an outbound destination (replaced by embedded SQLite, NFR-01).
 
 ## Metric
 
-Count of telemetry/analytics SDKs in the dependency tree; count of outbound requests to hosts other than FF3/MySQL in the test suite.
+Count of telemetry/analytics SDKs in the dependency tree; count of outbound requests to hosts other than FF3 in the test suite.
 
 ## Threshold
 

@@ -6,11 +6,11 @@ use ffm_application::dtos::{NewBatch, NewReconciliation};
 use ffm_application::ports::{BatchRepository, ReconciliationRepository};
 use ffm_domain::ids::BatchId;
 use ffm_domain::value_objects::BatchStatus;
-use ffm_infrastructure::persistence::repositories::batch::MysqlBatchRepository;
-use ffm_infrastructure::persistence::repositories::reconciliation::MysqlReconciliationRepository;
+use ffm_infrastructure::persistence::repositories::batch::SqliteBatchRepository;
+use ffm_infrastructure::persistence::repositories::reconciliation::SqliteReconciliationRepository;
 
 async fn insert_batch(pool: &common::DbPool) -> BatchId {
-    let batches = MysqlBatchRepository::new(pool.clone());
+    let batches = SqliteBatchRepository::new(pool.clone());
     batches
         .insert(NewBatch {
             filename: "recon.csv".into(),
@@ -41,8 +41,7 @@ fn new_recon(batch_id: BatchId) -> NewReconciliation {
 #[tokio::test]
 async fn insert_and_latest_by_batch() {
     let pool = common::setup_pool().await;
-    common::clean(&pool).await;
-    let repo = MysqlReconciliationRepository::new(pool.clone());
+    let repo = SqliteReconciliationRepository::new(pool.clone());
 
     // No reconciliations: None, not an error.
     assert!(repo
@@ -90,6 +89,4 @@ async fn insert_and_latest_by_batch() {
         .await
         .expect("other none")
         .is_none());
-
-    common::clean(&pool).await;
 }

@@ -1,8 +1,8 @@
 # firefly-manager-movement
 
-![Rust](https://img.shields.io/badge/rust-1.75+-orange?logo=rust)
+![Rust](https://img.shields.io/badge/rust-1.86+-orange?logo=rust)
 ![Axum](https://img.shields.io/badge/axum-0.8-blue?logo=rust)
-![MySQL](https://img.shields.io/badge/mysql-9.7-4479a1?logo=mysql)
+![SQLite](https://img.shields.io/badge/sqlite-3-003b57?logo=sqlite)
 ![Architecture](https://img.shields.io/badge/clean--architecture-onion-lightgrey)
 ![Status](https://img.shields.io/badge/status-in%20development-yellow)
 
@@ -16,7 +16,7 @@ Built in Rust with **Clean Architecture** (domain → application → infrastruc
 backend/
 ├── domain/           # Entities, value objects, matching rules
 ├── application/      # Use cases, ports (interfaces), DTOs, errors
-├── infrastructure/   # MySQL (diesel), Firefly III HTTP client, repositories, migrations/
+├── infrastructure/   # SQLite (diesel), Firefly III HTTP client, repositories, migrations/
 ├── presentation/     # HTTP API (axum), OpenAPI (utoipa + Scalar)
 ├── Cargo.toml        # Workspace root
 └── diesel.toml       # Diesel CLI config
@@ -33,13 +33,23 @@ backend/
 │  Ports, DTOs, business orchestration    │
 ├─────────────────────────────────────────┤
 │       Infrastructure (adapters)         │
-│  MySQL (diesel), Firefly III client     │
+│  SQLite (diesel), Firefly III client    │
 ├─────────────────────────────────────────┤
 │         Domain (core)                   │
 │  Entities, value objects, rules         │
 └─────────────────────────────────────────┘
      Dependencies point inward →
 ```
+
+## Run
+
+One image serves the API and the UI on port 3000 and keeps its SQLite database on the `ffm-data` volume:
+
+```bash
+docker compose up -d --build   # http://localhost:3000
+```
+
+Then set your Firefly III URL + personal access token in **Settings**. If Firefly III runs on the Docker host, use `http://host.docker.internal:<port>` (e.g. `:8080`), not `localhost` - inside the container `localhost` is the app itself. Firefly III is not included; for local development see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## API Endpoints
 

@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export type PillStatus = string;
-
 const PILL_BASE =
   'inline-flex w-fit max-w-full items-center overflow-hidden rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide';
 
