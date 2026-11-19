@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Project | firefly-manager-movement |
-| Version | 0.9 |
+| Version | 0.10 |
 | Created | 2026-08-14 |
-| Last modified | 2026-10-27 |
+| Last modified | 2026-11-18 |
 | Related PRD | [`2026-08-14-prd-rapprochement-bancaire.md`](./2026-08-14-prd-rapprochement-bancaire.md) |
 | Status | Draft in progress |
 
@@ -13,20 +13,24 @@
 
 ## 1. Overview
 
-Self-hosted web app in 3 services, deployable with Docker Compose next to Firefly III:
+Self-hosted web app shipped as **one Docker image** (v0.10): the backend serves the REST API and the built frontend on the same port; the database is an embedded SQLite file. Firefly III is an existing external instance reached by URL + token (RF-19).
 
 ```mermaid
 flowchart LR
-    FE["Frontend<br/>React/TS"] -->|REST| BE["Backend<br/>Rust (axum)"]
-    BE -->|API v1| FF3["Firefly III<br/>(existing)"]
-    BE -->|SQL| DB[("MySQL")]
+    subgraph APP["ffm container (:3000)"]
+        FE["Frontend<br/>React/TS (static dist/)"] -->|REST /api| BE["Backend<br/>Rust (axum)"]
+        BE -->|embedded| DB[("SQLite file<br/>/data/ffm.db")]
+    end
+    BE -->|API v1| FF3["Firefly III<br/>(existing, external)"]
 ```
 
-| Service | Technology | Role |
+| Component | Technology | Role |
 | --- | --- | --- |
-| Backend | Rust — axum + tokio, reqwest (HTTP client), Diesel (ORM, MySQL) | Internal REST API, CSV parsing, reconciliation engine, Firefly III client |
-| Frontend | React + Vite + TypeScript | SPA: upload, mapping, reconciliation table, batch creation |
-| Database | MySQL 8 | Persistence of batches, movements, results, CSV mappings |
+| Backend | Rust — axum + tokio, reqwest (HTTP client), Diesel (ORM, SQLite), tower-http `ServeDir` | Internal REST API, CSV parsing, reconciliation engine, Firefly III client; serves the frontend `dist/` with SPA fallback to `index.html` |
+| Frontend | React + Vite + TypeScript | SPA: upload, mapping, reconciliation table, batch creation (built at image build time, calls relative `/api`) |
+| Database | SQLite 3 (>= 3.35, embedded) | Persistence of batches, movements, results, CSV mappings — one `.db` file on a volume |
+
+> **Amendment (v0.10, 2026-11-18) — SQLite + single image**: MySQL 8 is replaced by an embedded SQLite file and the 3-service stack (`backend`, `frontend`, `mysql`) by one container. No data migration: the 13 MySQL migrations are replaced by one initial SQLite migration (no existing data to preserve).
 
 ## 2. Data model
 
@@ -145,6 +149,8 @@ Key constraints:
   - `deleted_audit.snapshot_json` = point-in-time, intentionally not normalized.
 - Semantics of `movements.status`: reflects the latest run (`imported` → `matched`/`missing`); `created` and `ignored` are set by user action. A confirmation re-reconciliation moves `created` → `matched` without losing information (provenance stays in `creations`).
 - Batch statuses (`batches.status`): `parsed` → `reconciled` → `applied` (see PRD section 4). A batch in `parsed` status can be deleted with its movements (`DELETE /api/imports/{id}`); `reconciled`/`applied` batches are immutable (RF-09).
+- **SQLite storage (v0.10)**: the ER types above are logical. Ids are `INTEGER PRIMARY KEY` (64-bit rowid, still `i64`/BIGINT in code); amounts stay signed 64-bit integers (NFR-06); `json` columns are `TEXT` holding serialized JSON; `varchar` is `TEXT`. Inserted ids come from `RETURNING id`; upserts (`app_settings`, `ff3_accounts`, `csv_mappings`) use `ON CONFLICT ... DO UPDATE`; `updated_at` is set explicitly by the upsert (no `ON UPDATE` clause in SQLite). Foreign keys are enforced per connection (`PRAGMA foreign_keys = ON`).
+- `batches.filename` is `TEXT COLLATE NOCASE` (v0.10): the RF-16 lookup is case-insensitive for **ASCII letters only** — `Stmt.csv` = `stmt.csv`, but `Ñ`/`ñ` or `É`/`é` are distinct (MySQL's collation also folded case and accents of non-ASCII letters; accepted behavior change).
 - Indexes: `movements(batch_id, status)`, `movements(batch_id, date)`, `ff3_transactions(reconciliation_id, amount_cents)`.
 
 ## 3. Backend API
@@ -168,7 +174,7 @@ Key constraints:
 Notes:
 
 - Batch currency (`POST /api/imports`, `currency` field): since frontend v1.5, it is **derived from the FF3 account selected** in the import wizard and transmitted as-is; the backend keeps its `EUR` default if the field is absent (contract unchanged).
-- **Duplicate file names**: `POST /api/imports` refuses a file whose name already exists in an existing batch — `find_by_filename` check before insertion (RF-16, case-insensitive via MySQL collation). The wizard also pre-checks client-side against the batch list and blocks the upload with an inline error.
+- **Duplicate file names**: `POST /api/imports` refuses a file whose name already exists in an existing batch — `find_by_filename` check before insertion (RF-16, case-insensitive via `COLLATE NOCASE`, ASCII letters only — §2, v0.10). The wizard also pre-checks client-side against the batch list and blocks the upload with an inline error.
 - **Mapping probe flow**: when no mapping is memorized or auto-detected, the wizard performs a "probe" upload (headers only, 0 movements, batch in `parsed` status). Upon mapping confirmation, the probe is deleted (`DELETE /api/imports/{id}`) and the file is re-uploaded with the confirmed columns — no orphan batches.
 - **Date format (v0.8)**: `POST /api/imports` accepts an optional multipart `date_format` field and `PUT /api/imports/{id}/mapping` an optional `date_format` body field (wire values from the six known formats; an unknown value is rejected with 400). The saved mapping persists it inside `mapping_json`; a re-import with the same signature reapplies it automatically (RF-02 v0.8).
 - **Persisted CSV headers** (2026-09-13): `batches.headers_json` + `batches.detected_delimiter` store the header row and delimiter detected at upload; `GET /api/imports/{id}` returns them (`headers`, `detected_delimiter`) so the mapping step lists the original columns when resuming an incomplete import (RF-02, RF-18).
@@ -216,8 +222,11 @@ Backend configuration (environment variables):
 | --- | --- |
 | `FF3_URL` | Firefly III instance URL |
 | `FF3_TOKEN` | API token (never exposed to the frontend, NFR-02) |
-| `DATABASE_URL` | MySQL connection string |
+| `DATABASE_URL` | SQLite database file path (v0.10) — `/data/ffm.db` in the image, e.g. `./ffm.db` locally; created on first start |
+| `FRONTEND_DIST` | Directory of the built frontend served by the backend with SPA fallback (v0.10) — `/app/dist` in the image; unset = API only (local dev uses the Vite server) |
 | `MATCH_TOLERANCE_DAYS` | Default date tolerance (default 0) |
+| `FF3_HEALTH_PROBE` | `true` adds a Firefly III reachability check to `/health` (default `false`) |
+| `RUST_LOG` | Log filter (tracing `EnvFilter`) |
 
 `FF3_URL` and `FF3_TOKEN` are **superseded by the app settings** (RF-19, v0.6): once a connection is saved, settings take precedence; the variables only serve as deployment-time defaults before any settings exist.
 
@@ -244,9 +253,11 @@ Target complexity: O(n log n) on the statement; 1,000 movements < 5 s excluding 
 
 ## 7. Deployment
 
-Docker Compose: 3 services (`backend`, `frontend`, `mysql`) + shared network with the existing Firefly III instance. Schema migrations managed by Diesel (`diesel migration run`) at backend startup.
+**Single image (v0.10)**: a multi-stage `Dockerfile` builds the frontend (node + pnpm), the backend (`cargo build --release`) and copies both into a `debian:bookworm-slim` runtime. The container exposes port **3000** (API under `/api`, health check at `/health`, UI everywhere else) and keeps its database on the **`/data` volume** (`DATABASE_URL=/data/ffm.db`). `docker-compose.yml` runs this one service with a named volume; it does not include Firefly III, which is an existing external instance configured in Settings (RF-19) or seeded with `FF3_URL` / `FF3_TOKEN`; a Firefly III on the Docker host is reached at `http://host.docker.internal:<port>` (the compose file maps it to `host-gateway`, Linux included). Embedded Diesel migrations run at backend startup. Backup = copy of the `.db` file (with the app stopped, or via `sqlite3 .backup`).
 
-ORM note: Diesel is synchronous by default; integration with axum/tokio uses `diesel-async` (async MySQL pool) to avoid blocking the runtime.
+`docker-compose.firefly.yml` is a **dev-only** helper that starts a local Firefly III with its own MySQL; it is not part of the product deployment.
+
+ORM note: Diesel is synchronous; integration with axum/tokio uses `diesel-async`'s `SyncConnectionWrapper<SqliteConnection>` behind the deadpool pool, so repositories keep their async API while each query runs on a blocking thread. SQLite allows one writer at a time: every connection sets `journal_mode = WAL`, `busy_timeout = 5000` and `foreign_keys = ON`. Requires SQLite >= 3.35 for `RETURNING`.
 
 ## 8. Open decisions
 

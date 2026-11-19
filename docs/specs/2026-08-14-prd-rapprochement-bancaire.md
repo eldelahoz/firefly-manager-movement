@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Project | firefly-manager-movement |
-| Version | 0.10 |
+| Version | 0.11 |
 | Created | 2026-08-14 |
-| Last modified | 2026-10-09 |
+| Last modified | 2026-11-18 |
 | Author | A. Delahoz |
 | Status | Draft in progress |
 
@@ -254,15 +254,17 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 > - The reconciliation step displays the computed window and offers an **Edit** manual override (editable from/to date inputs) with **Auto** to return to the tolerance-derived values (RF-06, RF-13).
 > - Extras dated outside the statement's `min..max` range carry an **`Outside period`** badge and are excluded from the displayed extras count; the rows remain visible for information (RF-07). The persisted per-run `extra_count` snapshot stays the raw audit count of the run.
 
+> **Amendment (v0.11, 2026-11-18) — SQLite and single image (NFR-01, NFR-03)**: the database moves from MySQL to an embedded **SQLite** file, and the application ships as **one Docker image** (API + UI on one port, data on a volume). Firefly III stays an existing external instance (RF-19). Consequence for RF-16: the case-insensitive filename check folds ASCII letters only (TRD v0.10). No user-visible feature changes otherwise.
+
 ## 6. Non-functional requirements
 
 Each requirement ID links to its detailed specification under [`requirements/`](./requirements/).
 
 | ID | Requirement |
 | --- | --- |
-| [NFR-01](./requirements/nfr-01-architecture.md) | **Architecture**: standalone web app; Rust backend, React frontend, MySQL database. Deployable with Docker Compose. |
+| [NFR-01](./requirements/nfr-01-architecture.md) | **Architecture**: standalone web app; Rust backend, React frontend, embedded SQLite database, shipped as one Docker image (v0.11). |
 | [NFR-02](./requirements/nfr-02-security.md) | **Security**: the Firefly III connection (URL + API token) is configured in the app settings and stored backend-side only (never exposed to the browser). No banking data is sent to a third-party service. |
-| [NFR-03](./requirements/nfr-03-privacy.md) | **Privacy**: self-hosted only; no telemetry. |
+| [NFR-03](./requirements/nfr-03-privacy.md) | **Privacy**: self-hosted only; no telemetry; the only outbound calls go to Firefly III. |
 | [NFR-04](./requirements/nfr-04-performance.md) | **Performance**: reconciliation of a 1,000-movement statement < 5 s (excluding Firefly III API latency). |
 | [NFR-05](./requirements/nfr-05-idempotency.md) | **Reliability**: creations in Firefly III are idempotent per batch+movement (no double creation on retry). |
 | [NFR-06](./requirements/nfr-06-amount-integrity.md) | **Amounts**: handled as integers (cents) or exact decimals, never floats. |
@@ -277,8 +279,8 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 | --- | --- |
 | Backend | Rust |
 | Frontend | React |
-| Database | MySQL |
-| Deployment | Docker Compose |
+| Database | SQLite (embedded file) |
+| Deployment | One Docker image (Docker Compose) |
 
 Technical details (data model, endpoints, Firefly III API integration) are described in the TRD: [`2026-08-14-trd-architecture-technique.md`](./2026-08-14-trd-architecture-technique.md).
 
