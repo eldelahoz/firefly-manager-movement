@@ -11,7 +11,10 @@ const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1440, height: 900 };
 const LONG_DESC = 'PAGO PSE ELECTRIFICADORA DEL VALLE FACTURA 2026-09 REF 88K2-SEGUNDA-ENTREGA';
 const LONG_FILE = 'extracto-bancolombia-cuenta-ahorros-septiembre-2026.csv';
-const withLongDesc = <T extends { description: string }>(x: T): T => ({ ...x, description: LONG_DESC });
+const withLongDesc = <T extends { description: string }>(x: T): T => ({
+  ...x,
+  description: LONG_DESC,
+});
 
 const r = fixtures.results;
 const results = {
@@ -32,7 +35,9 @@ async function expectNoHorizontalOverflow(page: Page, where: string) {
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,
   }));
-  expect(scrollWidth, `${where}: scrollWidth ${scrollWidth} vs clientWidth ${clientWidth}`).toBe(clientWidth);
+  expect(scrollWidth, `${where}: scrollWidth ${scrollWidth} vs clientWidth ${clientWidth}`).toBe(
+    clientWidth,
+  );
 }
 
 async function expectInsideViewport(el: Locator, what: string) {
@@ -52,18 +57,29 @@ async function expectWithinViewportWidth(el: Locator, what: string) {
   const box = await el.boundingBox();
   expect(box, `${what} bounding box`).not.toBeNull();
   expect(box!.x, `${what} left edge`).toBeGreaterThanOrEqual(0);
-  expect(box!.x + box!.width, `${what} right edge`).toBeLessThanOrEqual(el.page().viewportSize()!.width);
+  expect(box!.x + box!.width, `${what} right edge`).toBeLessThanOrEqual(
+    el.page().viewportSize()!.width,
+  );
 }
 
 /** VirtualList rows are absolutely positioned; a stale measurement makes tall (stacked) rows overlap. */
 async function expectRowsDoNotOverlap(page: Page, where: string) {
-  const boxes = await page.locator('[data-index]').evaluateAll((els) =>
-    els.map((e) => ({ i: Number((e as HTMLElement).dataset.index), ...e.getBoundingClientRect().toJSON() })),
-  );
+  const boxes = await page
+    .locator('[data-index]')
+    .evaluateAll((els) =>
+      els.map((e) => ({
+        i: Number((e as HTMLElement).dataset.index),
+        ...e.getBoundingClientRect().toJSON(),
+      })),
+    );
   boxes.sort((a, b) => a.top - b.top);
   for (let k = 1; k < boxes.length; k++) {
-    const prev = boxes[k - 1], cur = boxes[k];
-    expect(cur.top, `${where}: row ${cur.i} (top ${cur.top}) overlaps row ${prev.i} (bottom ${prev.bottom})`).toBeGreaterThanOrEqual(prev.bottom - 0.5);
+    const prev = boxes[k - 1],
+      cur = boxes[k];
+    expect(
+      cur.top,
+      `${where}: row ${cur.i} (top ${cur.top}) overlaps row ${prev.i} (bottom ${prev.bottom})`,
+    ).toBeGreaterThanOrEqual(prev.bottom - 0.5);
   }
 }
 
@@ -78,7 +94,9 @@ async function mockRealisticData(page: Page) {
   );
   await page.route('**/api/imports/*/results*', (route) => route.fulfill({ json: results }));
   await page.route('**/api/imports/1', (route) =>
-    route.fulfill({ json: { batch: imports[0], movements: [], headers: [], detected_delimiter: ',' } }),
+    route.fulfill({
+      json: { batch: imports[0], movements: [], headers: [], detected_delimiter: ',' },
+    }),
   );
   await page.route('**/api/firefly/accounts/*/transactions*', (route) =>
     route.fulfill({ json: fixtures.txs.map(withLongDesc) }),
@@ -90,7 +108,10 @@ const openResults = async (page: Page) => {
   await page.waitForLoadState('networkidle');
 };
 
-for (const [label, viewport] of [['390x844', PHONE], ['1440x900', DESKTOP]] as const) {
+for (const [label, viewport] of [
+  ['390x844', PHONE],
+  ['1440x900', DESKTOP],
+] as const) {
   test.describe(`Responsive at ${label}: no horizontal overflow (M0, NFR-12)`, () => {
     test.use({ viewport });
 
@@ -112,7 +133,9 @@ for (const [label, viewport] of [['390x844', PHONE], ['1440x900', DESKTOP]] as c
       await expectNoHorizontalOverflow(page, '/imports');
     });
 
-    test('results, every tab: no overflow, description visible, rows do not overlap', async ({ page }) => {
+    test('results, every tab: no overflow, description visible, rows do not overlap', async ({
+      page,
+    }) => {
       await openResults(page);
       const tabs = page.getByRole('tab');
       await expect(tabs.first()).toBeVisible();
@@ -123,7 +146,9 @@ for (const [label, viewport] of [['390x844', PHONE], ['1440x900', DESKTOP]] as c
         const name = (await tab.textContent())?.trim() ?? `tab ${i}`;
         await tab.click();
         await expect(tab).toHaveAttribute('aria-selected', 'true');
-        await expect.soft(page.getByText(LONG_DESC).first(), `${name}: description visible`).toBeVisible();
+        await expect
+          .soft(page.getByText(LONG_DESC).first(), `${name}: description visible`)
+          .toBeVisible();
         await expectNoHorizontalOverflow(page, `/results tab "${name}"`);
         await expectRowsDoNotOverlap(page, `/results tab "${name}"`);
       }
@@ -132,12 +157,21 @@ for (const [label, viewport] of [['390x844', PHONE], ['1440x900', DESKTOP]] as c
     test('Missing: Edit, Ignore and Create are reachable inside the viewport', async ({ page }) => {
       await openResults(page);
       await page.getByRole('tab', { name: /Missing/ }).click();
-      const rows = page.getByRole('tabpanel').getByRole('row').filter({ has: page.getByRole('button', { name: 'Edit' }) });
+      const rows = page
+        .getByRole('tabpanel')
+        .getByRole('row')
+        .filter({ has: page.getByRole('button', { name: 'Edit' }) });
       const n = await rows.count();
       expect(n, 'missing rows with actions').toBe(results.missing.length);
       for (let i = 0; i < n; i++) {
-        await expectWithinViewportWidth(rows.nth(i).getByRole('button', { name: 'Edit' }), `row ${i} Edit`);
-        await expectWithinViewportWidth(rows.nth(i).getByRole('button', { name: 'Ignore' }), `row ${i} Ignore`);
+        await expectWithinViewportWidth(
+          rows.nth(i).getByRole('button', { name: 'Edit' }),
+          `row ${i} Edit`,
+        );
+        await expectWithinViewportWidth(
+          rows.nth(i).getByRole('button', { name: 'Ignore' }),
+          `row ${i} Ignore`,
+        );
       }
       await rows.first().getByRole('checkbox').check();
       const create = page.getByRole('button', { name: /Create in Firefly III/ });
@@ -151,11 +185,30 @@ for (const [label, viewport] of [['390x844', PHONE], ['1440x900', DESKTOP]] as c
       await page.getByRole('button', { name: 'Edit' }).first().click();
       const dialog = page.getByRole('dialog');
       await expect(dialog).toBeVisible();
+      // The sheet slides in: wait until its box stops moving before measuring.
+      let prev = '';
+      await expect
+        .poll(async () => {
+          const cur = JSON.stringify(await dialog.boundingBox());
+          const same = cur === prev;
+          prev = cur;
+          return same;
+        })
+        .toBe(true);
       await expectInsideViewport(dialog, 'dialog');
       // The box can fit while its content spills out (cut-off close button / amount).
-      const { scrollWidth, clientWidth } = await dialog.evaluate((d) => ({ scrollWidth: d.scrollWidth, clientWidth: d.clientWidth }));
-      expect(scrollWidth, `dialog content scrollWidth ${scrollWidth} vs clientWidth ${clientWidth}`).toBeLessThanOrEqual(clientWidth);
-      await expectInsideViewport(dialog.getByRole('button', { name: /close/i }).first(), 'dialog close button');
+      const { scrollWidth, clientWidth } = await dialog.evaluate((d) => ({
+        scrollWidth: d.scrollWidth,
+        clientWidth: d.clientWidth,
+      }));
+      expect(
+        scrollWidth,
+        `dialog content scrollWidth ${scrollWidth} vs clientWidth ${clientWidth}`,
+      ).toBeLessThanOrEqual(clientWidth);
+      await expectInsideViewport(
+        dialog.getByRole('button', { name: /close/i }).first(),
+        'dialog close button',
+      );
     });
   });
 }
