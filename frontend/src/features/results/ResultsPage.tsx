@@ -14,6 +14,7 @@ import {
 } from '@/shared/api/endpoints';
 import type { ApplyMovementRequest, ApplyReport } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
+import { moveWithTransition } from '@/shared/lib/viewTransition';
 import { queryKeys } from '@/shared/lib/keys';
 import { EmptyState } from '@/shared/ui/EmptyState';
 import { Button } from '@/shared/ui/button';
@@ -161,14 +162,66 @@ export function ResultsPage() {
     onError: (e) => toast.error(e.message),
   });
 
+  // Optimistic overlay: movement id -> requested ignored state, until the refetched results agree.
+  const [pendingIgnore, setPendingIgnore] = useState<Record<number, boolean>>({});
+  const settleIgnore = (mid: number, ignored: boolean) =>
+    setPendingIgnore((p) => {
+      if (p[mid] !== ignored) return p;
+      const next = { ...p };
+      delete next[mid];
+      return next;
+    });
+  type IgnoreVars = { mid: number; ignored: boolean; description: string };
   const ignore = useMutation({
-    mutationFn: ({ mid, ignored }: { mid: number; ignored: boolean }) =>
-      postIgnore(id, mid, ignored),
-    onSuccess: () => {
+    // One queue per batch: an Undo never reaches the backend before the request it reverts.
+    scope: { id: `ignore-${id}` },
+    mutationFn: ({ mid, ignored }: IgnoreVars) => postIgnore(id, mid, ignored),
+    onSuccess: async (_res, { mid, ignored, description }) => {
+      toast(t(ignored ? 'results.ignoredToast' : 'results.unignoredToast', { description }), {
+        id: `ignore-${mid}`,
+        duration: 8000,
+        action: {
+          label: t('results.undo'),
+          onClick: () => toggleIgnore({ mid, ignored: !ignored, description }),
+        },
+      });
+      // Settle only on a refetch that worked: a failed GET leaves a stale cache the overlay must keep hiding.
+      await qc.invalidateQueries({ queryKey: queryKeys.results(id) }, { throwOnError: true }).then(
+        () => settleIgnore(mid, ignored),
+        () => {},
+      );
+    },
+    onError: (e, { mid, ignored }) => {
+      moveWithTransition(`mv-${mid}`, () => settleIgnore(mid, ignored));
+      toast.error(e.message);
       void qc.invalidateQueries({ queryKey: queryKeys.results(id) });
     },
-    onError: (e) => toast.error(e.message),
   });
+  function toggleIgnore(vars: IgnoreVars) {
+    // The clicked button unmounts with its row: refocus the same button in the row now at its index.
+    const btn = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const table = btn?.closest('[role="table"]');
+    const row = btn?.closest('[data-vt-key]');
+    const index = table && row ? [...table.querySelectorAll('[data-vt-key]')].indexOf(row) : -1;
+    const label = btn?.getAttribute('aria-label');
+    moveWithTransition(
+      `mv-${vars.mid}`,
+      () => {
+        setPendingIgnore((p) => ({ ...p, [vars.mid]: vars.ignored }));
+        setSelected((s) => s.filter((x) => x !== vars.mid));
+      },
+      () => {
+        const rows = table?.isConnected ? table.querySelectorAll('[data-vt-key]') : [];
+        const next = index >= 0 ? rows[Math.min(index, rows.length - 1)] : undefined;
+        const target =
+          next?.querySelector<HTMLElement>(`button[aria-label="${label}"]`) ??
+          document.getElementById('results-missing-table') ??
+          document.querySelector<HTMLElement>('[role="tab"][data-state="active"]');
+        target?.focus();
+      },
+    );
+    ignore.mutate(vars);
+  }
 
   const headerTitle = useMemo(
     () => (
@@ -214,7 +267,8 @@ export function ResultsPage() {
     );
   }
   if (results.isPending || detail.isPending) return <TableSkeleton rows={6} cols={4} />;
-  if (results.isError || detail.isError) {
+  // A failed refetch keeps the cached data (and the optimistic overlay) on screen; the global toast reports it.
+  if (!results.data || !detail.data) {
     return (
       <EmptyState
         title={t('results.noReconciliation')}
@@ -229,18 +283,28 @@ export function ResultsPage() {
   const isOutsidePeriod = (d: string) =>
     !!statementRange && (d < statementRange.min || d > statementRange.max);
   const extraRows = results.data.extra;
+  // Same order as the backend (line_no), so a moved row lands where the refetch will put it.
+  const byLine = (a: { line_no: number }, b: { line_no: number }) => a.line_no - b.line_no;
+  const missingRows = [
+    ...results.data.missing.filter((m) => pendingIgnore[m.id] !== true),
+    ...results.data.ignored.filter((m) => pendingIgnore[m.id] === false),
+  ].sort(byLine);
+  const ignoredRows = [
+    ...results.data.ignored.filter((m) => pendingIgnore[m.id] !== false),
+    ...results.data.missing.filter((m) => pendingIgnore[m.id] === true),
+  ].sort(byLine);
   const counts = {
     matched: results.data.matched.length,
-    missing: results.data.missing.length,
+    missing: missingRows.length,
     extra: extraRows.filter((t) => !isOutsidePeriod(t.date)).length,
   };
-  const activeSelected = selected.filter((sid) => results.data.missing.some((m) => m.id === sid));
+  const activeSelected = selected.filter((sid) => missingRows.some((m) => m.id === sid));
   const currency = detail.data?.batch.currency ?? 'EUR';
   const tabs: Tab[] = ['matched', 'missing', 'extra'];
   const movementSummaries = selected
-    .filter((sid) => results.data.missing.some((m) => m.id === sid))
+    .filter((sid) => missingRows.some((m) => m.id === sid))
     .map((sid) => {
-      const m = results.data.missing.find((x) => x.id === sid)!;
+      const m = missingRows.find((x) => x.id === sid)!;
       return {
         id: sid,
         description: m.description,
@@ -249,7 +313,7 @@ export function ResultsPage() {
       };
     });
   const editingMovement =
-    editingId != null ? (results.data.missing.find((m) => m.id === editingId) ?? null) : null;
+    editingId != null ? (missingRows.find((m) => m.id === editingId) ?? null) : null;
 
   function handleBulkApply(fields: BulkFields) {
     setCustomizations((prev) => applyBulkFillOnly(prev, activeSelected, fields));
@@ -261,7 +325,7 @@ export function ResultsPage() {
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">
         <TabsList
           variant="line"
-          className="sticky top-0 z-[5] w-full justify-start rounded-none border-b border-border-subtle bg-canvas py-1"
+          className="sticky top-0 z-[5] [view-transition-name:results-tabs] w-full justify-start rounded-none border-b border-border-subtle bg-canvas py-1"
         >
           {tabs.map((tb) => (
             <TabsTrigger key={tb} value={tb} className={TAB_ACCENT[tb]}>
@@ -324,7 +388,13 @@ export function ResultsPage() {
             <EmptyState title={t('results.missing')} />
           ) : (
             <>
-              <div role="table" aria-label={t('results.missing')} className={TABLE_WRAPPER}>
+              <div
+                id="results-missing-table"
+                role="table"
+                aria-label={t('results.missing')}
+                tabIndex={-1}
+                className={TABLE_WRAPPER}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle px-4 py-2">
                   <label className="flex items-center gap-2 whitespace-nowrap text-sm text-text-2">
                     <span className="flex w-8 items-center justify-center">
@@ -335,7 +405,7 @@ export function ResultsPage() {
                           setSelected(
                             activeSelected.length === counts.missing
                               ? []
-                              : results.data.missing.map((m) => m.id),
+                              : missingRows.map((m) => m.id),
                           )
                         }
                       />
@@ -368,7 +438,7 @@ export function ResultsPage() {
                   count={counts.missing}
                   header={<TableHeader group="missing" />}
                   renderItem={(i) => {
-                    const m = results.data.missing[i];
+                    const m = missingRows[i];
                     return (
                       <MissingRow
                         movement={m}
@@ -386,7 +456,9 @@ export function ResultsPage() {
                           )
                         }
                         onEdit={() => setEditingId(m.id)}
-                        onIgnore={(mid) => ignore.mutate({ mid, ignored: true })}
+                        onIgnore={(mid) =>
+                          toggleIgnore({ mid, ignored: true, description: m.description })
+                        }
                       />
                     );
                   }}
@@ -420,20 +492,22 @@ export function ResultsPage() {
       </Tabs>
       <section aria-label={t('results.ignored')}>
         <h2 className="px-2 pt-2 pb-1 text-sm font-semibold text-text-2">
-          {t('results.ignored')} ({results.data.ignored.length})
+          {t('results.ignored')} ({ignoredRows.length})
         </h2>
-        {results.data.ignored.length === 0 ? (
+        {ignoredRows.length === 0 ? (
           <p className="px-2 py-3 text-sm text-text-3">{t('results.ignoredEmpty')}</p>
         ) : (
           <div role="table" aria-label={t('results.ignored')} className={TABLE_WRAPPER}>
             <TableHeader group="ignored" />
-            {results.data.ignored.map((m, i) => (
+            {ignoredRows.map((m, i) => (
               <IgnoredRow
                 key={m.id}
                 movement={m}
                 currency={currency}
-                isLast={i === results.data.ignored.length - 1}
-                onUnignore={() => ignore.mutate({ mid: m.id, ignored: false })}
+                isLast={i === ignoredRows.length - 1}
+                onUnignore={() =>
+                  toggleIgnore({ mid: m.id, ignored: false, description: m.description })
+                }
               />
             ))}
           </div>

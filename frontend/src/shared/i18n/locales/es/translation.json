@@ -215,7 +215,10 @@
     "col.descriptionFf3": "Descripción (Firefly III)",
     "col.descriptionStatement": "Descripción (extracto)",
     "col.selection": "",
-    "col.status": "Estado"
+    "col.status": "Estado",
+    "undo": "Deshacer",
+    "ignoredToast": "«{{description}}» ignorado",
+    "unignoredToast": "«{{description}}» restaurado"
   },
   "status": {
     "imported": "Importado",

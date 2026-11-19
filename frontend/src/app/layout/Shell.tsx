@@ -113,7 +113,7 @@ export function Shell() {
             </main>
           </PageHeaderProvider>
         </div>
-        <nav className="fixed inset-x-0 bottom-0 z-10 flex h-16 border-t border-border-subtle bg-surface md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-10 [view-transition-name:mobile-nav] flex h-16 border-t border-border-subtle bg-surface md:hidden">
           {items.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}

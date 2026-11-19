@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+import { Toaster } from 'sonner';
 
 type Theme = 'light' | 'dark';
 const ThemeContext = createContext<{
@@ -30,6 +31,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+      {/* Offsets clear the 64px mobile nav (shown below md, wider than sonner's 600px breakpoint). */}
+      <Toaster theme={theme} richColors offset={{ bottom: 80 }} mobileOffset={{ bottom: 72 }} />
     </ThemeContext.Provider>
   );
 }

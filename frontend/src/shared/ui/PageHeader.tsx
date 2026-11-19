@@ -26,7 +26,7 @@ export function PageHeaderProvider({ children }: { children: ReactNode }) {
   return (
     <SetHeaderContext.Provider value={setHeader}>
       {header ? (
-        <header className="sticky top-0 z-20 border-b border-border-subtle bg-surface px-4 py-3 shadow-sm">
+        <header className="sticky top-0 z-20 [view-transition-name:page-header] border-b border-border-subtle bg-surface px-4 py-3 shadow-sm">
           <PageHeader {...header} />
         </header>
       ) : null}

@@ -215,7 +215,10 @@
     "col.descriptionFf3": "Description (Firefly III)",
     "col.descriptionStatement": "Description (relevé)",
     "col.selection": "",
-    "col.status": "Statut"
+    "col.status": "Statut",
+    "undo": "Annuler",
+    "ignoredToast": "« {{description}} » ignoré",
+    "unignoredToast": "« {{description}} » réactivé"
   },
   "status": {
     "imported": "Importé",

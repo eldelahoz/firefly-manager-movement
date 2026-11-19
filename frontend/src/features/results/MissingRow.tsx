@@ -31,6 +31,7 @@ export function MissingRow({
   return (
     <div
       role="row"
+      data-vt-key={`mv-${movement.id}`}
       className={`grid ${GRID_COLS.missing} items-center gap-3 px-4 py-3 text-sm transition-colors ${
         isLast ? '' : 'border-b border-border-subtle'
       } ${GROUP_ACCENT.missing.rowHover}`}

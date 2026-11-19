@@ -128,3 +128,26 @@
   padding-inline-start: 0;
   border-inline-start: 0;
 }
+
+/* Row move/exit (shared/lib/viewTransition.ts); skipped entirely under reduced motion. */
+::view-transition {
+  pointer-events: none;
+}
+/* The rest of the page snaps: a root crossfade ghosts the rows shifting under the moved one. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+::view-transition-group(vt-move) {
+  animation-duration: var(--dur-3);
+  animation-timing-function: var(--ease-move);
+}
+::view-transition-old(vt-move):only-child {
+  animation: vt-exit var(--dur-3-exit) var(--ease-exit) both;
+}
+@keyframes vt-exit {
+  to {
+    opacity: 0;
+    translate: 8px 0;
+  }
+}
