@@ -71,6 +71,12 @@ async function mockResults(page: Page, opts: Opts = {}) {
 // Scoped to the open tab: the Ignored section below also lists the row once it moves.
 const row = (page: Page, text: string) =>
   page.getByRole('tabpanel').getByRole('row').filter({ hasText: text });
+// M2: the Ignored table only renders while its collapsible is open.
+async function openIgnored(page: Page) {
+  const details = page.locator('section[aria-label="Ignored"] details');
+  if ((await details.getAttribute('open')) === null) await details.locator('summary').click();
+  return page.getByRole('table', { name: 'Ignored' });
+}
 const undo = (page: Page) => page.getByRole('button', { name: 'Undo', exact: true });
 
 test.describe('Results > optimistic ignore + Undo', () => {
@@ -126,8 +132,9 @@ test.describe('Results > optimistic ignore + Undo', () => {
   }) => {
     const { state, posts } = await mockResults(page, { ignoreDelayMs: 1000 });
     await ignoreBook(page);
-    await page
-      .getByRole('table', { name: 'Ignored' })
+    await (
+      await openIgnored(page)
+    )
       .getByRole('row')
       .filter({ hasText: 'Book' })
       .getByRole('button', { name: 'Un-ignore' })
@@ -205,8 +212,8 @@ test.describe('Results > optimistic ignore + Undo', () => {
     await expect(row(page, 'Salary').getByRole('button', { name: 'Ignore' })).toBeFocused();
     await row(page, 'Salary').getByRole('button', { name: 'Ignore' }).click();
     await expect(row(page, 'Salary')).toHaveCount(0);
-    // Missing is now empty (no table rendered): focus falls back to the active tab.
-    await expect(page.getByRole('tab', { name: /Missing/ })).toBeFocused();
+    // Missing is now empty (the page switches tab): focus falls back to whichever tab is active.
+    await expect(page.locator('[role="tab"][data-state="active"]')).toBeFocused();
   });
 
   test('U10 Undo from the toast keeps focus inside the Missing table (not on body)', async ({
@@ -229,7 +236,21 @@ test.describe('Results > optimistic ignore + Undo', () => {
     await page.waitForTimeout(1000); // let the failed refetch land
     await expect(row(page, 'Book')).toHaveCount(0);
     await expect(
-      page.getByRole('table', { name: 'Ignored' }).getByRole('row').filter({ hasText: 'Book' }),
+      (await openIgnored(page)).getByRole('row').filter({ hasText: 'Book' }),
     ).toBeVisible();
+  });
+
+  test('U12 ignoring every missing row keeps the Missing tab selected and the Ignored section', async ({
+    page,
+  }) => {
+    await mockResults(page);
+    await ignoreBook(page);
+    await row(page, 'Salary').getByRole('button', { name: 'Ignore' }).click();
+    await expect(row(page, 'Salary')).toHaveCount(0);
+    await expect(page.getByRole('tab', { name: /^Missing/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page.locator('section[aria-label="Ignored"] summary')).toHaveText('Ignored (2)');
   });
 });
