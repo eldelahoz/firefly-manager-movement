@@ -162,7 +162,12 @@
     "originWarning": "Valeurs de la colonne d'origine : {{values}}. Sélectionnez le compte manuellement.",
     "changeFile": "Changer le fichier",
     "removeFile": "Retirer",
-    "selectFileFirst": "Sélectionnez un fichier CSV pour continuer"
+    "selectFileFirst": "Sélectionnez un fichier CSV pour continuer",
+    "stagedFile": "Fichier sélectionné",
+    "fileInput": "Fichier de relevé",
+    "samplesFor": "Exemples de valeurs : {{field}}",
+    "samplesUnavailable": "Les exemples de valeurs ne sont pas disponibles à la reprise : le fichier n'est pas conservé après l'envoi.",
+    "backToMapping": "Retour au mappage"
   },
   "results": {
     "title": "Résultats",

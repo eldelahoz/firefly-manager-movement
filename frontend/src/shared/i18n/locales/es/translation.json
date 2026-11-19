@@ -162,7 +162,12 @@
     "originWarning": "Valores de la columna de origen: {{values}}. Selecciona la cuenta manualmente.",
     "changeFile": "Cambiar archivo",
     "removeFile": "Eliminar",
-    "selectFileFirst": "Selecciona un archivo CSV para continuar"
+    "selectFileFirst": "Selecciona un archivo CSV para continuar",
+    "stagedFile": "Archivo seleccionado",
+    "fileInput": "Archivo del extracto",
+    "samplesFor": "Valores de ejemplo: {{field}}",
+    "samplesUnavailable": "Los valores de ejemplo no están disponibles al reanudar: el archivo no se conserva tras la subida.",
+    "backToMapping": "Volver al mapeo"
   },
   "results": {
     "title": "Resultados",

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Ff3Account } from '@/shared/api/dto';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { LoaderCircle } from 'lucide-react';
+import { FileText, LoaderCircle } from 'lucide-react';
+import { Button } from '@/shared/ui/button';
 import { WizardFooter } from './WizardShell';
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -59,7 +60,7 @@ export function UploadStep({
     'flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed';
 
   return (
-    <div className="flex h-full flex-col relative">
+    <div className="relative flex flex-col">
       <div>
         <label className="text-[13px] text-text-2">
           {t('wizard.account')}
@@ -99,7 +100,7 @@ export function UploadStep({
       )}
 
       {tooLarge ? (
-        <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-danger-bg/50 animate-in fade-in duration-200">
+        <div className="mt-4 flex min-h-48 flex-col items-center justify-center gap-2 rounded-xl bg-danger-bg/50 animate-in fade-in duration-200">
           <span className="flex size-12 items-center justify-center rounded-full bg-destructive text-3xl font-semibold text-white">
             !
           </span>
@@ -124,34 +125,35 @@ export function UploadStep({
           </div>
         </div>
       ) : ready && file && !error ? (
-        // File already selected and no error: show file name with change/remove options
-        <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-border-subtle bg-surface p-6 animate-in slide-in-from-bottom-4 fade-in duration-300 ease-out">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl" aria-hidden="true">
-              📄
-            </span>
-            <span className="text-sm font-medium text-text-1">{file.name}</span>
+        // Staged file: the dropzone collapses into a compact card; parsing waits for Next (RF-01)
+        <div
+          role="group"
+          aria-label={t('wizard.stagedFile')}
+          className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface p-3 animate-in fade-in duration-200"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
+            <FileText className="size-5" aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-text-1">{file.name}</p>
+            <p className="text-xs text-text-3 tabular-nums">{(file.size / 1024).toFixed(1)} KB</p>
           </div>
-          <p className="text-xs text-text-3">{(file.size / 1024).toFixed(1)} KB</p>
-          <div className="flex gap-2 mt-2">
-            <button
-              type="button"
-              onClick={pick}
-              className="px-3 py-1.5 text-xs font-medium text-accent bg-accent-soft/60 rounded-md hover:bg-accent-soft transition-colors"
-            >
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={pick}>
               {t('wizard.changeFile')}
-            </button>
+            </Button>
             {onRemoveFile && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive"
                 onClick={() => {
                   onRemoveFile();
                   setTooLarge(false);
                 }}
-                className="px-3 py-1.5 text-xs font-medium text-destructive bg-destructive/10 rounded-md hover:bg-destructive/20 transition-colors"
               >
                 {t('wizard.removeFile')}
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -172,7 +174,7 @@ export function UploadStep({
               setDragging(false);
               handle(e.dataTransfer.files[0]);
             }}
-            className={`mt-4 ${error ? 'h-28' : 'h-full min-h-[280px] flex-1'} ${dropzoneBase} ${
+            className={`mt-4 ${error ? 'h-28' : 'min-h-48'} ${dropzoneBase} ${
               dragging ? 'border-accent bg-accent-soft/60' : 'border-border-subtle bg-surface'
             } animate-in slide-in-from-bottom-4 fade-in duration-300 ease-out`}
           >
@@ -207,6 +209,7 @@ export function UploadStep({
         ref={inputRef}
         type="file"
         accept=".csv"
+        aria-label={t('wizard.fileInput')}
         className="hidden"
         onChange={(e) => handle(e.target.files?.[0])}
       />

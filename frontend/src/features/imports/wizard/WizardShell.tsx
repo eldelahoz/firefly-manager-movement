@@ -4,7 +4,7 @@ import { Button } from '@/shared/ui/button';
 
 function StepDots({ steps, current }: { steps: string[]; current: number }) {
   return (
-    <div className="flex items-start" aria-hidden="true">
+    <div className="hidden items-start sm:flex" aria-hidden="true">
       {steps.map((label, i) => (
         <Fragment key={label}>
           {i > 0 && <span className="mt-[5px] h-0.5 w-10 bg-border-subtle" />}
@@ -44,16 +44,21 @@ export function WizardShell({
   return (
     <DialogContent
       showCloseButton={false}
-      className="flex h-[min(720px,90dvh)] w-full flex-col gap-0 p-6 sm:max-w-[960px]"
+      className="flex max-h-[90dvh] w-full flex-col gap-0 p-4 sm:max-w-[960px] sm:p-6"
     >
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <DialogTitle className="text-lg font-semibold text-text-1">{title}</DialogTitle>
+        <div className="min-w-0">
+          <DialogTitle className="text-lg font-semibold text-balance text-text-1">
+            {title}
+          </DialogTitle>
           <p className="mt-0.5 text-xs text-text-2">{subtitle}</p>
         </div>
         <StepDots steps={steps} current={current} />
       </div>
-      <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
+      {/* Keyed by step so each step remounts and plays the .ffm-step entry. */}
+      <div key={current} className="ffm-step mt-5 flex min-h-0 flex-1 flex-col overflow-y-auto">
+        {children}
+      </div>
     </DialogContent>
   );
 }
@@ -80,7 +85,7 @@ export function WizardFooter({
   primaryHelper?: string | null;
 }) {
   return (
-    <div className="mt-auto flex items-center justify-between pt-4">
+    <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
       <Button variant="ghost" className="text-accent" onClick={onCancel}>
         {cancelLabel}
       </Button>

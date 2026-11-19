@@ -168,13 +168,27 @@
       transform: translateY(12px);
     }
   }
+  /* Wizard step entry (the step container remounts per step). */
+  .ffm-step {
+    transition:
+      opacity var(--dur-2) var(--ease-enter),
+      translate var(--dur-2) var(--ease-enter);
+  }
+  @starting-style {
+    .ffm-step {
+      opacity: 0;
+      translate: 0 6px;
+    }
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ffm-bulkbar {
+  .ffm-bulkbar,
+  .ffm-step {
     transition: opacity var(--dur-1) linear;
   }
   @starting-style {
-    .ffm-bulkbar {
+    .ffm-bulkbar,
+    .ffm-step {
       opacity: 0;
     }
   }

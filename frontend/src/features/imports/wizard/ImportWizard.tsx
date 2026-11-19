@@ -31,6 +31,29 @@ function computeNotice(res: UploadResponse, accounts: Ff3Account[] | undefined):
 
 const STEP_ORDER = ['upload', 'mapping', 'preview', 'reconcile'] as const;
 
+/** Splits one CSV line honouring double quotes ("" escapes a quote; a mid-field quote is literal).
+ *  shortcut: quoted fields spanning lines are not joined; fine for the 2-3 mapping samples. */
+function splitCsvLine(line: string, delim: string): string[] {
+  const out: string[] = [];
+  let cur = '';
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quoted) {
+      if (c !== '"') cur += c;
+      else if (line[i + 1] === '"') cur += line[++i];
+      else quoted = false;
+    } else if (c === '"' && cur === '')
+      quoted = true; // a quote opens a field only at its start
+    else if (c === delim) {
+      out.push(cur);
+      cur = '';
+    } else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
 export function ImportWizard({
   open,
   onClose,
@@ -124,7 +147,7 @@ export function ImportWizard({
         if (cancelled) return;
         const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '');
         const delim = state.probe!.detected_delimiter;
-        setSampleRows(lines.slice(1).map((l) => l.split(delim)));
+        setSampleRows(lines.slice(1).map((l) => splitCsvLine(l, delim)));
       });
     return () => {
       cancelled = true;
@@ -295,7 +318,7 @@ export function ImportWizard({
         {state.step === 'mapping' && state.probe && (
           <MappingStep
             probe={state.probe}
-            sampleRows={sampleRows}
+            sampleRows={state.file ? sampleRows : undefined}
             onMapped={async (columns) => {
               const probeId = state.probe?.batch_id;
               if (probeId == null) return;

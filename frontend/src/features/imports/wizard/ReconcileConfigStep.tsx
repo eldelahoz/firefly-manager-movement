@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { getAccounts, getImport, postReconcile } from '@/shared/api/endpoints';
-import { addDays } from '@/shared/lib/dates';
+import { addDays, formatDate } from '@/shared/lib/dates';
 import { queryKeys } from '@/shared/lib/keys';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
@@ -32,7 +32,7 @@ export function ReconcileConfigStep({
   onBack?: () => void;
   onCancel: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const detail = useQuery({
     queryKey: queryKeys.import(batchId ?? -1),
@@ -88,7 +88,7 @@ export function ReconcileConfigStep({
       ? t('wizard.helperError')
       : null;
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-col">
       <div className="space-y-5">
         <div>
           <p className="mb-1 text-[13px] text-text-2">{t('wizard.account')}</p>
@@ -103,16 +103,25 @@ export function ReconcileConfigStep({
         </div>
         <div>
           <p className="mb-1 text-[13px] text-text-2">{t('wizard.tolerance')}</p>
-          <div className="flex max-w-[480px]">
-            {TOLERANCES.map((d, i) => (
-              <Button
+          <div
+            role="group"
+            aria-label={t('wizard.tolerance')}
+            className="flex max-w-[480px] gap-0.5 rounded-lg border border-border-subtle bg-canvas p-0.5"
+          >
+            {TOLERANCES.map((d) => (
+              <button
                 key={d}
-                variant={tolerance === d ? 'default' : 'outline'}
+                type="button"
+                aria-pressed={tolerance === d}
                 onClick={() => setTolerance(d)}
-                className={`h-10 flex-1 ${i === 0 ? 'rounded-l-lg' : ''} ${i === TOLERANCES.length - 1 ? 'rounded-r-lg' : ''} ${i > 0 ? '-ml-px rounded-none' : ''}`}
+                className={`h-9 flex-1 rounded-md text-sm font-medium tabular-nums transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none ${
+                  tolerance === d
+                    ? 'bg-surface text-text-1 shadow-xs ring-1 ring-border-subtle'
+                    : 'text-text-2 hover:text-text-1'
+                }`}
               >
                 {d === 0 ? '0' : `±${d}`}
-              </Button>
+              </button>
             ))}
           </div>
         </div>
@@ -138,8 +147,8 @@ export function ReconcileConfigStep({
               )}
             </div>
             {editingRange ? (
-              <div className="flex gap-2">
-                <label className="flex-1 text-[13px] text-text-2">
+              <div className="flex flex-wrap gap-2">
+                <label className="min-w-36 flex-1 text-[13px] text-text-2">
                   {t('dashboard.browseFrom')}
                   <Input
                     type="date"
@@ -148,7 +157,7 @@ export function ReconcileConfigStep({
                     className="mt-1"
                   />
                 </label>
-                <label className="flex-1 text-[13px] text-text-2">
+                <label className="min-w-36 flex-1 text-[13px] text-text-2">
                   {t('dashboard.browseTo')}
                   <Input
                     type="date"
@@ -160,7 +169,7 @@ export function ReconcileConfigStep({
               </div>
             ) : (
               <p className="flex items-center gap-2 text-sm text-text-1">
-                <span>{`${range.start} → ${range.end}`}</span>
+                <span className="tabular-nums">{`${formatDate(range.start, i18n.language)} → ${formatDate(range.end, i18n.language)}`}</span>
                 <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-text-2">
                   ±{tolerance}
                 </span>

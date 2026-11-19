@@ -162,7 +162,12 @@
     "originWarning": "Origin column values: {{values}}. Pick the account manually.",
     "changeFile": "Change file",
     "removeFile": "Remove",
-    "selectFileFirst": "Select a CSV file to continue"
+    "selectFileFirst": "Select a CSV file to continue",
+    "stagedFile": "Selected file",
+    "fileInput": "Statement file",
+    "samplesFor": "Sample values: {{field}}",
+    "samplesUnavailable": "Sample values aren't available when resuming: the file isn't kept after upload.",
+    "backToMapping": "Back to mapping"
   },
   "results": {
     "title": "Results",
