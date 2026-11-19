@@ -6,7 +6,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 
 function csvPath(name: string, content: string): string {
-  const p = path.join(os.tmpdir(), name);
+  // Own dir per call: parallel tests reuse names (bank.csv), and a rewrite can truncate a file mid-upload.
+  const p = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ffm-e2e-')), name);
   fs.writeFileSync(p, content);
   return p;
 }

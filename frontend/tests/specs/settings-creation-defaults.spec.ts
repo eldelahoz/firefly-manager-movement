@@ -18,6 +18,8 @@ test.describe('Settings > Creation defaults', () => {
   test('S2 select tag and save sends default_creation_tag', async ({ page }) => {
     const settings = new SettingsPage(page);
     await settings.goto();
+    // Wait for the loaded settings: the form re-initialises from them and would drop an earlier pick.
+    await expect(settings.tagSelect).toContainText('ffm-import');
     await settings.tagSelect.click();
     await page.getByRole('option', { name: 'vacation' }).click();
     const putPromise = page.waitForResponse(
@@ -32,6 +34,7 @@ test.describe('Settings > Creation defaults', () => {
   test('S3 select none sends null', async ({ page }) => {
     const settings = new SettingsPage(page);
     await settings.goto();
+    await expect(settings.tagSelect).toContainText('ffm-import'); // loaded settings (see S2)
     // First select a tag to ensure change
     await settings.tagSelect.click();
     await page.getByRole('option', { name: 'vacation' }).click();
