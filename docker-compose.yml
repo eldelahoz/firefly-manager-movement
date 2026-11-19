@@ -1,0 +1,18 @@
+# Product: one container (API + UI) with SQLite on a volume. Firefly III is external:
+# configure its URL + token in Settings (RF-19), or seed them via FF3_URL / FF3_TOKEN.
+services:
+  app:
+    build: .
+    image: firefly-manager-movement
+    container_name: ffm-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ffm-data:/data
+    # Lets the container reach a Firefly III on the host via http://host.docker.internal:8080 (Linux too).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  ffm-data:

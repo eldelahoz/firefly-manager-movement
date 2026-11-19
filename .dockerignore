@@ -1,0 +1,13 @@
+**/node_modules
+**/target
+**/dist
+**/.env
+**/*.db
+**/test-results
+**/playwright-report
+.git
+docs
+*.csv
+*.yaml
+!frontend/pnpm-lock.yaml
+*.txt
