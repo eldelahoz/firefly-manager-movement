@@ -18,6 +18,7 @@ COPY --from=backend /app/backend/target/release/ffm-backend /usr/local/bin/ffm-b
 COPY --from=frontend /app/frontend/dist /app/dist
 ENV DATABASE_URL=/data/ffm.db \
     FRONTEND_DIST=/app/dist \
+    FF3_HEALTH_PROBE=true \
     RUST_LOG=info
 VOLUME /data
 EXPOSE 3000
