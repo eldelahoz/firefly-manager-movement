@@ -35,7 +35,10 @@ test.describe('Shell > collapsible sidebar (SB)', () => {
       await expect(link, `${name} link keeps its accessible name`).toBeVisible();
       await expect(link).toHaveAttribute('title', name);
       await expect
-        .poll(() => link.locator('.ffm-sidebar-label').evaluate((e) => getComputedStyle(e).opacity), { message: `${name} label hidden` })
+        .poll(
+          () => link.locator('.ffm-sidebar-label').evaluate((e) => getComputedStyle(e).opacity),
+          { message: `${name} label hidden` },
+        )
         .toBe('0');
     }
     // a collapsed rail still navigates
@@ -55,7 +58,12 @@ test.describe('Shell > collapsible sidebar (SB)', () => {
     await expect.poll(() => width(page)).toBe(220);
     await expect(aside(page).getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('title');
     await expect
-      .poll(() => aside(page).locator('.ffm-sidebar-label').first().evaluate((e) => getComputedStyle(e).opacity))
+      .poll(() =>
+        aside(page)
+          .locator('.ffm-sidebar-label')
+          .first()
+          .evaluate((e) => getComputedStyle(e).opacity),
+      )
       .toBe('1');
   });
 
@@ -86,11 +94,16 @@ test.describe('Shell > collapsible sidebar (SB)', () => {
     await expect(toggle(page)).toHaveAttribute('aria-expanded', 'true');
     await toggle(page).click();
     await expect(shell(page)).toHaveAttribute('data-sidebar', 'collapsed');
-    expect(await page.evaluate(() => localStorage.getItem('ffm.sidebar')), 'toggle overwrites the junk value').toBe('collapsed');
+    expect(
+      await page.evaluate(() => localStorage.getItem('ffm.sidebar')),
+      'toggle overwrites the junk value',
+    ).toBe('collapsed');
     expect(errors).toEqual([]);
   });
 
-  test('SB2c persisted state paints at its width on load (no animate-on-load)', async ({ page }) => {
+  test('SB2c persisted state paints at its width on load (no animate-on-load)', async ({
+    page,
+  }) => {
     // Runs before the app: store "collapsed", then record the rail width every frame and any rail transition.
     await page.addInitScript(() => {
       localStorage.setItem('ffm.sidebar', 'collapsed');
@@ -98,7 +111,13 @@ test.describe('Shell > collapsible sidebar (SB)', () => {
       const runs: string[] = [];
       Object.assign(window, { __w: w, __runs: runs });
       document.addEventListener('transitionrun', (e) => {
-        if ((e.target as Element).closest?.('#app-sidebar, .ffm-content')) runs.push((e as TransitionEvent).propertyName);
+        // Only layout properties: content cards may fade colours/borders on mount without moving the rail.
+        const prop = (e as TransitionEvent).propertyName;
+        if (
+          (e.target as Element).closest?.('#app-sidebar, .ffm-content') &&
+          /^(width|min-width|max-width|inline-size|padding(-.+)?|margin(-.+)?)$/.test(prop)
+        )
+          runs.push(prop);
       });
       const tick = () => {
         const a = document.getElementById('app-sidebar');
@@ -119,24 +138,33 @@ test.describe('Shell > collapsible sidebar (SB)', () => {
     expect(runs, 'no width/padding transition on load').toEqual([]);
     // Control: the same listener does see a transition on a real toggle (motion allowed).
     await toggle(page).click();
-    await expect.poll(() => page.evaluate(() => (window as unknown as { __runs: string[] }).__runs.length)).toBeGreaterThan(0);
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { __runs: string[] }).__runs.length))
+      .toBeGreaterThan(0);
   });
 
   test('SB3 reduced motion: no transition, width snaps', async ({ page }) => {
     const durations = () =>
       page.evaluate(() =>
-        ['.ffm-sidebar', '.ffm-content', '.ffm-sidebar-label'].map((s) => getComputedStyle(document.querySelector(s)!).transitionDuration),
+        ['.ffm-sidebar', '.ffm-content', '.ffm-sidebar-label'].map(
+          (s) => getComputedStyle(document.querySelector(s)!).transitionDuration,
+        ),
       );
     await page.goto('/');
     // Control: with motion allowed the rail does animate (otherwise the reduced check proves nothing).
-    expect((await durations()).some((d) => d !== '0s'), 'transitions exist with motion allowed').toBe(true);
+    expect(
+      (await durations()).some((d) => d !== '0s'),
+      'transitions exist with motion allowed',
+    ).toBe(true);
 
     await page.emulateMedia({ reducedMotion: 'reduce' });
     expect(await durations()).toEqual(['0s', '0s', '0s']);
     await toggle(page).click();
     expect(await width(page), 'width right after the click, no animation frame').toBe(64);
     // Content padding must not lag either (with motion it waits for the collapse to end).
-    expect(await page.locator('.ffm-content').evaluate((e) => getComputedStyle(e).paddingLeft)).toBe('64px');
+    expect(
+      await page.locator('.ffm-content').evaluate((e) => getComputedStyle(e).paddingLeft),
+    ).toBe('64px');
   });
 
   test('SB4 below md the rail is hidden and the bottom nav is used', async ({ page }) => {
@@ -144,6 +172,7 @@ test.describe('Shell > collapsible sidebar (SB)', () => {
     await page.goto('/');
     await expect(aside(page)).toBeHidden();
     await expect(toggle(page)).toBeHidden();
-    for (const name of NAV) await expect(page.getByRole('link', { name }).filter({ visible: true })).toHaveCount(1);
+    for (const name of NAV)
+      await expect(page.getByRole('link', { name }).filter({ visible: true })).toHaveCount(1);
   });
 });

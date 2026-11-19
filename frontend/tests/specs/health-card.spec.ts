@@ -16,10 +16,10 @@ test.describe('Dashboard > HealthCard', () => {
     await expect(page.getByText('Firefly III connected')).toHaveCount(0);
   });
 
-  test('H2 reachable FF3 is reported as connected with its version', async ({ page }) => {
+  test('H2 reachable FF3: card hidden, only the sidebar chip says connected', async ({ page }) => {
     await mockHealth(page, { ff3: { reachable: true, version: '6.6.6' } });
     await page.goto('/');
-    await expect(page.getByText('Firefly III connected')).toHaveCount(2);
-    await expect(page.getByText('FF3 v6.6.6')).toBeVisible();
+    await expect(page.getByText('Firefly III connected')).toHaveCount(1);
+    await expect(page.getByText('FF3 v6.6.6')).toHaveCount(0);
   });
 });

@@ -18,7 +18,11 @@ export class DashboardPage {
     // Use specific role to avoid matching theme toggle button
     this.fromInput = page.getByRole('textbox', { name: 'From' });
     this.toInput = page.getByRole('textbox', { name: 'To' });
-    this.browseList = page.getByRole('list');
+    // Scoped to the Browse section: Needs you and Recent batches render lists too.
+    this.browseList = page
+      .locator('section')
+      .filter({ has: this.accountCombobox })
+      .getByRole('list');
     this.browseEmpty = page.getByText('No transactions in this range');
     // The paragraph "Select an account" appears below the date inputs; .last() avoids the Select placeholder
     this.browseSelectAccount = page.getByText('Select an account').last();
