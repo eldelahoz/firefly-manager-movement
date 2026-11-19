@@ -6,8 +6,8 @@ How to set up a local development environment and contribute to this repo.
 
 | Tool | Version | Install |
 | --- | --- | --- |
-| Rust | 1.75+ | [rustup.rs](https://rustup.rs) |
-| Diesel CLI | latest | `cargo install diesel_cli --no-default-features --features mysql` |
+| Rust | 1.86+ | [rustup.rs](https://rustup.rs) |
+| Diesel CLI | latest (only to author migrations) | `cargo install diesel_cli --no-default-features --features sqlite` |
 | Docker | 24+ | [docker.com](https://www.docker.com/products/docker-desktop/) |
 | Node.js | 22 LTS | [nodejs.org](https://nodejs.org) |
 | pnpm | 10+ | `corepack enable` or [pnpm.io](https://pnpm.io/installation) |
@@ -16,8 +16,10 @@ How to set up a local development environment and contribute to this repo.
 
 | Service | Container | Port | Purpose |
 | --- | --- | --- | --- |
-| MySQL 9.7 | `ffm-mysql` | `3306` | App DB (`firefly_manager`) + Firefly III DB (`fireflyiii`) |
-| Adminer | `ffm-adminer` | `8081` | Web database inspector |
+| Firefly III (dev only) | `ffm-fireflyiii` | `8080` | Local Firefly III to point the app at (`docker-compose.firefly.yml`) |
+| MySQL 9.7 (dev only) | `ffm-ff3-mysql` | - | Firefly III's own database (not used by the app) |
+
+The app itself needs no database server: it stores everything in one SQLite file (`DATABASE_URL`, `./ffm.db` locally).
 | Firefly III | `ffm-fireflyiii` | `8080` | Financial app the backend syncs to |
 | Backend (native) | - | `3000` | Rust API server (`cargo run`) |
 | Frontend (native) | - | `5173` | React SPA dev server (`pnpm dev`, proxies `/api` + `/health` → `:3000`) |
@@ -46,28 +48,14 @@ $b = New-Object byte[] 32
 > **Do not change the `APP_KEY` after Firefly III has data.** It encrypts
 > sensitive fields - losing it makes existing data unreadable.
 
-### 2. Start Docker Stacks
-
-Start order matters - MySQL must be healthy before Firefly III connects:
+### 2. Start a Local Firefly III
 
 ```bash
-# Step 2a: MySQL + Adminer
-docker compose -p ffm-dev -f docker-compose.dev.yml up -d
-
-# Step 2b: Firefly III (after MySQL is healthy)
+# Firefly III + its own MySQL (dev-only helper; Firefly III waits for MySQL to be healthy)
 docker compose -p ffm-firefly -f docker-compose.firefly.yml up -d
 ```
-> Both compose files run from the same directory, so Docker Compose defaults to the same project name (`firefly-manager-movement`). Without explicit project names, the second `up` sees containers from the first file that aren't in its own file → "orphan containers" warning. The `-p` flag isolates them into separate projects.
 
-Wait ~30s for Firefly III to run its first-time migrations, then verify:
-
-> **Existing MySQL volume?** If `ffm-mysql-data` was created before the Firefly III init script was added, the `fireflyiii` database won't exist. Create it once:
->
-> ```bash
-> docker exec -i ffm-mysql mysql -uroot -pdevrootpass -e "CREATE DATABASE IF NOT EXISTS fireflyiii CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON fireflyiii.* TO 'ffm'@'%'; FLUSH PRIVILEGES;"
-> ```
->
-> Then restart Firefly III: `docker restart ffm-fireflyiii`
+Wait ~30s for Firefly III to run its first-time migrations.
 
 ### 3. Create Firefly III Admin Account
 
@@ -107,14 +95,9 @@ Optionally enable the FF3 connectivity probe in `/health`:
 FF3_HEALTH_PROBE=true
 ```
 
-### 6. Apply Database Migrations
+### 6. Database
 
-```bash
-cd backend
-diesel migration run
-```
-
-This creates the `firefly_manager` schema: `ff3_accounts`, `batches`, `movements`, `reconciliations`, `matches`, `creations`, `ff3_transactions`.
+Nothing to do: the backend creates the SQLite file at `DATABASE_URL` (`./ffm.db`) and runs the embedded migrations at startup. Delete the file for a fresh start.
 
 ### 7. Run the Backend
 
@@ -152,14 +135,14 @@ pnpm dev       # http://localhost:5173 - /api and /health are proxied to localho
 ```
 
 No extra env setup is needed for local dev; the SPA uses same-origin requests via the proxy.
-Unit and component tests run against MSW mocks - they do not require the backend or Docker.
+Playwright tests mock the API with `page.route` - they do not require the backend or Docker.
 
 ### Frontend Commands
 
 | Command | Description |
 | --- | --- |
 | `pnpm dev` | Dev server on `http://localhost:5173` with API proxy |
-| `pnpm test` | Vitest unit/component tests (MSW-mocked API) |
+| `pnpm e2e` | Playwright tests (`tests/specs/**`, `page.route`-mocked API) |
 | `pnpm lint` | ESLint + Prettier check |
 | `pnpm build` | Type-check (`tsc -b`) + production bundle in `dist/` |
 | `pnpm preview` | Serve the production build locally |
@@ -177,6 +160,14 @@ curl http://localhost:3000/api-docs/openapi.json > frontend/openapi.json
 cd frontend && pnpm api:types
 ```
 
+## Running the Product Image
+
+```bash
+docker compose up -d --build   # API + UI on http://localhost:3000, SQLite on the ffm-data volume
+```
+
+In **Settings**, set the Firefly III URL to `http://host.docker.internal:8080` (the dev Firefly III, or any instance on the Docker host) - `localhost` inside the container is the app itself. The compose file maps `host.docker.internal` to the host on Linux too.
+
 ## Stopping Services
 
 ```bash
@@ -184,10 +175,8 @@ cd frontend && pnpm api:types
 
 # Stop Docker stacks (keeps data)
 docker compose -p ffm-firefly -f docker-compose.firefly.yml down
-docker compose -p ffm-dev -f docker-compose.dev.yml down
 
-# Stop + wipe all data (fresh start next time)
-docker compose -p ffm-dev -f docker-compose.dev.yml down -v
+# Stop + wipe Firefly III data (app data: delete backend/ffm.db)
 docker compose -p ffm-firefly -f docker-compose.firefly.yml down -v
 ```
 
@@ -196,7 +185,8 @@ docker compose -p ffm-firefly -f docker-compose.firefly.yml down -v
 | Variable | Location | Description | Default |
 | --- | --- | --- | --- |
 | `FF3_APP_KEY` | root `.env` | Firefly III encryption key | *(required - see step 1)* |
-| `DATABASE_URL` | `backend/.env` | MySQL connection string | `mysql://ffm:devffmpass@localhost:3306/firefly_manager` |
+| `DATABASE_URL` | `backend/.env` | SQLite database file path | `./ffm.db` (image: `/data/ffm.db`) |
+| `FRONTEND_DIST` | image env | Built frontend served by the backend (unset = API only) | image: `/app/dist` |
 | `FF3_URL` | `backend/.env` | Firefly III base URL | `http://localhost:8080` |
 | `FF3_TOKEN` | `backend/.env` | Firefly III Bearer token | *(required - see step 4)* |
 | `MATCH_TOLERANCE_DAYS` | `backend/.env` | Days tolerance for transaction matching | `0` |
@@ -206,7 +196,7 @@ docker compose -p ffm-firefly -f docker-compose.firefly.yml down -v
 ## Running Tests
 
 ```bash
-# All workspace tests (requires MySQL running)
+# All workspace tests (no Docker needed: infra tests use temp SQLite files)
 cd backend
 cargo test --workspace
 
@@ -224,9 +214,8 @@ cargo test -p ffm-presentation
 | `cargo fmt --all` | Format code |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Lint |
 | `cargo test --workspace` | Run all tests |
-| `diesel migration run` | Apply migrations |
-| `diesel migration redo` | Rollback + reapply last migration |
-| `docker compose -p ffm-dev -f docker-compose.dev.yml down -v` | Stop dev stack + wipe volumes |
+| `diesel migration generate <name>` | Create a new migration (applied at backend startup) |
+| `docker compose up -d --build` | Build + run the product image (API + UI on :3000) |
 | `docker compose -p ffm-firefly -f docker-compose.firefly.yml down -v` | Stop Firefly III + wipe volumes |
 
 ## Git Workflow
