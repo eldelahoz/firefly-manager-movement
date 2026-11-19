@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `570f43e` · TRD `5e9ba4b` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `f29667b` · TRD `f29667b` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 
 > **Legend**
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
@@ -66,7 +66,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `app_settings.rs::default date format` (4 tests) | Save / clear / validate `default_date_format` |
 | **Infra** | `csv_mapping_repo.rs` | `CsvMappingRepository` CRUD + `by_signature` (JSON carries `date_format`) |
 | **Infra** | `app_settings_repo.rs` | `default_date_format` roundtrip + reversible migration replay |
-| **Infra** | `batch_repo.rs::batch_repo_roundtrip` | Headers/delimiter JSON roundtrip in MySQL |
+| **Infra** | `batch_repo.rs::batch_repo_roundtrip` | Headers/delimiter JSON roundtrip in SQLite (TRD v0.10) |
 | **Pres** | `import_endpoints.rs::get_import_returns_batch_and_movements` | `GET /{id}` returns persisted `headers` + `detected_delimiter` |
 | **Pres** | `import_endpoints.rs::upload_with_date_format_parses_exclusively_and_reports_it` | Multipart `date_format` drives exclusive parsing |
 | **Pres** | `import_endpoints.rs::upload_with_unknown_date_format_returns_400` | Unknown wire value → 400 |
@@ -320,15 +320,17 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-16  Refuse duplicate filename upload (409 before storage)
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-11-18 · **Spec @** `f29667b`
+
+> TRD v0.10 delta (2026-11-18): storage moves to SQLite; the server-side case-insensitive check is `batches.filename TEXT COLLATE NOCASE` and folds **ASCII letters only** (`Ñ`/`ñ` now distinct). Re-verified on SQLite 2026-11-18 against all 4 acceptance criteria.
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `upload_import.rs::upload_import_rejects_duplicate_filename` | Second upload same filename → `Conflict` error, 0 new batches |
 | **App** | `imports_listing.rs` | `find_by_filename` used for check |
-| **Infra** | `batch_repo.rs` | `BatchRepository.find_by_filename` (case-insensitive via MySQL collation) |
-| **Pres** | `import_endpoints.rs` | `POST /api/imports` returns 409 before insert |
-| **FE** | `pending (Playwright gap)` → `tests/specs/import-wizard.spec.ts` (gap `imports-upload-mapping-reconcile`) | Duplicate filename 409 guard — pending |
+| **Infra** | `batch_repo.rs::find_by_filename_is_case_insensitive` | `Extracto-SEP.csv` found by `extracto-sep.CSV` (`COLLATE NOCASE`, ASCII only — TRD v0.10) |
+| **Pres** | `import_endpoints.rs::post_imports_same_filename_twice_returns_409` | Second `POST /api/imports` → 409, still 1 batch (nothing stored) |
+| **FE** | `import-wizard.spec.ts::W4 duplicate filename case-insensitive` | `BANK.csv` vs existing `bank.csv` → inline error, nothing staged, Next disabled (no request) |
 
 ---
 
@@ -414,9 +416,9 @@ Per-requirement tracking for `docs/specs/requirements/nfr-*.md`.
 
 | NFR | Concern | Status | Last verified | Spec @ |
 | --- | --- | --- | --- | --- |
-| 01 | Clean Architecture layering | not tested | — | `95378a6` |
+| 01 | Architecture: one image (API + UI), embedded SQLite, auto migrations | pending (spec v0.11) | — | `f29667b` |
 | 02 | Security: backend-only token, masking | implemented | 2026-09-03 | `95378a6` |
-| 03 | Privacy: no PII in logs | not tested | — | `95378a6` |
+| 03 | Privacy: no telemetry; outbound calls to FF3 only | pending (spec v0.11) | — | `f29667b` |
 | 04 | Performance: reconcile 1000 movements < 5 s | implemented | 2026-09-03 | `95378a6` |
 | 05 | Idempotency: no double creation / duplicate upload | implemented | 2026-09-03 | `95378a6` |
 | 06 | Amount integrity: signed cents, no floats | implemented | 2026-09-03 | `95378a6` |
