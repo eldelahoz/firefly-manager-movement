@@ -24,7 +24,11 @@
   --color-status-extra: var(--status-extra);
   --color-status-extra-bg: var(--status-extra-bg);
   --color-status-extra-txt: var(--status-extra-txt);
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --color-status-ignored: var(--status-ignored);
+  --color-status-ignored-bg: var(--status-ignored-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif;
 
   --color-background: var(--canvas);
   --color-foreground: var(--text-1);
@@ -33,15 +37,15 @@
   --color-popover: var(--surface);
   --color-popover-foreground: var(--text-1);
   --color-primary: var(--accent);
-  --color-primary-foreground: #ffffff;
+  --color-primary-foreground: var(--accent-fg);
   --color-secondary: var(--accent-soft);
   --color-secondary-foreground: var(--accent);
   --color-muted: var(--canvas);
   --color-muted-foreground: var(--text-2);
-  --color-accent-foreground: #ffffff;
+  --color-accent-foreground: var(--accent-fg);
   --color-destructive-foreground: #ffffff;
   --color-border: var(--border-subtle);
-  --color-input: var(--border-subtle);
+  --color-input: var(--border-strong); /* controls need 3:1 (WCAG 1.4.11) */
   --color-ring: var(--accent);
   --radius-lg: 12px;
   --radius-md: 8px;
@@ -56,7 +60,71 @@
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--text-1);
+  }
   .tabular-money {
     font-variant-numeric: tabular-nums;
   }
+}
+
+/* Collapsible sidebar (>= md). One variable drives the rail width and the content offset so both move together. */
+.ffm-shell {
+  --sidebar-w: 220px;
+}
+.ffm-shell[data-sidebar='collapsed'] {
+  --sidebar-w: 64px;
+}
+.ffm-shell[data-sidebar='collapsed'] .ffm-sidebar-label {
+  opacity: 0;
+}
+/* the 40px toggle must fit the 40px rail interior */
+.ffm-shell[data-sidebar='collapsed'] .ffm-brand {
+  padding-inline: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ffm-sidebar {
+    transition: width var(--dur-3) var(--ease-enter);
+  }
+  /* The content offset does not animate: it snaps once (start of expand, end of collapse), so the results
+     container never flips between stacked and table layout mid-animation and the rail never covers content. */
+  .ffm-shell[data-sidebar='collapsed'] .ffm-content {
+    transition: padding-left 0s linear var(--dur-3-exit);
+  }
+  .ffm-sidebar-label {
+    transition: opacity 180ms var(--ease-enter) 60ms;
+  }
+  .ffm-shell[data-sidebar='collapsed'] .ffm-sidebar {
+    transition-duration: var(--dur-3-exit);
+    transition-timing-function: var(--ease-exit);
+  }
+  .ffm-shell[data-sidebar='collapsed'] .ffm-sidebar-label {
+    transition-duration: var(--dur-1);
+    transition-delay: 0ms;
+  }
+}
+
+/* Inline metadata separated by a 1px rule instead of a glyph: silent for screen readers, survives forced colours
+   (design-system-research §1). The container clip hides the rule that would lead a wrapped line. */
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.meta > li {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.1;
+  padding-inline-start: 0.75em;
+  margin-inline-start: calc(-1px);
+  border-inline-start: 1px solid var(--border-strong);
+}
+.meta > li:first-child {
+  padding-inline-start: 0;
+  border-inline-start: 0;
 }

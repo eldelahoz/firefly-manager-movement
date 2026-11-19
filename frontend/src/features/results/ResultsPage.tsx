@@ -33,7 +33,7 @@ import { ExtraRow } from './ExtraRow';
 import { BulkPersonalizeDialog } from './BulkPersonalizeDialog';
 import { EditMovementDialog } from './EditMovementDialog';
 import { ConfirmCreateDialog } from './ConfirmCreateDialog';
-import { TableHeader, GRID_COLS, GROUP_ACCENT } from './tableLayout';
+import { TableHeader, CELL, GRID_COLS, GROUP_ACCENT, TABLE_WRAPPER } from './tableLayout';
 
 type Tab = 'matched' | 'missing' | 'extra';
 
@@ -140,11 +140,11 @@ export function ResultsPage() {
     },
     onSuccess: (res) => {
       toast.success(
-        t('results.applyRecap', {
-          created: res.created_count,
-          already: res.already_created_count,
-          failed: res.failed_count,
-        }),
+        <ul className="meta">
+          <li>{t('results.applyCreated', { count: res.created_count })}</li>
+          <li>{t('results.applyAlready', { count: res.already_created_count })}</li>
+          <li>{t('results.applyFailed', { count: res.failed_count })}</li>
+        </ul>,
       );
       const failed = res.reports.filter((r) => r.outcome === 'created' && r.reason);
       if (failed.length > 0) {
@@ -172,7 +172,7 @@ export function ResultsPage() {
 
   const headerTitle = useMemo(
     () => (
-      <span className="truncate">
+      <span title={detail.data?.batch.filename}>
         {t('results.title')} - {detail.data?.batch.filename ?? `#${id}`}
       </span>
     ),
@@ -274,11 +274,7 @@ export function ResultsPage() {
             <EmptyState title={t('results.matched')} />
           ) : (
             <>
-              <div
-                role="table"
-                aria-label={t('results.matched')}
-                className="overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm"
-              >
+              <div role="table" aria-label={t('results.matched')} className={TABLE_WRAPPER}>
                 <VirtualList
                   count={counts.matched}
                   header={<TableHeader group="matched" />}
@@ -292,17 +288,27 @@ export function ResultsPage() {
                           last ? '' : 'border-b border-border-subtle'
                         } ${GROUP_ACCENT.matched.rowHover}`}
                       >
-                        <span role="cell">{formatDate(movement.date, i18n.language)}</span>
-                        <span role="cell" className="min-w-0 truncate" title={movement.description}>
+                        <span role="cell" className={CELL.matched.date}>
+                          {formatDate(movement.date, i18n.language)}
+                        </span>
+                        <span
+                          role="cell"
+                          className={`min-w-0 truncate ${CELL.matched.desc}`}
+                          title={movement.description}
+                        >
                           {movement.description}
                         </span>
-                        <span role="cell" className="min-w-0 truncate" title={ff3.description}>
+                        <span
+                          role="cell"
+                          className={`min-w-0 truncate ${CELL.matched.ff3}`}
+                          title={ff3.description}
+                        >
                           {ff3.description}
                         </span>
-                        <div role="cell" className="text-right">
+                        <div role="cell" className={`text-right ${CELL.matched.amount}`}>
                           <MoneyText cents={movement.amount_cents} currency={currency} />
                         </div>
-                        <div role="cell" className="flex justify-center">
+                        <div role="cell" className={`flex justify-center ${CELL.matched.status}`}>
                           <StatusPill status={movement.status} />
                         </div>
                       </div>
@@ -318,13 +324,9 @@ export function ResultsPage() {
             <EmptyState title={t('results.missing')} />
           ) : (
             <>
-              <div
-                role="table"
-                aria-label={t('results.missing')}
-                className="overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm"
-              >
-                <div className="flex items-center justify-between border-b border-border-subtle px-4 py-2">
-                  <label className="flex items-center gap-2 text-sm text-text-2">
+              <div role="table" aria-label={t('results.missing')} className={TABLE_WRAPPER}>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-subtle px-4 py-2">
+                  <label className="flex items-center gap-2 whitespace-nowrap text-sm text-text-2">
                     <span className="flex w-8 items-center justify-center">
                       <Checkbox
                         aria-label={t('results.selectAll')}
@@ -340,7 +342,7 @@ export function ResultsPage() {
                     </span>
                     {t('results.selectAll')}
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
                       disabled={activeSelected.length === 0}
@@ -398,11 +400,7 @@ export function ResultsPage() {
             <EmptyState title={t('results.extra')} />
           ) : (
             <>
-              <div
-                role="table"
-                aria-label={t('results.extra')}
-                className="overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm"
-              >
+              <div role="table" aria-label={t('results.extra')} className={TABLE_WRAPPER}>
                 <VirtualList
                   count={extraRows.length}
                   header={<TableHeader group="extra" />}
@@ -421,17 +419,13 @@ export function ResultsPage() {
         </TabsContent>
       </Tabs>
       <section aria-label={t('results.ignored')}>
-        <h2 className="border-l-4 border-l-border-strong py-1 pl-2 pr-2 pt-2 text-sm font-semibold text-text-2">
+        <h2 className="px-2 pt-2 pb-1 text-sm font-semibold text-text-2">
           {t('results.ignored')} ({results.data.ignored.length})
         </h2>
         {results.data.ignored.length === 0 ? (
           <p className="px-2 py-3 text-sm text-text-3">{t('results.ignoredEmpty')}</p>
         ) : (
-          <div
-            role="table"
-            aria-label={t('results.ignored')}
-            className="overflow-hidden rounded-lg border border-border-strong bg-surface shadow-sm"
-          >
+          <div role="table" aria-label={t('results.ignored')} className={TABLE_WRAPPER}>
             <TableHeader group="ignored" />
             {results.data.ignored.map((m, i) => (
               <IgnoredRow

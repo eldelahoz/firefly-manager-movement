@@ -1,47 +1,68 @@
+/* Design tokens (reports/design-system-research.md §2). Authored in OKLCH, sRGB-fitted (hex in comments).
+   Text-bearing tints are opaque (color-mix with the surface); alpha only for scrims, shadows and hover overlays.
+   Red is reserved for danger / failed / duplicate; extra = blue (info); ignored = slate. */
 :root {
-  --accent: #4f46e5;
-  --accent-hover: #4338ca;
-  --accent-soft: #eef2ff;
+  color-scheme: light;
   --surface: #ffffff;
-  --canvas: #f8fafc;
-  --border-subtle: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --table-header-bg: rgb(226 232 240 / 0.5);
-  --text-1: #0f172a;
-  --text-2: #475569;
-  --text-3: #94a3b8;
-  --destructive: #dc2626;
-  --status-matched: #10b981;
-  --status-matched-bg: #ecfdf5;
-  --status-matched-txt: #047857;
-  --status-missing: #f59e0b;
-  --status-missing-bg: #fffbeb;
-  --status-missing-txt: #b45309;
-  --status-extra: #ef4444;
-  --status-extra-bg: #fef2f2;
-  --status-extra-txt: #b91c1c;
+  --canvas: oklch(98.4% 0.003 247.9); /* #f8fafc */
+  --text-1: oklch(20.8% 0.042 265.8); /* #0f172b 17.85:1 */
+  --text-2: oklch(44.6% 0.043 257.3); /* #45556c 7.56:1 */
+  --text-3: oklch(55.4% 0.046 257.4); /* #62748e 4.77:1 */
+  --border-subtle: oklch(92.9% 0.013 255.5); /* #e2e8f0 decorative dividers */
+  --border-strong: oklch(62% 0.042 257); /* #7688a0 3.64:1 inputs and controls */
+  --accent: oklch(51.1% 0.262 277); /* #4f39f6 */
+  --accent-fg: #ffffff;
+  --status-matched: oklch(50.8% 0.106 165.6); /* #007857 */
+  --status-missing: oklch(55.5% 0.149 49); /* #b55200 */
+  --status-extra: oklch(50% 0.12 242.7); /* #0169a1 */
+  --status-ignored: oklch(44.6% 0.043 257.3); /* #45556c */
+  --danger: oklch(50.5% 0.206 27.5); /* #be0010 */
+  --table-header-bg: var(--canvas);
+  --scrim: oklch(20.8% 0.042 265.8 / 0.5);
   --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(15 23 42 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(15 23 42 / 0.1);
+
+  /* Derived once for both themes: they follow --surface. */
+  --tint: 12%;
+  --status-matched-bg: color-mix(in oklab, var(--status-matched) var(--tint), var(--surface));
+  --status-missing-bg: color-mix(in oklab, var(--status-missing) var(--tint), var(--surface));
+  --status-extra-bg: color-mix(in oklab, var(--status-extra) var(--tint), var(--surface));
+  --status-ignored-bg: color-mix(in oklab, var(--status-ignored) var(--tint), var(--surface));
+  --danger-bg: color-mix(in oklab, var(--danger) var(--tint), var(--surface));
+  --accent-soft: color-mix(in oklab, var(--accent) var(--tint), var(--surface));
+  --accent-hover: color-mix(in oklab, var(--accent) 85%, var(--text-1));
+  /* The status colour is also the text colour (≥ 4.6:1 on its own tint); kept as aliases for existing classes. */
+  --status-matched-txt: var(--status-matched);
+  --status-missing-txt: var(--status-missing);
+  --status-extra-txt: var(--status-extra);
+  --destructive: var(--danger);
+
+  /* Motion (proposal §A). Exit runs at 0.75× the enter duration. */
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 280ms;
+  --dur-3-exit: 210ms;
+  --ease-enter: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-move: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dark {
-  --accent: #6366f1;
-  --accent-hover: #4f46e5;
-  --accent-soft: #312e81;
-  --surface: #0f172a;
-  --canvas: #0b1120;
-  --border-subtle: #1e293b;
-  --border-strong: #334155;
-  --table-header-bg: rgb(30 41 59 / 0.5);
-  --text-1: #f1f5f9;
-  --text-2: #94a3b8;
-  --text-3: #64748b;
-  --destructive: #ef4444;
-  --status-matched-bg: #052e2b;
-  --status-matched-txt: #34d399;
-  --status-missing-bg: #3a2a0a;
-  --status-missing-txt: #fbbf24;
-  --status-extra-bg: #3a1212;
-  --status-extra-txt: #f87171;
+  color-scheme: dark;
+  --surface: oklch(20.8% 0.042 265.8); /* #0f172b */
+  --canvas: oklch(17% 0.035 266); /* #080f1f */
+  --text-1: oklch(96.8% 0.007 247.9); /* #f1f5f9 */
+  --text-2: oklch(70.4% 0.04 256.8); /* #90a1b9 */
+  --text-3: oklch(62% 0.042 257); /* #7688a0 4.91:1 */
+  --border-subtle: oklch(27.9% 0.041 260); /* #1d293d */
+  --border-strong: oklch(53% 0.045 257.3); /* #5b6d86 3.38:1 */
+  --accent: oklch(67.3% 0.174 276.9); /* #7d88ff */
+  --accent-fg: oklch(20.8% 0.042 265.8); /* dark text on the light accent (white would be 3.08:1) */
+  --status-matched: oklch(76.5% 0.164 163.2); /* #07d294 */
+  --status-missing: oklch(82.8% 0.169 84.4); /* #f9bc07 */
+  --status-extra: oklch(74.6% 0.153 232.7); /* #04bbfd */
+  --status-ignored: oklch(70.4% 0.04 256.8); /* #90a1b9 */
+  --danger: oklch(70.4% 0.187 22.2); /* #ff6668 */
+  --shadow-lg: 0 10px 25px -3px rgb(0 0 0 / 0.5);
 }

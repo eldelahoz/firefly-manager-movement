@@ -48,12 +48,13 @@ export function EditMovementDialog({
         if (!o) requestClose();
       }}
     >
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      {/* min-w-0 on the grid children: a truncated (nowrap) description otherwise sizes the grid track to its full width */}
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg [&>*]:min-w-0">
         <DialogHeader>
           <DialogTitle>{t('results.editTitle')}</DialogTitle>
-          <p className="flex items-center gap-2 text-sm text-text-2">
+          <p className="flex min-w-0 flex-wrap items-center gap-x-2 text-sm text-text-2">
             <span>{formatDate(movement.date, i18n.language)}</span>
-            <span className="min-w-0 truncate" title={movement.description}>
+            <span className="min-w-0 max-w-full truncate" title={movement.description}>
               {movement.description}
             </span>
             <MoneyText cents={movement.amount_cents} currency={currency} />

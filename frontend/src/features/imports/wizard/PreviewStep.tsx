@@ -47,10 +47,7 @@ export function PreviewStep({
         </p>
       )}
       {originNotice?.kind === 'warn' && (
-        <div
-          role="alert"
-          className="mt-2 rounded-lg bg-status-extra-bg/50 p-3 text-sm text-status-extra-txt"
-        >
+        <div role="alert" className="mt-2 rounded-lg bg-danger-bg/50 p-3 text-sm text-danger">
           {t('wizard.originWarning', { values: originNotice.values.join(', ') })}
         </div>
       )}
@@ -84,12 +81,12 @@ export function PreviewStep({
         </div>
       )}
       {probe.invalid_count > 0 && (
-        <div className="mt-3 rounded-lg bg-status-extra-bg/50 p-4">
+        <div className="mt-3 rounded-lg bg-danger-bg/50 p-4">
           <button
             type="button"
             onClick={() => setInvalidOpen((o) => !o)}
             aria-expanded={invalidOpen}
-            className="text-[13px] font-semibold text-status-extra-txt"
+            className="text-[13px] font-semibold text-danger"
           >
             {t('wizard.invalidRows', { count: probe.invalid_count })} {invalidOpen ? '−' : '+'}
           </button>

@@ -177,7 +177,7 @@ export function ReconcileConfigStep({
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
                     currencyMismatch
-                      ? 'bg-status-extra-bg text-status-extra-txt'
+                      ? 'bg-danger-bg text-danger'
                       : 'bg-status-matched-bg text-status-matched-txt'
                   }`}
                 >

@@ -2,7 +2,10 @@
   "nav": {
     "dashboard": "Tableau de bord",
     "imports": "Imports",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "toggleSidebar": "Afficher ou masquer la barre latérale",
+    "themeToLight": "Passer au thème clair",
+    "themeToDark": "Passer au thème sombre"
   },
   "settings": {
     "title": "Paramètres",
@@ -173,7 +176,9 @@
     "category": "Catégorie (facultatif)",
     "budget": "Budget (facultatif)",
     "notes": "Notes (facultatif)",
-    "applyRecap": "Créés {{created}} · déjà créés {{already}} · échoués {{failed}}",
+    "applyCreated": "Créés {{count}}",
+    "applyAlready": "déjà créés {{count}}",
+    "applyFailed": "échoués {{count}}",
     "ignore": "Ignorer",
     "unignore": "Réactiver",
     "ignored": "Ignorés",

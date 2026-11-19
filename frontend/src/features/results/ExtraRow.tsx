@@ -7,7 +7,7 @@ import { Button } from '@/shared/ui/button';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { Pill, StatusPill } from '@/shared/ui/StatusPill';
 import { DeleteDuplicateDialog } from '@/features/firefly/DeleteDuplicateDialog';
-import { GRID_COLS, GROUP_ACCENT } from './tableLayout';
+import { CELL, GRID_COLS, GROUP_ACCENT } from './tableLayout';
 
 export function ExtraRow({
   tx,
@@ -30,25 +30,27 @@ export function ExtraRow({
           isLast ? '' : 'border-b border-border-subtle'
         } ${GROUP_ACCENT.extra.rowHover}`}
       >
-        <span role="cell">{formatDate(tx.date, i18n.language)}</span>
-        <span role="cell" className="min-w-0 truncate" title={tx.description}>
+        <span role="cell" className={CELL.extra.date}>
+          {formatDate(tx.date, i18n.language)}
+        </span>
+        <span role="cell" className={`min-w-0 truncate ${CELL.extra.desc}`} title={tx.description}>
           {tx.description}
         </span>
-        <div role="cell" className="text-right">
+        <div role="cell" className={`text-right ${CELL.extra.amount}`}>
           <MoneyText cents={tx.amount_cents} currency={currency} />
         </div>
-        <div role="cell" className="flex items-center justify-center gap-2">
+        <div role="cell" className={`flex items-center justify-center gap-2 ${CELL.extra.status}`}>
           <StatusPill status={tx.is_duplicate ? 'duplicate' : 'extra'} />
           {outsidePeriod && <Pill>{t('results.outsidePeriod')}</Pill>}
         </div>
-        <span role="cell" className="flex items-center justify-end">
+        <span role="cell" className={`flex items-center justify-end ${CELL.extra.actions}`}>
           {tx.is_duplicate && (
             <Button
               variant="ghost"
               size="icon-sm"
               aria-label={t('dashboard.deleteDuplicate')}
               title={t('dashboard.deleteDuplicate')}
-              className="text-status-extra-txt hover:bg-status-extra-bg hover:text-status-extra-txt"
+              className="text-danger hover:bg-danger-bg hover:text-danger"
               onClick={() => setConfirming(true)}
             >
               <Trash2 className="size-4" />

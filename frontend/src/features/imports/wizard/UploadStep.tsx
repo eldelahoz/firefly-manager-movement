@@ -91,15 +91,15 @@ export function UploadStep({
       {error && (
         <div
           role="alert"
-          className="mt-4 flex items-center gap-2 rounded-lg bg-status-extra-bg p-3 animate-in fade-in duration-200"
+          className="mt-4 flex items-center gap-2 rounded-lg bg-danger-bg p-3 animate-in fade-in duration-200"
         >
           <span className="text-lg leading-none font-semibold text-destructive">!</span>
-          <span className="text-sm font-medium text-status-extra-txt">{error}</span>
+          <span className="text-sm font-medium text-danger">{error}</span>
         </div>
       )}
 
       {tooLarge ? (
-        <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-status-extra-bg/50 animate-in fade-in duration-200">
+        <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-2 rounded-xl bg-danger-bg/50 animate-in fade-in duration-200">
           <span className="flex size-12 items-center justify-center rounded-full bg-destructive text-3xl font-semibold text-white">
             !
           </span>

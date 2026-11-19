@@ -30,7 +30,7 @@ export function Tr({
 }) {
   return (
     <tr
-      className={`border-b border-border-strong last:border-0 hover:bg-canvas ${className}`}
+      className={`border-b border-border-subtle last:border-0 hover:bg-canvas ${className}`}
       title={title}
     >
       {children}

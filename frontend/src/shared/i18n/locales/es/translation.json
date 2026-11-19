@@ -2,7 +2,10 @@
   "nav": {
     "dashboard": "Panel",
     "imports": "Importaciones",
-    "settings": "Ajustes"
+    "settings": "Ajustes",
+    "toggleSidebar": "Mostrar u ocultar la barra lateral",
+    "themeToLight": "Cambiar al tema claro",
+    "themeToDark": "Cambiar al tema oscuro"
   },
   "settings": {
     "title": "Ajustes",
@@ -173,7 +176,9 @@
     "category": "Categoría (opcional)",
     "budget": "Presupuesto (opcional)",
     "notes": "Notas (opcional)",
-    "applyRecap": "Creados {{created}} · ya creados {{already}} · fallidos {{failed}}",
+    "applyCreated": "Creados {{count}}",
+    "applyAlready": "ya creados {{count}}",
+    "applyFailed": "fallidos {{count}}",
     "ignore": "Ignorar",
     "unignore": "Dejar de ignorar",
     "ignored": "Ignorados",

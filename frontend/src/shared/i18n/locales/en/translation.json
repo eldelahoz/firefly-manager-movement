@@ -2,7 +2,10 @@
   "nav": {
     "dashboard": "Dashboard",
     "imports": "Imports",
-    "settings": "Settings"
+    "settings": "Settings",
+    "toggleSidebar": "Toggle sidebar",
+    "themeToLight": "Switch to light theme",
+    "themeToDark": "Switch to dark theme"
   },
   "settings": {
     "title": "Settings",
@@ -173,7 +176,9 @@
     "category": "Category (optional)",
     "budget": "Budget (optional)",
     "notes": "Notes (optional)",
-    "applyRecap": "Created {{created}} · already created {{already}} · failed {{failed}}",
+    "applyCreated": "Created {{count}}",
+    "applyAlready": "already created {{count}}",
+    "applyFailed": "failed {{count}}",
     "ignore": "Ignore",
     "unignore": "Un-ignore",
     "ignored": "Ignored",
