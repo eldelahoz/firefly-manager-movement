@@ -218,7 +218,32 @@
     "col.status": "Statut",
     "undo": "Annuler",
     "ignoredToast": "« {{description}} » ignoré",
-    "unignoredToast": "« {{description}} » réactivé"
+    "unignoredToast": "« {{description}} » réactivé",
+    "selected_one": "{{count}} sélectionné",
+    "selected_other": "{{count}} sélectionnés",
+    "selection": "Sélection",
+    "clearSelection": "Effacer la sélection",
+    "ff3DateChip": "Firefly III {{date}} · {{delta}} j",
+    "summary": {
+      "label": "Résumé du rapprochement",
+      "toCreate_one": "{{count}} à créer",
+      "toCreate_other": "{{count}} à créer",
+      "allReconciled": "Tout est rapproché",
+      "notInFf3": "Absent de Firefly III : {{amounts}}",
+      "out": "{{amount}} sortants",
+      "in": "{{amount}} entrants",
+      "loading": "Chargement des résultats",
+      "matched_one": "{{count}} rapproché",
+      "matched_other": "{{count}} rapprochés",
+      "missing_one": "{{count}} manquant",
+      "missing_other": "{{count}} manquants",
+      "extra_one": "{{count}} en trop",
+      "extra_other": "{{count}} en trop",
+      "ignored_one": "{{count}} ignoré",
+      "ignored_other": "{{count}} ignorés",
+      "failed_one": "{{count}} en échec",
+      "failed_other": "{{count}} en échec"
+    }
   },
   "status": {
     "imported": "Importé",

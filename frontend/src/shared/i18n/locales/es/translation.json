@@ -218,7 +218,32 @@
     "col.status": "Estado",
     "undo": "Deshacer",
     "ignoredToast": "«{{description}}» ignorado",
-    "unignoredToast": "«{{description}}» restaurado"
+    "unignoredToast": "«{{description}}» restaurado",
+    "selected_one": "{{count}} seleccionado",
+    "selected_other": "{{count}} seleccionados",
+    "selection": "Selección",
+    "clearSelection": "Borrar selección",
+    "ff3DateChip": "Firefly III {{date}} · {{delta}} d",
+    "summary": {
+      "label": "Resumen de la conciliación",
+      "toCreate_one": "{{count}} por crear",
+      "toCreate_other": "{{count}} por crear",
+      "allReconciled": "Todo conciliado",
+      "notInFf3": "No está en Firefly III: {{amounts}}",
+      "out": "{{amount}} de salida",
+      "in": "{{amount}} de entrada",
+      "loading": "Cargando resultados",
+      "matched_one": "{{count}} conciliado",
+      "matched_other": "{{count}} conciliados",
+      "missing_one": "{{count}} faltante",
+      "missing_other": "{{count}} faltantes",
+      "extra_one": "{{count}} sobrante",
+      "extra_other": "{{count}} sobrantes",
+      "ignored_one": "{{count}} ignorado",
+      "ignored_other": "{{count}} ignorados",
+      "failed_one": "{{count}} fallido",
+      "failed_other": "{{count}} fallidos"
+    }
   },
   "status": {
     "imported": "Importado",

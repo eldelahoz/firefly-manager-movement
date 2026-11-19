@@ -151,3 +151,42 @@
     translate: 8px 0;
   }
 }
+
+/* Results summary bar re-proportions; bulk bar slides in (exit is instant: it unmounts). */
+@media (prefers-reduced-motion: no-preference) {
+  .ffm-seg {
+    transition: flex-grow var(--dur-3) var(--ease-move);
+  }
+  .ffm-bulkbar {
+    transition:
+      opacity var(--dur-2) var(--ease-enter),
+      transform var(--dur-2) var(--ease-enter);
+  }
+  @starting-style {
+    .ffm-bulkbar {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ffm-bulkbar {
+    transition: opacity var(--dur-1) linear;
+  }
+  @starting-style {
+    .ffm-bulkbar {
+      opacity: 0;
+    }
+  }
+}
+.ffm-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.ffm-disclosure[open] > summary .ffm-chevron {
+  rotate: 90deg;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ffm-chevron {
+    transition: rotate var(--dur-2) var(--ease-move);
+  }
+}

@@ -72,6 +72,7 @@ export function MissingRow({
         <Button
           variant="ghost"
           size="icon-sm"
+          className="@max-[40rem]:size-10"
           aria-label={t('results.edit')}
           title={t('results.edit')}
           onClick={() => onEdit?.()}
@@ -81,6 +82,7 @@ export function MissingRow({
         <Button
           variant="ghost"
           size="icon-sm"
+          className="@max-[40rem]:size-10"
           aria-label={t('results.ignore')}
           title={t('results.ignore')}
           onClick={() => onIgnore?.(movement.id)}

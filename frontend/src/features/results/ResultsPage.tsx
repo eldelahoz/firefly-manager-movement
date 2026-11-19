@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
+import { ChevronRight } from 'lucide-react';
 import {
   getAccounts,
   getAccountsByType,
@@ -22,12 +23,13 @@ import { Checkbox } from '@/shared/ui/checkbox';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import { usePageHeader } from '@/shared/ui/PageHeader';
-import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { useRerun } from '@/app/reconcileContext';
 import type { BulkFields, Customization } from './customization';
 import { applyBulkFillOnly } from './customization';
 import { VirtualList } from './VirtualList';
+import { ResultsSkeleton, ResultsSummary } from './ResultsSummary';
+import { BulkBar } from './BulkBar';
 import { MissingRow } from './MissingRow';
 import { IgnoredRow } from './IgnoredRow';
 import { ExtraRow } from './ExtraRow';
@@ -63,7 +65,15 @@ export function ResultsPage() {
   const id = Number(batchId);
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<Tab>('matched');
+  // null = not chosen yet: defaults to Missing when there is something to create.
+  const [tab, setTab] = useState<Tab | null>(null);
+  const [ignoredOpen, setIgnoredOpen] = useState(() => {
+    try {
+      return localStorage.getItem('ffm.results.ignoredOpen') === '1';
+    } catch {
+      return false;
+    }
+  });
   const [selected, setSelected] = useState<number[]>([]);
   const [customizations, setCustomizations] = useState<Record<number, Customization>>({});
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -233,11 +243,11 @@ export function ResultsPage() {
   );
   const headerActions = useMemo(
     () => (
-      <Button variant="outline" onClick={() => openRerun(id)}>
+      <Button variant="outline" disabled={results.isPending} onClick={() => openRerun(id)}>
         {t('imports.rerun')}
       </Button>
     ),
-    [openRerun, id, t],
+    [openRerun, id, t, results.isPending],
   );
   usePageHeader({ title: headerTitle, actions: headerActions });
   const allAccounts = useMemo(
@@ -266,7 +276,7 @@ export function ResultsPage() {
       />
     );
   }
-  if (results.isPending || detail.isPending) return <TableSkeleton rows={6} cols={4} />;
+  if (results.isPending || detail.isPending) return <ResultsSkeleton />;
   // A failed refetch keeps the cached data (and the optimistic overlay) on screen; the global toast reports it.
   if (!results.data || !detail.data) {
     return (
@@ -297,10 +307,19 @@ export function ResultsPage() {
     matched: results.data.matched.length,
     missing: missingRows.length,
     extra: extraRows.filter((t) => !isOutsidePeriod(t.date)).length,
+    ignored: ignoredRows.length,
   };
+  // Pin the default on first data so the page never jumps tabs when the last missing row leaves.
+  if (tab === null) setTab(counts.missing > 0 ? 'missing' : 'matched');
+  const activeTab: Tab = tab ?? (counts.missing > 0 ? 'missing' : 'matched');
+  const currentReports = reports.batchId === id ? reports.items : [];
+  const failedCount = currentReports.filter(
+    (r) => r.outcome === 'failed' && missingRows.some((m) => m.id === r.movement_id),
+  ).length;
   const activeSelected = selected.filter((sid) => missingRows.some((m) => m.id === sid));
+  const showBulkBar = activeTab === 'missing' && activeSelected.length > 0;
   const currency = detail.data?.batch.currency ?? 'EUR';
-  const tabs: Tab[] = ['matched', 'missing', 'extra'];
+  const tabs: Tab[] = ['missing', 'extra', 'matched'];
   const movementSummaries = selected
     .filter((sid) => missingRows.some((m) => m.id === sid))
     .map((sid) => {
@@ -320,16 +339,45 @@ export function ResultsPage() {
     setBulkOpen(false);
   }
 
+  function openPersonalize() {
+    if (activeSelected.length === 1) setEditingId(activeSelected[0]);
+    else setBulkOpen(true);
+  }
+  function toggleIgnoredSection(open: boolean) {
+    setIgnoredOpen(open);
+    try {
+      localStorage.setItem('ffm.results.ignoredOpen', open ? '1' : '0');
+    } catch {
+      // Storage unavailable: the section just does not remember its state.
+    }
+  }
+
   return (
-    <div className="space-y-4">
-      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">
+    <div className={`space-y-4 ${showBulkBar ? 'pb-36 md:pb-20' : ''}`}>
+      <ResultsSummary
+        counts={counts}
+        outCents={missingRows.reduce((s, m) => s + Math.min(m.amount_cents, 0), 0)}
+        inCents={missingRows.reduce((s, m) => s + Math.max(m.amount_cents, 0), 0)}
+        failed={failedCount}
+        currency={currency}
+      />
+      <Tabs value={activeTab} onValueChange={(v) => setTab(v as Tab)} className="gap-4">
         <TabsList
           variant="line"
-          className="sticky top-0 z-[5] [view-transition-name:results-tabs] w-full justify-start rounded-none border-b border-border-subtle bg-canvas py-1"
+          className="sticky top-0 z-[5] [view-transition-name:results-tabs] w-full justify-start overflow-x-auto rounded-none group-data-[orientation=horizontal]/tabs:h-auto border-b border-border-subtle bg-canvas py-1"
         >
           {tabs.map((tb) => (
-            <TabsTrigger key={tb} value={tb} className={TAB_ACCENT[tb]}>
-              {t(`results.${tb}`)} ({counts[tb]})
+            <TabsTrigger
+              key={tb}
+              value={tb}
+              className={`min-h-11 flex-none px-2 sm:px-3 ${TAB_ACCENT[tb]}`}
+              // The count shows as a badge; the name stays "Missing (n)".
+              aria-label={`${t(`results.${tb}`)} (${counts[tb]})`}
+            >
+              {t(`results.${tb}`)}
+              <span className="rounded-full bg-border-subtle px-1.5 text-xs text-text-2 tabular-nums">
+                {counts[tb]}
+              </span>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -357,10 +405,11 @@ export function ResultsPage() {
                         </span>
                         <span
                           role="cell"
-                          className={`min-w-0 truncate ${CELL.matched.desc}`}
+                          className={`min-w-0 ${CELL.matched.desc}`}
                           title={movement.description}
                         >
-                          {movement.description}
+                          <span className="block truncate">{movement.description}</span>
+                          <DateDeltaChip statement={movement.date} ff3={ff3.date} />
                         </span>
                         <span
                           role="cell"
@@ -388,6 +437,16 @@ export function ResultsPage() {
             <EmptyState title={t('results.missing')} />
           ) : (
             <>
+              {/* Before the table in DOM order, so keyboard users reach it without tabbing through every row.
+                  Not inside the table wrapper: its @container containment would capture position: fixed. */}
+              {showBulkBar && (
+                <BulkBar
+                  count={activeSelected.length}
+                  onPersonalize={openPersonalize}
+                  onCreate={() => setConfirmOpen(true)}
+                  onClear={() => setSelected([])}
+                />
+              )}
               <div
                 id="results-missing-table"
                 role="table"
@@ -412,27 +471,6 @@ export function ResultsPage() {
                     </span>
                     {t('results.selectAll')}
                   </label>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      disabled={activeSelected.length === 0}
-                      onClick={() => {
-                        if (activeSelected.length === 1) {
-                          setEditingId(activeSelected[0]);
-                        } else {
-                          setBulkOpen(true);
-                        }
-                      }}
-                    >
-                      {t('results.personalize')} ({activeSelected.length})
-                    </Button>
-                    <Button
-                      disabled={activeSelected.length === 0}
-                      onClick={() => setConfirmOpen(true)}
-                    >
-                      {t('results.apply')} ({activeSelected.length})
-                    </Button>
-                  </div>
                 </div>
                 <VirtualList
                   count={counts.missing}
@@ -445,11 +483,7 @@ export function ResultsPage() {
                         currency={currency}
                         selected={activeSelected.includes(m.id)}
                         isLast={i === counts.missing - 1}
-                        report={
-                          reports.batchId === id
-                            ? reports.items.find((r) => r.movement_id === m.id)
-                            : undefined
-                        }
+                        report={currentReports.find((r) => r.movement_id === m.id)}
                         onToggle={(mid) =>
                           setSelected((s) =>
                             s.includes(mid) ? s.filter((x) => x !== mid) : [...s, mid],
@@ -490,29 +524,40 @@ export function ResultsPage() {
           )}
         </TabsContent>
       </Tabs>
-      <section aria-label={t('results.ignored')}>
-        <h2 className="px-2 pt-2 pb-1 text-sm font-semibold text-text-2">
-          {t('results.ignored')} ({ignoredRows.length})
-        </h2>
-        {ignoredRows.length === 0 ? (
-          <p className="px-2 py-3 text-sm text-text-3">{t('results.ignoredEmpty')}</p>
-        ) : (
-          <div role="table" aria-label={t('results.ignored')} className={TABLE_WRAPPER}>
-            <TableHeader group="ignored" />
-            {ignoredRows.map((m, i) => (
-              <IgnoredRow
-                key={m.id}
-                movement={m}
-                currency={currency}
-                isLast={i === ignoredRows.length - 1}
-                onUnignore={() =>
-                  toggleIgnore({ mid: m.id, ignored: false, description: m.description })
-                }
-              />
-            ))}
-          </div>
-        )}
-      </section>
+      {activeTab === 'missing' && (
+        <section aria-label={t('results.ignored')}>
+          <details
+            open={ignoredOpen}
+            onToggle={(e) => toggleIgnoredSection(e.currentTarget.open)}
+            className="ffm-disclosure"
+          >
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-md px-2 text-sm font-semibold text-text-2 hover:text-text-1">
+              <ChevronRight className="ffm-chevron size-4" aria-hidden="true" />
+              {t('results.ignored')} ({ignoredRows.length})
+            </summary>
+            {/* Rows mount only when open, so closed rows are never focus or view-transition targets. */}
+            {ignoredOpen &&
+              (ignoredRows.length === 0 ? (
+                <p className="px-2 py-3 text-sm text-text-3">{t('results.ignoredEmpty')}</p>
+              ) : (
+                <div role="table" aria-label={t('results.ignored')} className={TABLE_WRAPPER}>
+                  <TableHeader group="ignored" />
+                  {ignoredRows.map((m, i) => (
+                    <IgnoredRow
+                      key={m.id}
+                      movement={m}
+                      currency={currency}
+                      isLast={i === ignoredRows.length - 1}
+                      onUnignore={() =>
+                        toggleIgnore({ mid: m.id, ignored: false, description: m.description })
+                      }
+                    />
+                  ))}
+                </div>
+              ))}
+          </details>
+        </section>
+      )}
       {editingMovement && (
         <EditMovementDialog
           movement={editingMovement}
@@ -530,7 +575,7 @@ export function ResultsPage() {
           onClose={() => setEditingId(null)}
         />
       )}
-      {bulkOpen && tab === 'missing' && (
+      {bulkOpen && activeTab === 'missing' && (
         <BulkPersonalizeDialog
           count={activeSelected.length}
           defaultTag={defaultTag}
@@ -538,7 +583,7 @@ export function ResultsPage() {
           onClose={() => setBulkOpen(false)}
         />
       )}
-      {confirmOpen && tab === 'missing' && (
+      {confirmOpen && activeTab === 'missing' && (
         <ConfirmCreateDialog
           open={confirmOpen}
           batchId={id}
@@ -551,5 +596,20 @@ export function ResultsPage() {
         />
       )}
     </div>
+  );
+}
+
+/** Shows the Firefly III date when the match used the date tolerance. */
+function DateDeltaChip({ statement, ff3 }: { statement: string; ff3: string }) {
+  const { t, i18n } = useTranslation();
+  const days = Math.round((Date.parse(ff3) - Date.parse(statement)) / 86_400_000);
+  if (!days) return null;
+  return (
+    <span className="mt-0.5 inline-flex rounded-full bg-border-subtle px-2 py-px text-xs text-text-2 tabular-nums">
+      {t('results.ff3DateChip', {
+        date: formatDate(ff3, i18n.language),
+        delta: `${days > 0 ? '+' : '\u2212'}${Math.abs(days)}`,
+      })}
+    </span>
   );
 }
