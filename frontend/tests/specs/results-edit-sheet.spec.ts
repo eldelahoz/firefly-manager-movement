@@ -212,6 +212,41 @@ test.describe('Results > edit sheet', () => {
     await expect(editBtn(page, 'Book')).toBeFocused();
   });
 
+  test('E8d bulk hint is announced once: it is the dialog description, not repeated in the body', async ({
+    page,
+  }) => {
+    await setup(page);
+    await page.getByRole('checkbox', { name: 'Select all' }).check();
+    await page
+      .getByRole('toolbar', { name: 'Selection' })
+      .getByRole('button', { name: 'Personalize (2)' })
+      .click();
+    const bulk = page.getByRole('dialog', { name: 'Personalize 2 movements' });
+    await expect(bulk).toBeVisible();
+    const hint = 'Only filled fields are applied';
+    await expect(bulk.getByText(hint)).toHaveCount(1);
+    await expect(bulk).toHaveAccessibleDescription(new RegExp(hint));
+  });
+
+  for (const [locale, edit, close] of [
+    ['es', 'Editar', 'Cerrar'],
+    ['fr', 'Modifier', 'Fermer'],
+  ]) {
+    test(`E8e close button of the sheet is translated (${locale})`, async ({ page }) => {
+      await page.addInitScript((l) => localStorage.setItem('ffm.locale', l), locale);
+      await setup(page);
+      await page
+        .getByRole('row')
+        .filter({ hasText: 'Book' })
+        .getByRole('button', { name: edit })
+        .click();
+      const dlg = page.getByRole('dialog');
+      await expect(dlg).toBeVisible();
+      await expect(dlg.getByRole('button', { name: close })).toBeVisible();
+      await expect(dlg.getByRole('button', { name: 'Close' })).toHaveCount(0);
+    });
+  }
+
   test('E8 bulk personalize: one sheet for the selection, fill-only apply, no prev/next', async ({
     page,
   }) => {

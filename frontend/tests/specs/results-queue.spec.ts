@@ -182,6 +182,32 @@ test.describe('Results > review queue', () => {
     await expect(dialog).not.toContainText(/EUR|€/);
   });
 
+  test('Q5c COP keeps its centavos in rows and summary (1.234.567,89 in es)', async ({ page }) => {
+    const big = { ...BOOK, amount_cents: -123456789 };
+    await page.addInitScript(() => localStorage.setItem('ffm.locale', 'es'));
+    await mockResults(page, { ...results, missing: [big] });
+    await page.route('**/api/imports/1', (r) =>
+      r.fulfill({ json: { ...detail, batch: { ...detail.batch, currency: 'COP' } } }),
+    );
+    await page.goto('/results/1');
+    const amount = /1\.234\.567,89\s*COP/;
+    await expect(page.getByRole('row').filter({ hasText: 'Book' })).toContainText(amount);
+    await expect(page.getByRole('region', { name: 'Resumen de la conciliación' })).toContainText(
+      amount,
+    );
+  });
+
+  test('Q5d the confirm dialog close button is translated (es)', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('ffm.locale', 'es'));
+    await mockResults(page);
+    await page.goto('/results/1');
+    await page.getByRole('row').filter({ hasText: 'Book' }).getByRole('checkbox').check();
+    await page.getByRole('button', { name: 'Crear en Firefly III (1)' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('button', { name: 'Cerrar' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Close' })).toHaveCount(0);
+  });
+
   test('Q6 Ignored is a collapsible, closed by default, remembered, shown under every tab', async ({
     page,
   }) => {

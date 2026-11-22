@@ -126,6 +126,51 @@ test.describe('Results > optimistic ignore + Undo', () => {
     ]);
   });
 
+  test('U2b Undo clicked while the edit sheet is open keeps the sheet and restores the row', async ({
+    page,
+  }) => {
+    await mockResults(page);
+    await ignoreBook(page);
+    await expect(row(page, 'Book')).toHaveCount(0);
+    await row(page, 'Salary').getByRole('button', { name: 'Edit' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Edit movement' });
+    await expect(dialog).toBeVisible();
+    // The modal marks everything outside it aria-hidden: reach the toast by DOM, not by role.
+    await page.locator('[data-sonner-toast] button', { hasText: 'Undo' }).click();
+    await expect(dialog).toBeVisible();
+    await expect(
+      page.getByRole('tab', { name: /Missing \(2\)/, includeHidden: true }),
+    ).toBeAttached();
+  });
+
+  test('U2c a sheet closed because its row vanished does not reopen when the row returns', async ({
+    page,
+  }) => {
+    const { state } = await mockResults(page);
+    await page.goto('/results/1');
+    await page.getByRole('tab', { name: /Missing/ }).click();
+    // The Undo toast is the handle to trigger refetches while the sheet is open.
+    await row(page, 'Salary').getByRole('button', { name: 'Ignore' }).click();
+    await row(page, 'Book').getByRole('button', { name: 'Edit' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Edit movement' });
+    await expect(dialog).toBeVisible();
+
+    // The refetch after Undo no longer has Book: the sheet closes.
+    const book = state.missing.splice(
+      state.missing.findIndex((m) => m.id === BOOK.id),
+      1,
+    )[0];
+    await page.locator('[data-sonner-toast] button', { hasText: 'Undo' }).click();
+    await expect(dialog).toHaveCount(0);
+
+    // Book comes back with the next refetch (Ignore settles): the sheet must stay closed.
+    state.missing.unshift(book);
+    await row(page, 'Salary').getByRole('button', { name: 'Ignore' }).click();
+    await expect(row(page, 'Book')).toBeVisible();
+    await expect(row(page, 'Salary')).toHaveCount(0);
+    await expect(dialog).toHaveCount(0);
+  });
+
   test('U3 Undo lasts the 8 s window, then the toast is gone', async ({ page }) => {
     await page.clock.install();
     await mockResults(page);
