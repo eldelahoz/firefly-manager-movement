@@ -26,6 +26,8 @@ fn groceries() -> Ff3AccountDto {
         currency: "EUR".into(),
         iban: None,
         account_number: None,
+        role: None,
+        liability_type: None,
     }
 }
 
@@ -58,7 +60,7 @@ impl FireflyClient for TypedFirefly {
     async fn create_transaction(
         &self,
         _creation: NewFf3TransactionCreation,
-    ) -> Result<i64, ApplicationError> {
+    ) -> Result<ffm_application::dtos::CreatedFf3Transaction, ApplicationError> {
         unimplemented!()
     }
     async fn delete_transaction(&self, _ff3_id: i64) -> Result<(), ApplicationError> {

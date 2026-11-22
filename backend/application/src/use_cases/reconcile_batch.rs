@@ -161,6 +161,8 @@ where
             amount_cents,
             description: description.to_string(),
             is_duplicate: false,
+            counterparty_name: None,
+            counterparty_type: None,
             created_at: Default::default(),
         };
 
@@ -214,6 +216,8 @@ where
                     amount_cents: s.amount_cents,
                     description: s.description.clone(),
                     is_duplicate: split_duplicates.contains(&s.journal_id),
+                    counterparty_name: t.counterparty_name.clone(),
+                    counterparty_type: t.counterparty_type.clone(),
                 }));
             } else {
                 ff3_rows.push(RunFf3Transaction {
@@ -223,6 +227,8 @@ where
                     amount_cents: t.amount_cents,
                     description: t.description.clone(),
                     is_duplicate: duplicates.contains(&t.ff3_id),
+                    counterparty_name: t.counterparty_name.clone(),
+                    counterparty_type: t.counterparty_type.clone(),
                 });
             }
         }

@@ -81,14 +81,20 @@ impl FireflyClient for FakeFirefly {
     async fn create_transaction(
         &self,
         creation: NewFf3TransactionCreation,
-    ) -> Result<i64, ApplicationError> {
+    ) -> Result<ffm_application::dtos::CreatedFf3Transaction, ApplicationError> {
         if self.fail_amounts.contains(&creation.amount.as_i64()) {
             return Err(ApplicationError::FireflyClient("FF3 500".into()));
         }
         let mut id = self.next_id.lock().unwrap();
         *id += 1;
         self.created.lock().unwrap().push(creation);
-        Ok(500 + *id)
+        Ok(ffm_application::dtos::CreatedFf3Transaction {
+            ff3_id: 500 + *id,
+            source_name: Some("S".into()),
+            source_type: Some("Loan".into()),
+            destination_name: Some("D".into()),
+            destination_type: Some("Expense account".into()),
+        })
     }
     async fn delete_transaction(&self, _ff3_id: i64) -> Result<(), ApplicationError> {
         unimplemented!("F5.3")
@@ -279,6 +285,8 @@ impl FakeRunStore {
                 description: "tx300".into(),
                 is_duplicate: false,
                 created_at: epoch(),
+                counterparty_name: Some("Shop".into()),
+                counterparty_type: Some("Expense account".into()),
             },
             Ff3Transaction {
                 ff3_journal_id: 0,
@@ -290,6 +298,8 @@ impl FakeRunStore {
                 description: "tx310".into(),
                 is_duplicate: false,
                 created_at: epoch(),
+                counterparty_name: None,
+                counterparty_type: None,
             },
         ]);
         store.match_rows.lock().unwrap().push(Match {
@@ -346,6 +356,8 @@ impl ReconciliationRepository for FakeRunStore {
                     description: t.description.clone(),
                     is_duplicate: t.is_duplicate,
                     created_at: epoch(),
+                    counterparty_name: t.counterparty_name.clone(),
+                    counterparty_type: t.counterparty_type.clone(),
                 });
             }
         }
@@ -532,8 +544,27 @@ impl Ff3AccountRepository for StaticAccounts {
     async fn upsert_batch(&self, _accounts: Vec<NewFf3Account>) -> Result<(), ApplicationError> {
         unimplemented!()
     }
-    async fn by_ff3_id(&self, _ff3_id: i64) -> Result<Option<Ff3Account>, ApplicationError> {
-        unimplemented!()
+    /// Cached counterparties: 7 = the batch account, 10 expense, 20 revenue,
+    /// 42 liability, 30 own asset (EUR), 31 own asset in USD.
+    async fn by_ff3_id(&self, ff3_id: i64) -> Result<Option<Ff3Account>, ApplicationError> {
+        let (account_type, currency) = match ff3_id {
+            7 | 30 => ("asset", "EUR"),
+            10 => ("expense", "EUR"),
+            20 => ("revenue", "EUR"),
+            42 => ("liabilities", "EUR"),
+            31 => ("asset", "USD"),
+            _ => return Ok(None),
+        };
+        Ok(Some(Ff3Account {
+            id: Ff3AccountId::new(ff3_id + 100),
+            ff3_id,
+            name: format!("acc {ff3_id}"),
+            account_type: account_type.into(),
+            currency: currency.into(),
+            iban: None,
+            account_number: None,
+            synced_at: epoch(),
+        }))
     }
     async fn by_id(&self, id: Ff3AccountId) -> Result<Option<Ff3Account>, ApplicationError> {
         if id == Ff3AccountId::new(1) {
@@ -601,6 +632,7 @@ fn ma_opt(movement_id: i64, counterparty_ff3_id: Option<i64>) -> MovementApply {
     MovementApply {
         movement_id: MovementId::new(movement_id),
         counterparty_ff3_id,
+        counterparty_name: None,
         description: None,
         category: None,
         budget: None,
@@ -619,6 +651,7 @@ async fn applies_per_movement_customization() {
         MovementApply {
             movement_id: MovementId::new(1),
             counterparty_ff3_id: Some(10),
+            counterparty_name: None,
             description: Some("Custom debit".into()),
             category: Some("Rent".into()),
             budget: Some("Housing".into()),
@@ -629,6 +662,7 @@ async fn applies_per_movement_customization() {
         MovementApply {
             movement_id: MovementId::new(2),
             counterparty_ff3_id: Some(20),
+            counterparty_name: None,
             description: None, // falls back to statement description
             category: Some("Income".into()),
             budget: None,
@@ -678,6 +712,7 @@ async fn origin_tag_appended_in_addition_to_user_tags() {
     let input = f.input(vec![MovementApply {
         movement_id: MovementId::new(1),
         counterparty_ff3_id: Some(42),
+        counterparty_name: None,
         description: None,
         category: None,
         budget: None,
@@ -712,6 +747,7 @@ async fn origin_trace_appended_below_user_notes() {
     let input = f.input(vec![MovementApply {
         movement_id: MovementId::new(1),
         counterparty_ff3_id: Some(42),
+        counterparty_name: None,
         description: None,
         category: None,
         budget: None,
@@ -737,6 +773,7 @@ async fn zero_amount_movement_fails_without_ff3_call() {
     let input = f.input(vec![MovementApply {
         movement_id: MovementId::new(4),
         counterparty_ff3_id: Some(42),
+        counterparty_name: None,
         description: None,
         category: None,
         budget: None,
@@ -763,6 +800,7 @@ async fn attachment_uploaded_after_creation() {
     let input = f.input(vec![MovementApply {
         movement_id: MovementId::new(1),
         counterparty_ff3_id: Some(42),
+        counterparty_name: None,
         description: None,
         category: None,
         budget: None,
@@ -795,6 +833,7 @@ async fn attachment_failure_does_not_fail_creation() {
     let input = f.input(vec![MovementApply {
         movement_id: MovementId::new(1),
         counterparty_ff3_id: Some(42),
+        counterparty_name: None,
         description: None,
         category: None,
         budget: None,
@@ -918,6 +957,7 @@ async fn apply_unknown_batch_or_movement_is_not_found() {
         .execute(f.input(vec![MovementApply {
             movement_id: MovementId::new(777),
             counterparty_ff3_id: Some(42),
+            counterparty_name: None,
             description: None,
             category: None,
             budget: None,
@@ -997,4 +1037,227 @@ async fn explicit_empty_tags_do_not_add_default_tag() {
     m.tags = Some(vec![]);
     f.uc().execute(f.input(vec![m])).await.expect("apply ok");
     assert_eq!(f.firefly.calls()[0].tags, Vec::<String>::new());
+}
+
+// ── Counterparty types (RF-08 v0.10) ──────────────────────────────────────
+
+fn named(movement_id: i64, name: &str) -> MovementApply {
+    MovementApply {
+        counterparty_name: Some(name.into()),
+        ..ma_opt(movement_id, None)
+    }
+}
+
+fn report_type(
+    result: &ffm_application::use_cases::apply_missing::ApplyOutput,
+    id: i64,
+) -> Option<&'static str> {
+    result
+        .reports
+        .iter()
+        .find(|r| r.movement_id == MovementId::new(id))
+        .and_then(|r| r.transaction_type)
+        .map(|k| k.as_str())
+}
+
+#[tokio::test]
+async fn own_asset_counterparty_creates_transfer_and_liability_follows_direction() {
+    let f = fx(vec![]);
+    let result = f
+        .uc()
+        .execute(f.input(vec![ma(1, 30), ma(2, 42)]))
+        .await
+        .expect("apply ok");
+    assert_eq!(result.created_count, 2);
+    assert_eq!(report_type(&result, 1), Some("transfer"));
+    assert_eq!(report_type(&result, 2), Some("deposit"));
+
+    let calls = f.firefly.calls();
+    let transfer = calls.iter().find(|c| c.amount.as_i64() == -5000).unwrap();
+    assert_eq!(transfer.transaction_type, "transfer");
+    assert_eq!(transfer.source_ff3_id, Some(7));
+    assert_eq!(transfer.destination_ff3_id, Some(30));
+    let deposit = calls.iter().find(|c| c.amount.as_i64() == 3000).unwrap();
+    assert_eq!(deposit.transaction_type, "deposit");
+    assert_eq!(deposit.source_ff3_id, Some(42));
+    assert_eq!(deposit.destination_ff3_id, Some(7));
+}
+
+#[tokio::test]
+async fn expense_and_revenue_counterparties_report_their_type() {
+    let f = fx(vec![]);
+    let result = f
+        .uc()
+        .execute(f.input(vec![ma(1, 10), ma(2, 20)]))
+        .await
+        .expect("apply ok");
+    assert_eq!(report_type(&result, 1), Some("withdrawal"));
+    assert_eq!(report_type(&result, 2), Some("deposit"));
+}
+
+#[tokio::test]
+async fn new_name_sends_destination_or_source_name_without_id() {
+    let f = fx(vec![]);
+    let result = f
+        .uc()
+        .execute(f.input(vec![named(1, " Pexto "), named(2, "Employer")]))
+        .await
+        .expect("apply ok");
+    assert_eq!(result.created_count, 2);
+    assert_eq!(report_type(&result, 1), Some("withdrawal"));
+    assert_eq!(report_type(&result, 2), Some("deposit"));
+
+    let calls = f.firefly.calls();
+    let debit = calls.iter().find(|c| c.amount.as_i64() == -5000).unwrap();
+    assert_eq!(debit.transaction_type, "withdrawal");
+    assert_eq!(debit.source_ff3_id, Some(7));
+    assert_eq!(debit.destination_ff3_id, None);
+    assert_eq!(debit.destination_name.as_deref(), Some("Pexto"));
+    assert_eq!(debit.source_name, None);
+    let credit = calls.iter().find(|c| c.amount.as_i64() == 3000).unwrap();
+    assert_eq!(credit.transaction_type, "deposit");
+    assert_eq!(credit.source_ff3_id, None);
+    assert_eq!(credit.source_name.as_deref(), Some("Employer"));
+    assert_eq!(credit.destination_ff3_id, Some(7));
+    assert_eq!(credit.destination_name, None);
+}
+
+#[tokio::test]
+async fn cash_reports_withdrawal_and_deposit() {
+    let f = fx(vec![]);
+    let result = f
+        .uc()
+        .execute(f.input(vec![ma_opt(1, None), ma_opt(2, None)]))
+        .await
+        .expect("apply ok");
+    assert_eq!(report_type(&result, 1), Some("withdrawal"));
+    assert_eq!(report_type(&result, 2), Some("deposit"));
+}
+
+#[tokio::test]
+async fn rejected_counterparty_fails_that_movement_only_and_retry_creates_it() {
+    let f = fx(vec![]);
+    // Money out to a revenue account is rejected; the credit still goes through.
+    let result = f
+        .uc()
+        .execute(f.input(vec![ma(1, 20), ma(2, 20)]))
+        .await
+        .expect("apply ok");
+    assert_eq!(result.created_count, 1);
+    assert_eq!(result.failed_count, 1);
+    let failed = result
+        .reports
+        .iter()
+        .find(|r| r.movement_id == MovementId::new(1))
+        .unwrap();
+    assert_eq!(failed.outcome, ApplyOutcome::Failed);
+    assert!(failed.reason.as_deref().unwrap().contains("revenue"));
+    assert_eq!(failed.transaction_type, None);
+    assert_eq!(f.firefly.calls().len(), 1);
+    assert_eq!(f.movements.status_of(1), MovementStatus::Missing);
+    assert!(f
+        .creations
+        .by_movement(MovementId::new(1))
+        .await
+        .unwrap()
+        .is_none());
+
+    // Retry with a valid counterparty creates it; the created one is not duplicated.
+    let retry = f
+        .uc()
+        .execute(f.input(vec![ma(1, 10), ma(2, 20)]))
+        .await
+        .expect("retry ok");
+    assert_eq!(retry.created_count, 1);
+    assert_eq!(retry.already_created_count, 1);
+    assert_eq!(report_type(&retry, 1), Some("withdrawal"));
+    assert_eq!(f.firefly.calls().len(), 2);
+}
+
+#[tokio::test]
+async fn invalid_counterparties_are_rejected_before_firefly() {
+    let both = MovementApply {
+        counterparty_name: Some("Pexto".into()),
+        ..ma(1, 10)
+    };
+    let cases = [
+        (ma(1, 7), "batch account"),
+        (ma(1, 31), "currencies"),
+        (ma(1, 99), "not a known account"),
+        (both, "not both"),
+    ];
+    for (apply, expected) in cases {
+        let f = fx(vec![]);
+        let result = f
+            .uc()
+            .execute(f.input(vec![apply]))
+            .await
+            .expect("apply ok");
+        let report = &result.reports[0];
+        assert_eq!(report.outcome, ApplyOutcome::Failed, "{expected}");
+        let reason = report.reason.as_deref().unwrap();
+        assert!(
+            reason.contains(expected),
+            "{reason} should contain {expected}"
+        );
+        assert!(f.firefly.calls().is_empty());
+    }
+    // Money in from an expense account.
+    let f = fx(vec![]);
+    let result = f
+        .uc()
+        .execute(f.input(vec![ma(2, 10)]))
+        .await
+        .expect("apply ok");
+    assert!(result.reports[0]
+        .reason
+        .as_deref()
+        .unwrap()
+        .contains("expense"));
+    assert!(f.firefly.calls().is_empty());
+}
+
+#[tokio::test]
+async fn confirmation_run_keeps_previous_snapshot_counterparty() {
+    let f = fx(vec![]);
+    f.uc()
+        .execute(f.input(vec![ma(1, 10)]))
+        .await
+        .expect("apply ok");
+    let run = &f.runs.saved_runs()[0];
+    let carried = run
+        .ff3_transactions
+        .iter()
+        .find(|t| t.ff3_id == 300)
+        .unwrap();
+    assert_eq!(carried.counterparty_name.as_deref(), Some("Shop"));
+    assert_eq!(
+        carried.counterparty_type.as_deref(),
+        Some("Expense account")
+    );
+}
+
+#[tokio::test]
+async fn confirmation_run_stores_counterparty_from_firefly_response() {
+    let f = fx(vec![]);
+    f.uc()
+        .execute(f.input(vec![ma(1, 10), ma(2, 42)]))
+        .await
+        .expect("apply ok");
+    let run = &f.runs.saved_runs()[0];
+    let row = |cents: i64| {
+        run.ff3_transactions
+            .iter()
+            .find(|t| t.amount_cents.as_i64() == cents)
+            .unwrap()
+    };
+    // Money out: the batch account is the source, so the counterparty is the destination.
+    assert_eq!(row(-5000).counterparty_name.as_deref(), Some("D"));
+    assert_eq!(
+        row(-5000).counterparty_type.as_deref(),
+        Some("Expense account")
+    );
+    // Money in: the batch account is the destination, so the counterparty is the source.
+    assert_eq!(row(3000).counterparty_name.as_deref(), Some("S"));
+    assert_eq!(row(3000).counterparty_type.as_deref(), Some("Loan"));
 }

@@ -117,6 +117,8 @@ async fn save_run_tx(conn: &mut DbConnection, run: ReconciliationRun) -> QueryRe
                 amount_cents: t.amount_cents.as_i64(),
                 description: t.description,
                 is_duplicate: t.is_duplicate,
+                counterparty_name: t.counterparty_name,
+                counterparty_type: t.counterparty_type,
             })
             .returning(ff3_transactions::id)
             .get_result(conn)

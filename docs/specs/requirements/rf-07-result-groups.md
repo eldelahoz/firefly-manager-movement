@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Version | v0.10 (integrates PRD v0.10 amendment) |
+| Version | v0.11 (integrates PRD v0.10 amendment + counterparty amendment) |
 | Priority | P0 |
 | Use cases | CU-4 |
 | Depends on | RF-06 (a reconciliation run exists) |
@@ -26,10 +26,12 @@ Each group renders as a **table with column headers**. Columns per group:
 
 | Group | Columns |
 | --- | --- |
-| Matched | Date · Description (statement) · Description (Firefly III) · Amount · Status |
+| Matched | Date · Description (statement) · Description (Firefly III) · Counterparty (v0.11) · Amount · Status |
 | Missing | Selection · Date · Description · Amount · Status · Actions (Personalize, Ignore) |
 | Extras | Date · Description · Amount · Status (duplicate badge, RF-15) · Actions (RF-15) |
 | Ignored | Date · Description · Amount · Status (`Ignored`) · Actions (Un-ignore) |
+
+**Counterparty (v0.11)**: in the Matched group, the Counterparty column shows the name and a type badge of the account on the opposite side of the matched Firefly III transaction (RF-14 defines the values). Reconciliation snapshots saved before this amendment have no counterparty data: the cell stays empty until the batch is reconciled again (RF-13).
 
 The Status column always reflects the movement's real state, including the post-creation report pills (`created` / `failed`) on missing rows (RF-08).
 
@@ -61,5 +63,7 @@ The Status column always reflects the movement's real state, including the post-
 - [ ] Rows render with checkboxes, editable fields and duplicate flags
 - [ ] Each group renders as a table with column headers per the table layout (v0.8)
 - [ ] Out-of-period extras are badged `Outside period` and excluded from the displayed extras count
+- [ ] (v0.11) The Matched table shows the counterparty name and type badge of each matched Firefly III transaction; the results API returns `counterparty_name` and `counterparty_type` in `matched[].ff3` and `extra[]`
+- [ ] (v0.11) Snapshots saved before the amendment return null for both fields and render an empty cell, without error
 - [ ] The Status column reflects the movement's real state, including post-apply report pills
 - [ ] Large lists stay performant

@@ -67,7 +67,13 @@ export async function mockAccounts(
     }
     const type = new URL(route.request().url()).searchParams.get('type');
     const json =
-      type === 'revenue' ? revenueAccounts : type === 'expense' ? expenseAccounts : accounts;
+      type === 'revenue'
+        ? revenueAccounts
+        : type === 'expense'
+          ? expenseAccounts
+          : type === 'liability'
+            ? []
+            : accounts;
     await route.fulfill({ json });
   });
 }

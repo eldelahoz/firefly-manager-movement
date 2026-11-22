@@ -89,6 +89,8 @@ async fn reconcile_flow_ff3_transactions_matches_creations() {
                 amount_cents: AmountCents::new(-5000),
                 description: "cash".into(),
                 is_duplicate: false,
+                counterparty_name: None,
+                counterparty_type: None,
             },
             NewFf3Transaction {
                 reconciliation_id: rec_id,
@@ -97,6 +99,8 @@ async fn reconcile_flow_ff3_transactions_matches_creations() {
                 amount_cents: AmountCents::new(12340),
                 description: "lunch".into(),
                 is_duplicate: false,
+                counterparty_name: None,
+                counterparty_type: None,
             },
         ])
         .await
@@ -236,6 +240,8 @@ async fn save_run_persists_whole_run_atomically() {
                 amount_cents: AmountCents::new(12340),
                 description: "lunch ff3".into(),
                 is_duplicate: false,
+                counterparty_name: Some("Planautos S A".into()),
+                counterparty_type: Some("Expense account".into()),
             },
             RunFf3Transaction {
                 ff3_id: 102,
@@ -244,6 +250,8 @@ async fn save_run_persists_whole_run_atomically() {
                 amount_cents: AmountCents::new(999),
                 description: "unrelated".into(),
                 is_duplicate: false,
+                counterparty_name: None,
+                counterparty_type: None,
             },
         ],
         matches: vec![RunMatch {
@@ -281,6 +289,14 @@ async fn save_run_persists_whole_run_atomically() {
     assert_eq!(mts[0].movement_id, lunch.id);
     let lunch_tx = txs.iter().find(|t| t.ff3_id == 101).unwrap();
     assert_eq!(mts[0].ff3_transaction_id, lunch_tx.id);
+    assert_eq!(lunch_tx.counterparty_name.as_deref(), Some("Planautos S A"));
+    assert_eq!(
+        lunch_tx.counterparty_type.as_deref(),
+        Some("Expense account")
+    );
+    let unrelated = txs.iter().find(|t| t.ff3_id == 102).unwrap();
+    assert_eq!(unrelated.counterparty_name, None);
+    assert_eq!(unrelated.counterparty_type, None);
 
     // Status updates applied inside the same tx.
     let movs = movements.by_batch(batch_id).await.expect("movements");
@@ -342,6 +358,8 @@ async fn save_run_persists_each_matched_split_of_one_group() {
         amount_cents: AmountCents::new(cents),
         description: format!("split {journal}"),
         is_duplicate: false,
+        counterparty_name: None,
+        counterparty_type: None,
     };
     let run = ReconciliationRun {
         reconciliation: NewReconciliation {
@@ -421,6 +439,8 @@ async fn latest_by_ff3_id_returns_most_recent_cached_row() {
             amount_cents: AmountCents::new(-1000),
             description: "same ff3 id across runs".into(),
             is_duplicate: false,
+            counterparty_name: None,
+            counterparty_type: None,
         }],
         matches: vec![],
         movement_status_updates: vec![],

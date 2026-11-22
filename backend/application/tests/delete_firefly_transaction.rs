@@ -53,7 +53,7 @@ impl FireflyClient for FakeFirefly {
     async fn create_transaction(
         &self,
         _creation: NewFf3TransactionCreation,
-    ) -> Result<i64, ApplicationError> {
+    ) -> Result<ffm_application::dtos::CreatedFf3Transaction, ApplicationError> {
         unimplemented!()
     }
     async fn delete_transaction(&self, ff3_id: i64) -> Result<(), ApplicationError> {
@@ -132,6 +132,8 @@ fn cached_tx(local_id: i64, ff3_id: i64, dup: bool) -> Ff3Transaction {
         description: "dupe".into(),
         is_duplicate: dup,
         created_at: epoch(),
+        counterparty_name: None,
+        counterparty_type: None,
     }
 }
 

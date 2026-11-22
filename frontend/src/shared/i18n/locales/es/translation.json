@@ -179,7 +179,6 @@
     "outsidePeriod": "Fuera del periodo",
     "selectAll": "Seleccionar todo",
     "apply": "Crear en Firefly III",
-    "counterparty": "Cuenta de contrapartida",
     "category": "Categoría (opcional)",
     "budget": "Presupuesto (opcional)",
     "notes": "Notas (opcional)",
@@ -219,6 +218,7 @@
     "col.description": "Descripción",
     "col.descriptionFf3": "Descripción (Firefly III)",
     "col.descriptionStatement": "Descripción (extracto)",
+    "col.counterparty": "Contrapartida",
     "col.selection": "",
     "col.status": "Estado",
     "undo": "Deshacer",
@@ -254,7 +254,56 @@
     "position": "Movimiento {{index}} de {{total}}",
     "line": "Línea {{line}}",
     "attachFile": "Adjuntar archivo",
-    "removeAttachment": "Quitar adjunto"
+    "removeAttachment": "Quitar adjunto",
+    "cp": {
+      "destination": "Cuenta destino",
+      "source": "Cuenta origen",
+      "mixed": "Direcciones mixtas: elige la cuenta en cada movimiento.",
+      "keep": "Dejar sin cambios",
+      "expense": "Cuentas de gastos",
+      "revenue": "Cuentas de ingresos",
+      "liabilities": "Pasivos",
+      "own": "Cuentas propias",
+      "creditCard": "Tarjeta de crédito",
+      "loan": "Préstamo",
+      "debt": "Deuda",
+      "mortgage": "Hipoteca",
+      "createExpense": "Crear «{{name}}» como cuenta de gastos",
+      "createRevenue": "Crear «{{name}}» como cuenta de ingresos",
+      "cashOption": "Efectivo / sin contrapartida",
+      "cash": "Efectivo",
+      "newExpense": "Nueva cuenta de gastos «{{name}}»",
+      "newRevenue": "Nueva cuenta de ingresos «{{name}}»",
+      "willCreate": {
+        "withdrawal": "Se creará como retiro",
+        "deposit": "Se creará como depósito",
+        "transfer": "Se creará como transferencia"
+      },
+      "type": {
+        "withdrawal": "Retiro",
+        "deposit": "Depósito",
+        "transfer": "Transferencia"
+      },
+      "badge": {
+        "expense": "Gasto",
+        "revenue": "Ingreso",
+        "asset": "Cuenta propia",
+        "cash": "Efectivo",
+        "loan": "Préstamo",
+        "debt": "Deuda",
+        "mortgage": "Hipoteca",
+        "initialBalance": "Saldo inicial",
+        "reconciliation": "Conciliación",
+        "liabilityCredit": "Crédito de pasivo"
+      }
+    },
+    "confirmField": {
+      "category": "Categoría: {{value}}",
+      "budget": "Presupuesto: {{value}}",
+      "tags": "Etiquetas: {{value}}",
+      "notes": "Notas: {{value}}",
+      "attachment": "Adjunto: {{value}}"
+    }
   },
   "status": {
     "imported": "Importado",

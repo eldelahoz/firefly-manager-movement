@@ -16,5 +16,9 @@ pub struct Ff3Transaction {
     pub amount_cents: AmountCents,
     pub description: String,
     pub is_duplicate: bool,
+    /// Opposite-side account of the snapshot; `None` for snapshots saved
+    /// before RF-07 v0.11.
+    pub counterparty_name: Option<String>,
+    pub counterparty_type: Option<String>,
     pub created_at: NaiveDateTime,
 }

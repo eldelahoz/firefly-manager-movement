@@ -26,6 +26,8 @@ pub struct NewFf3Transaction {
     pub amount_cents: AmountCents,
     pub description: String,
     pub is_duplicate: bool,
+    pub counterparty_name: Option<String>,
+    pub counterparty_type: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -52,6 +54,8 @@ pub struct RunFf3Transaction {
     pub amount_cents: AmountCents,
     pub description: String,
     pub is_duplicate: bool,
+    pub counterparty_name: Option<String>,
+    pub counterparty_type: Option<String>,
 }
 
 /// Pairing persisted for the run; references the FF3 transaction by

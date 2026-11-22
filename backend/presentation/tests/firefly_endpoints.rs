@@ -28,6 +28,8 @@ async fn get_firefly_accounts_returns_accounts_and_syncs() {
             currency: "EUR".into(),
             iban: None,
             account_number: None,
+            role: None,
+            liability_type: None,
         },
         Ff3AccountDto {
             ff3_id: 2,
@@ -36,6 +38,8 @@ async fn get_firefly_accounts_returns_accounts_and_syncs() {
             currency: "USD".into(),
             iban: None,
             account_number: None,
+            role: None,
+            liability_type: None,
         },
     ];
     let repo = Arc::new(FakeFf3AccountRepository::new());
@@ -91,6 +95,8 @@ async fn get_firefly_accounts_by_type_returns_expense_accounts() {
         currency: "EUR".into(),
         iban: None,
         account_number: None,
+        role: None,
+        liability_type: None,
     };
     let accounts = vec![
         account(1, "Main", "asset"),
@@ -228,6 +234,8 @@ async fn post_account_transactions_ok() {
         amount_cents: AmountCents::from_str("-123.45").unwrap(),
         description: "lunch".into(),
         splits: vec![],
+        counterparty_name: Some("Restaurant".into()),
+        counterparty_type: Some("Expense account".into()),
     }];
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::with_transactions(txs)),
@@ -273,6 +281,8 @@ async fn post_account_transactions_ok() {
     assert_eq!(value[0]["date"], "2026-01-05");
     assert_eq!(value[0]["amount_cents"], -12345);
     assert_eq!(value[0]["description"], "lunch");
+    assert_eq!(value[0]["counterparty_name"], "Restaurant");
+    assert_eq!(value[0]["counterparty_type"], "Expense account");
 }
 
 #[tokio::test]
@@ -283,6 +293,8 @@ async fn query_account_transactions_ok() {
         amount_cents: AmountCents::from_str("500.00").unwrap(),
         description: "deposit".into(),
         splits: vec![],
+        counterparty_name: None,
+        counterparty_type: None,
     }];
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::with_transactions(txs)),
@@ -337,6 +349,8 @@ async fn post_account_transactions_enriches_status_from_cache() {
             amount_cents: AmountCents::new(-100),
             description: format!("tx{ff3_id}"),
             splits: vec![],
+            counterparty_name: None,
+            counterparty_type: None,
         }
     }
     fn cached(ff3_id: i64, dup: bool) -> RunFf3Transaction {
@@ -347,6 +361,8 @@ async fn post_account_transactions_enriches_status_from_cache() {
             amount_cents: AmountCents::new(-100),
             description: format!("tx{ff3_id}"),
             is_duplicate: dup,
+            counterparty_name: None,
+            counterparty_type: None,
         }
     }
 
@@ -512,4 +528,73 @@ async fn transactions_start_after_end_returns_400() {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}
+
+fn accounts_state(accounts: Vec<Ff3AccountDto>) -> AppState {
+    AppState {
+        firefly: Arc::new(FakeFireflyClient::with_accounts(accounts)),
+        ff3_accounts: Arc::new(FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(common::FakeCsvDecoder),
+        batches: Arc::new(common::FakeBatchRepository),
+        movements: Arc::new(common::FakeMovementRepository),
+        csv_mappings: Arc::new(common::FakeCsvMappingRepository),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
+        ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
+    }
+}
+
+async fn get_json(router: axum::Router, uri: &str) -> serde_json::Value {
+    let response = router
+        .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    serde_json::from_slice(&bytes).unwrap()
+}
+
+#[tokio::test]
+async fn get_firefly_accounts_exposes_role_and_liability_type() {
+    let account =
+        |ff3_id: i64, account_type: &str, role: Option<&str>, lt: Option<&str>| Ff3AccountDto {
+            ff3_id,
+            name: format!("acc {ff3_id}"),
+            account_type: account_type.into(),
+            currency: "COP".into(),
+            iban: None,
+            account_number: None,
+            role: role.map(Into::into),
+            liability_type: lt.map(Into::into),
+        };
+    let accounts = vec![
+        account(4, "asset", Some("ccAsset"), None),
+        account(7, "liability", None, Some("loan")),
+    ];
+
+    let assets = get_json(
+        app(accounts_state(accounts.clone())),
+        "/api/firefly/accounts",
+    )
+    .await;
+    assert_eq!(assets[0]["role"], "ccAsset");
+    assert!(assets[0]["liability_type"].is_null());
+
+    let liabilities = get_json(
+        app(accounts_state(accounts)),
+        "/api/firefly/accounts?type=liability",
+    )
+    .await;
+    assert_eq!(liabilities[0]["liability_type"], "loan");
+    assert!(liabilities[0]["role"].is_null());
 }

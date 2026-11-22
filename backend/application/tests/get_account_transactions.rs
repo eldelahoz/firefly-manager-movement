@@ -49,7 +49,7 @@ impl FireflyClient for FakeClient {
     async fn create_transaction(
         &self,
         _creation: NewFf3TransactionCreation,
-    ) -> Result<i64, ApplicationError> {
+    ) -> Result<ffm_application::dtos::CreatedFf3Transaction, ApplicationError> {
         unimplemented!()
     }
     async fn delete_transaction(&self, _ff3_id: i64) -> Result<(), ApplicationError> {
@@ -138,6 +138,8 @@ fn live(ff3_id: i64) -> Ff3TransactionDto {
         amount_cents: AmountCents::new(-100),
         description: format!("tx{ff3_id}"),
         splits: vec![],
+        counterparty_name: None,
+        counterparty_type: None,
     }
 }
 
@@ -152,6 +154,8 @@ fn cached(local_id: i64, ff3_id: i64, dup: bool) -> Ff3Transaction {
         description: format!("tx{ff3_id}"),
         is_duplicate: dup,
         created_at: epoch(),
+        counterparty_name: None,
+        counterparty_type: None,
     }
 }
 

@@ -14,8 +14,8 @@ mod settings;
 pub use apply::{ApplyMissingInput, AttachmentPayload, MovementApply};
 pub use audit::NewDeletedAudit;
 pub use firefly::{
-    About, BrowseTxDto, Ff3AccountDto, Ff3SplitDto, Ff3TransactionDto, Ff3TxStatus, NewFf3Account,
-    NewFf3TransactionCreation,
+    About, BrowseTxDto, CreatedFf3Transaction, Ff3AccountDto, Ff3SplitDto, Ff3TransactionDto,
+    Ff3TxStatus, NewFf3Account, NewFf3TransactionCreation,
 };
 pub use imports::{NewBatch, NewCsvMapping, NewMovement};
 pub use reconciliation::{

@@ -5,7 +5,8 @@ use ffm_domain::entities::Ff3Account;
 use ffm_domain::ids::Ff3AccountId;
 
 use crate::dtos::{
-    About, Ff3AccountDto, Ff3TransactionDto, NewFf3Account, NewFf3TransactionCreation,
+    About, CreatedFf3Transaction, Ff3AccountDto, Ff3TransactionDto, NewFf3Account,
+    NewFf3TransactionCreation,
 };
 use crate::error::ApplicationError;
 
@@ -27,7 +28,7 @@ pub trait FireflyClient: Send + Sync {
     async fn create_transaction(
         &self,
         creation: NewFf3TransactionCreation,
-    ) -> Result<i64, ApplicationError>;
+    ) -> Result<CreatedFf3Transaction, ApplicationError>;
     async fn delete_transaction(&self, ff3_id: i64) -> Result<(), ApplicationError>;
     async fn tags(&self) -> Result<Vec<String>, ApplicationError> {
         Err(ApplicationError::FireflyClient(

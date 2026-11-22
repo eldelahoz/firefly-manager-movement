@@ -5,7 +5,8 @@ use chrono::NaiveDate;
 use serde::Deserialize;
 
 use ffm_application::dtos::{
-    About, Ff3AccountDto, Ff3SplitDto, Ff3TransactionDto, NewFf3TransactionCreation,
+    About, CreatedFf3Transaction, Ff3AccountDto, Ff3SplitDto, Ff3TransactionDto,
+    NewFf3TransactionCreation,
 };
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::FireflyClient;
@@ -46,6 +47,10 @@ struct AccountAttributes {
     iban: Option<String>,
     #[serde(default)]
     account_number: Option<String>,
+    #[serde(default)]
+    account_role: Option<String>,
+    #[serde(default)]
+    liability_type: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -73,6 +78,14 @@ struct TransactionSplit {
     source_id: Option<String>,
     #[serde(default)]
     destination_id: Option<String>,
+    #[serde(default)]
+    source_name: Option<String>,
+    #[serde(default)]
+    destination_name: Option<String>,
+    #[serde(default)]
+    source_type: Option<String>,
+    #[serde(default)]
+    destination_type: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -102,6 +115,28 @@ struct CreationResponse {
 #[derive(Deserialize)]
 struct CreationData {
     id: String,
+    #[serde(default)]
+    attributes: Option<CreationAttributes>,
+}
+
+/// Lenient on purpose: the transaction already exists in Firefly III, so a
+/// missing field here must never turn the creation into an error.
+#[derive(Deserialize)]
+struct CreationAttributes {
+    #[serde(default)]
+    transactions: Vec<CreatedSplit>,
+}
+
+#[derive(Deserialize)]
+struct CreatedSplit {
+    #[serde(default)]
+    source_name: Option<String>,
+    #[serde(default)]
+    source_type: Option<String>,
+    #[serde(default)]
+    destination_name: Option<String>,
+    #[serde(default)]
+    destination_type: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -139,6 +174,8 @@ struct SplitAggregate {
     signed_cents: i64,
     description: String,
     splits: Vec<Ff3SplitDto>,
+    /// (name, type) of the opposite account; `None` when splits disagree.
+    counterparty: Option<(Option<String>, Option<String>)>,
 }
 
 // ── Client ─────────────────────────────────────────────────────────────
@@ -209,6 +246,7 @@ impl ReqwestFireflyClient {
         let mut dates: Vec<NaiveDate> = Vec::with_capacity(splits.len());
         let mut descriptions: Vec<String> = Vec::new();
         let mut kept: Vec<Ff3SplitDto> = Vec::new();
+        let mut counterparties: Vec<(Option<String>, Option<String>)> = Vec::new();
 
         for split in splits {
             let is_source = split.source_id.as_deref() == Some(account_id_str);
@@ -250,6 +288,15 @@ impl ReqwestFireflyClient {
             if date < floor || date > ceiling {
                 continue;
             }
+            // The counterparty is the side opposite to the queried account.
+            counterparties.push(match (is_source, is_destination) {
+                (true, _) => (
+                    split.destination_name.clone(),
+                    split.destination_type.clone(),
+                ),
+                (false, true) => (split.source_name.clone(), split.source_type.clone()),
+                (false, false) => (None, None),
+            });
             total_cents += signed;
             dates.push(date);
             let description = split.description.trim().to_string();
@@ -282,11 +329,16 @@ impl ReqwestFireflyClient {
         let title = group_title
             .map(|t| t.trim().to_string())
             .filter(|t| !t.is_empty());
+        let counterparty = counterparties
+            .iter()
+            .all(|c| *c == counterparties[0])
+            .then(|| counterparties[0].clone());
         Ok(Some(SplitAggregate {
             date: dates[0],
             signed_cents: total_cents,
             description: title.unwrap_or_else(|| descriptions.join(" / ")),
             splits: kept,
+            counterparty,
         }))
     }
 
@@ -308,6 +360,8 @@ impl ReqwestFireflyClient {
                     currency: acc.attributes.currency,
                     iban: acc.attributes.iban,
                     account_number: acc.attributes.account_number,
+                    role: acc.attributes.account_role,
+                    liability_type: acc.attributes.liability_type,
                 });
             }
             if page >= total_pages {
@@ -428,12 +482,16 @@ impl FireflyClient for ReqwestFireflyClient {
                 let ff3_id = group.id.parse::<i64>().map_err(|e| {
                     ApplicationError::Parse(format!("invalid FF3 transaction id: {e}"))
                 })?;
+                let (counterparty_name, counterparty_type) =
+                    aggregate.counterparty.unwrap_or_default();
                 all.push(Ff3TransactionDto {
                     ff3_id,
                     date: aggregate.date,
                     amount_cents: AmountCents::new(aggregate.signed_cents),
                     description: aggregate.description,
                     splits: aggregate.splits,
+                    counterparty_name,
+                    counterparty_type,
                 });
             }
             if page >= total_pages {
@@ -447,7 +505,7 @@ impl FireflyClient for ReqwestFireflyClient {
     async fn create_transaction(
         &self,
         creation: NewFf3TransactionCreation,
-    ) -> Result<i64, ApplicationError> {
+    ) -> Result<CreatedFf3Transaction, ApplicationError> {
         use serde_json::json;
 
         let mut attrs = json!({
@@ -470,6 +528,13 @@ impl FireflyClient for ReqwestFireflyClient {
         if let Some(dst) = creation.destination_ff3_id {
             obj.insert("destination_id".into(), json!(dst.to_string()));
         }
+        // Firefly III creates the expense/revenue account when the name is new.
+        if let Some(ref name) = creation.source_name {
+            obj.insert("source_name".into(), json!(name));
+        }
+        if let Some(ref name) = creation.destination_name {
+            obj.insert("destination_name".into(), json!(name));
+        }
         let obj = attrs.as_object_mut().unwrap();
         if let Some(ref cat) = creation.category {
             obj.insert("category_name".into(), json!(cat));
@@ -487,7 +552,6 @@ impl FireflyClient for ReqwestFireflyClient {
         // FF3 transactions endpoint does NOT use the JSON-API data/attributes
         // wrapper on requests: TransactionStore has `transactions` at top level.
         let payload = json!({ "transactions": [attrs] });
-        eprintln!("[FF3 create_transaction] payload: {payload}");
         let url = format!("{}/api/v1/transactions", self.base_url);
         let resp = self
             .http
@@ -510,10 +574,25 @@ impl FireflyClient for ReqwestFireflyClient {
             .json()
             .await
             .map_err(|e| ApplicationError::FireflyClient(e.to_string()))?;
-        resp.data
+        let ff3_id = resp
+            .data
             .id
             .parse::<i64>()
-            .map_err(|e| ApplicationError::Parse(format!("invalid FF3 creation id: {e}")))
+            .map_err(|e| ApplicationError::Parse(format!("invalid FF3 creation id: {e}")))?;
+        let split = resp
+            .data
+            .attributes
+            .and_then(|a| a.transactions.into_iter().next());
+        Ok(match split {
+            Some(s) => CreatedFf3Transaction {
+                ff3_id,
+                source_name: s.source_name,
+                source_type: s.source_type,
+                destination_name: s.destination_name,
+                destination_type: s.destination_type,
+            },
+            None => ff3_id.into(),
+        })
     }
 
     async fn delete_transaction(&self, ff3_id: i64) -> Result<(), ApplicationError> {

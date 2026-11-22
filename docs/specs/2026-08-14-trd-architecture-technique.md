@@ -3,9 +3,9 @@
 | Field | Value |
 | --- | --- |
 | Project | firefly-manager-movement |
-| Version | 0.10 |
+| Version | 0.11 |
 | Created | 2026-08-14 |
-| Last modified | 2026-11-18 |
+| Last modified | 2026-11-22 |
 | Related PRD | [`2026-08-14-prd-rapprochement-bancaire.md`](./2026-08-14-prd-rapprochement-bancaire.md) |
 | Status | Draft in progress |
 
@@ -31,6 +31,8 @@ flowchart LR
 | Database | SQLite 3 (>= 3.35, embedded) | Persistence of batches, movements, results, CSV mappings — one `.db` file on a volume |
 
 > **Client-only preferences (NFR-08 v0.1)**: the UI language (`localStorage` key `ffm.locale`) and the number format (`ffm.numberFormat`) live in the browser only; no backend, API or database change.
+>
+> **Amendment (v0.11, 2026-11-22) — counterparty accounts (RF-08 v0.10, RF-07 v0.11, RF-14 v0.2)**: account DTO gains `role` and `liability_type`; `POST /apply` takes `counterparty_name` and reports `transaction_type`; Firefly III transactions carry `counterparty_name` / `counterparty_type`; migration adds two nullable columns to `ff3_transactions`; `transfer` is now generated (section 4). Details in sections 2, 3 and 4.
 >
 > **Amendment (v0.10, 2026-11-18) — SQLite + single image**: MySQL 8 is replaced by an embedded SQLite file and the 3-service stack (`backend`, `frontend`, `mysql`) by one container. No data migration: the 13 MySQL migrations are replaced by one initial SQLite migration (no existing data to preserve).
 
@@ -140,7 +142,7 @@ Key constraints:
 - `movements`: `UNIQUE(batch_id, line_no)`, `CHECK amount_cents != 0`. No `direction` column: the direction is derived from the sign of `amount_cents` (matching rule "direction" = sign comparison).
 - `matches`: `UNIQUE(reconciliation_id, movement_id)` + `UNIQUE(reconciliation_id, ff3_transaction_id)` → 1-to-1 is guaranteed by the schema, not just by convention. Historized per reconciliation run.
 - `creations`: `UNIQUE(movement_id)` → creation idempotency (NFR-05). Holds the actual creation date and the provenance ("created by us").
-- `ff3_transactions`: `UNIQUE(reconciliation_id, ff3_id, ff3_journal_id)` (v0.9; `ff3_journal_id` NOT NULL DEFAULT 0 = the whole group, otherwise one row per split of a group matched split by split). Per-run cache: the `extra` group and the `duplicate` flag live there (solves RF-13 re-reconciliation and RF-15 duplicates).
+- `ff3_transactions`: `UNIQUE(reconciliation_id, ff3_id, ff3_journal_id)` (v0.9; `ff3_journal_id` NOT NULL DEFAULT 0 = the whole group, otherwise one row per split of a group matched split by split). Per-run cache: the `extra` group and the `duplicate` flag live there (solves RF-13 re-reconciliation and RF-15 duplicates). **v0.11**: nullable `counterparty_name` TEXT and `counterparty_type` TEXT (one migration, `up.sql` + `down.sql`), filled at reconcile time from the side opposite to the target account; rows saved before the migration stay NULL (RF-07 v0.11).
 - `ff3_accounts`: `UNIQUE(ff3_id)`. Local cache synced on demand (when launching a reconciliation or via a dedicated endpoint); avoids repeated API calls and provides a displayable name.
 - `amount_cents`: signed BIGINT (cents), never floats (NFR-06).
 - `raw_json`: raw file line, for audit and re-parsing.
@@ -167,7 +169,7 @@ Key constraints:
 | POST | `/api/imports/{id}/movements/{mid}/ignore` | Set a movement's ignore state — body `{"ignored": true \| false}`; a pure status change, the movement is never removed from the batch (RF-10, PRD v0.8) |
 | POST | `/api/imports/{id}/apply` | Create the selected missing transactions in Firefly III |
 | DELETE | `/api/imports/{id}` | Delete a batch in `parsed` status (+ its movements) — 409 if the batch is not `parsed`; response `200 {id, status: "deleted"}` |
-| GET | `/api/firefly/accounts` | Read proxy of asset accounts |
+| GET | `/api/firefly/accounts` | Read proxy of accounts; `?type=asset\|expense\|revenue\|liability` (default asset). Each item carries `role` (Firefly III `account_role` of assets, e.g. `ccAsset`; null otherwise) and `liability_type` (`loan`, `debt`, `mortgage` for liabilities; null otherwise) — v0.11 |
 | GET | `/api/firefly/tags`, `/api/firefly/categories`, `/api/firefly/budgets` | Read proxies for the personalization pickers and the default creation tag (RF-08, RF-19) |
 | GET / PUT | `/api/settings` | App settings (FF3 URL, token, default creation tag, default date format) — token write-only, never returned (RF-19; `default_date_format` RF-02 v0.8) |
 | QUERY | `/api/firefly/accounts/{id}/transactions` | Read proxy of an account's transactions over a period — filters in body: `{start, end}` (RF-14) |
@@ -183,6 +185,8 @@ Notes:
 - **Persisted target account** (2026-09-13, RF-04 v0.8): `POST /api/imports` accepts an optional `account_id` multipart field carrying the **FF3 account id** selected at import; the backend resolves it to the local `ff3_accounts.id` and stores it on the batch at upload time (400 if unknown). `BatchResponse.account_id` / `account_name` expose the resolved FF3 id and name, so the reconcile step displays the account locked on resume without any client-side state.
 - `POST /apply` is idempotent per movement: before each creation, check the existence of a row in `creations` (`UNIQUE(movement_id)`, NFR-05); skip already-created movements.
 - `POST /apply` body (v0.8): for each selected movement, the **resolved** customization — counterparty account (optional, PRD v0.8), and optionally description, category, budget, tags, notes, attachment. Bulk-panel merging (fill-only) and default-tag pre-fill are resolved client-side; the tags sent are the user's final selection. The backend **appends the origin trace note** (`ffm:<filename>:<batchId>`, RF-11) to the notes field if `enable_origin_trace` is set in app settings (RF-19), with line breaks (`\n\n`) separating it from any user note.
+- **`POST /apply` counterparty (v0.11)**: per movement, `counterparty_ff3_id?` (an existing expense, revenue, liability or own asset account) or `counterparty_name?` (creates an expense account on money out or a revenue account on money in); both absent = explicit Cash; both present = that movement fails. The transaction type is **derived on the backend** from the amount sign and the cached account type (RF-08 v0.10 rules table); the client never sends it. A rejected combination does not fail the batch: its report is `failed` with a `reason`. Each report gains `transaction_type` (`withdrawal` \| `deposit` \| `transfer`; null when failed). `counterparty_ff3_id` keeps working as before (backward compatible).
+- **Counterparty on Firefly III transactions (v0.11)**: Browse (`QUERY /api/firefly/accounts/{id}/transactions` and its POST fallback) and results (`matched[].ff3`, `extra[]`) return `counterparty_name` (string or null) and `counterparty_type` (`Expense account`, `Revenue account`, `Asset account`, `Cash account`, `Loan`, `Debt`, `Mortgage`, or null) — the opposite side of the queried account, from Firefly III's `source_name`/`destination_name` and `source_type`/`destination_type`. Snapshots saved before the migration return null for both.
 - Firefly III API errors during a batch `apply`: handled per movement, the batch continues, final report per movement (success/failure/reason).
 - **QUERY method (RFC 9295)**: used only for routes with complex filters in body (reads with search criteria). Simple retrievals by ID or full lists stay in GET. The backend translates `QUERY` → `GET` when calling the Firefly III API (which stays GET). Requires registering the method explicitly in axum (`Route::on("QUERY", handler)` or equivalent macro).
 
@@ -205,7 +209,20 @@ Notes:
 | negative (expense) | `withdrawal` | target asset account | counterparty expense account |
 | positive (income) | `deposit` | counterparty income account | target asset account |
 
-`transfer` is never generated: a bank statement movement is always money in or out of the reconciled account (internal transfers visible on one side only are handled by ignoring the movement, RF-10). The counterparty is optional (PRD v0.8): when the user omits it, the counterparty-side `source_id`/`destination_id` is not sent and Firefly III applies its default handling for the movement type.
+**v0.11 (replaces "`transfer` is never generated")**: the type follows from the counterparty (A = the batch's asset account; full rules and rejections in RF-08 v0.10):
+
+| Counterparty | Money out | Money in |
+| --- | --- | --- |
+| Expense account | `withdrawal`, `destination_id` | rejected |
+| Revenue account | rejected | `deposit`, `source_id` |
+| Liability | `withdrawal`, `destination_id` | `deposit`, `source_id` |
+| Own asset (same currency, not A) | `transfer`, `destination_id` | `transfer`, `source_id` |
+| New name | `withdrawal`, `destination_name` | `deposit`, `source_name` |
+| None (Cash) | `withdrawal`, no counterparty side sent | `deposit`, no counterparty side sent |
+
+Firefly III rejects (422) a `withdrawal` to an asset and a `transfer` with a new name, so the backend validates the combination first. With no counterparty side sent, Firefly III books against its special Cash account. The derivation is a pure domain function (`transaction_kind(direction, counterparty)`), unit-tested against this table.
+
+**Reading side (v0.11)**: the client also keeps the opposite account's name and type of each transaction (`counterparty_name`, `counterparty_type`).
 
 **Reading side - transaction groups and splits**: the FF3 API returns one entry per **transaction group**; a split transaction is a group with several journals in `attributes.transactions[]`, each carrying its own amount and description. The bank statement usually shows that purchase as **one movement equal to the sum of the splits**, so the client collapses each group into a single row (2026-10-18 bugfix). The statement can also list **each split as its own line** (v0.9, 2026-10-27: a card payment split PESOS/DOLAR in FF3 appears as two Bancolombia lines), so the row also carries its in-window splits on the queried account (journal id, date, signed amount, description) when the group has 2 or more; the engine uses them only as a fallback (§6):
 

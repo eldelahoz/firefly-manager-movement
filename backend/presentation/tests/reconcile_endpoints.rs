@@ -58,6 +58,8 @@ impl FireflyClient for FireflyAtRequest {
             currency: "EUR".into(),
             iban: None,
             account_number: None,
+            role: None,
+            liability_type: None,
         }])
     }
     async fn accounts_by_type(
@@ -77,7 +79,7 @@ impl FireflyClient for FireflyAtRequest {
     async fn create_transaction(
         &self,
         _creation: NewFf3TransactionCreation,
-    ) -> Result<i64, ApplicationError> {
+    ) -> Result<ffm_application::dtos::CreatedFf3Transaction, ApplicationError> {
         unimplemented!("F5")
     }
     async fn delete_transaction(&self, _ff3_id: i64) -> Result<(), ApplicationError> {
@@ -242,6 +244,8 @@ fn default_txs() -> Vec<Ff3TransactionDto> {
             amount_cents: AmountCents::new(12340),
             description: "tx101".into(),
             splits: vec![],
+            counterparty_name: Some("Employer".into()),
+            counterparty_type: Some("Revenue account".into()),
         },
         Ff3TransactionDto {
             ff3_id: 102,
@@ -249,6 +253,8 @@ fn default_txs() -> Vec<Ff3TransactionDto> {
             amount_cents: AmountCents::new(-5000),
             description: "tx102".into(),
             splits: vec![],
+            counterparty_name: None,
+            counterparty_type: None,
         },
         Ff3TransactionDto {
             ff3_id: 103,
@@ -256,6 +262,8 @@ fn default_txs() -> Vec<Ff3TransactionDto> {
             amount_cents: AmountCents::new(-5000),
             description: "tx103".into(),
             splits: vec![],
+            counterparty_name: None,
+            counterparty_type: None,
         },
         Ff3TransactionDto {
             ff3_id: 104,
@@ -263,6 +271,8 @@ fn default_txs() -> Vec<Ff3TransactionDto> {
             amount_cents: AmountCents::new(9900),
             description: "tx104".into(),
             splits: vec![],
+            counterparty_name: None,
+            counterparty_type: None,
         },
     ]
 }
@@ -416,6 +426,9 @@ async fn reconcile_endpoint_returns_counts_and_results_three_groups() {
         .map(|p| p["movement"]["id"].as_i64().expect("id"))
         .collect();
     assert!(pair_movements.contains(&1) && pair_movements.contains(&2));
+    let with_cp = matched.iter().find(|p| p["ff3"]["ff3_id"] == 101).unwrap();
+    assert_eq!(with_cp["ff3"]["counterparty_name"], "Employer");
+    assert_eq!(with_cp["ff3"]["counterparty_type"], "Revenue account");
 
     let missing = json["missing"].as_array().expect("missing");
     assert_eq!(missing.len(), 1);
@@ -426,6 +439,8 @@ async fn reconcile_endpoint_returns_counts_and_results_three_groups() {
     let dup: Vec<&serde_json::Value> = extra.iter().filter(|t| t["is_duplicate"] == true).collect();
     assert_eq!(dup.len(), 1);
     assert_eq!(dup[0]["ff3_id"], 103);
+    assert!(extra.iter().all(|t| t["counterparty_name"].is_null()
+        && t.as_object().unwrap().contains_key("counterparty_type")));
 }
 
 #[tokio::test]
@@ -450,6 +465,8 @@ async fn reconcile_rerun_updates_results() {
             amount_cents: AmountCents::new(777),
             description: "tx105".into(),
             splits: vec![],
+            counterparty_name: None,
+            counterparty_type: None,
         });
 
     let response = t

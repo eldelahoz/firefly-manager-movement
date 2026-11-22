@@ -63,6 +63,8 @@ impl FireflyClient for FakeFirefly {
             currency: "EUR".into(),
             iban: None,
             account_number: None,
+            role: None,
+            liability_type: None,
         }])
     }
     async fn accounts_by_type(
@@ -82,7 +84,7 @@ impl FireflyClient for FakeFirefly {
     async fn create_transaction(
         &self,
         creation: NewFf3TransactionCreation,
-    ) -> Result<i64, ApplicationError> {
+    ) -> Result<ffm_application::dtos::CreatedFf3Transaction, ApplicationError> {
         if self.fail_amounts.contains(&creation.amount.as_i64()) {
             return Err(ApplicationError::FireflyClient("FF3 500".into()));
         }
@@ -90,7 +92,7 @@ impl FireflyClient for FakeFirefly {
         *id += 1;
         let ff3_id = 800 + *id;
         self.created.lock().unwrap().push(creation);
-        Ok(ff3_id)
+        Ok(ff3_id.into())
     }
     async fn delete_transaction(&self, ff3_id: i64) -> Result<(), ApplicationError> {
         self.deleted.lock().unwrap().push(ff3_id);
@@ -107,8 +109,14 @@ impl Ff3AccountRepository for FakeAccountRepo {
     async fn upsert_batch(&self, _accounts: Vec<NewFf3Account>) -> Result<(), ApplicationError> {
         unimplemented!("seeded")
     }
-    async fn by_ff3_id(&self, _ff3_id: i64) -> Result<Option<Ff3Account>, ApplicationError> {
-        unimplemented!()
+    async fn by_ff3_id(&self, ff3_id: i64) -> Result<Option<Ff3Account>, ApplicationError> {
+        Ok(self
+            .accounts
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|a| a.ff3_id == ff3_id)
+            .cloned())
     }
     async fn by_id(
         &self,
@@ -287,6 +295,8 @@ async fn seeded_run_store(movements: Arc<FakeMovementRepo>) -> Arc<FakeReconcili
             amount_cents: AmountCents::new(-4200),
             description: "dupe".into(),
             is_duplicate: true,
+            counterparty_name: None,
+            counterparty_type: None,
         }],
         matches: vec![],
         movement_status_updates: vec![
@@ -339,16 +349,29 @@ async fn test_app(fail_amounts: Vec<i64>) -> TestApp {
     let state = AppState {
         firefly: firefly.clone() as Arc<dyn FireflyClient>,
         ff3_accounts: Arc::new(FakeAccountRepo {
-            accounts: Mutex::new(vec![Ff3Account {
-                id: ffm_domain::ids::Ff3AccountId::new(1),
-                ff3_id: 7,
-                name: "Checking".into(),
-                account_type: "asset".into(),
-                currency: "EUR".into(),
-                iban: None,
-                account_number: None,
-                synced_at: epoch(),
-            }]),
+            accounts: Mutex::new(vec![
+                Ff3Account {
+                    id: ffm_domain::ids::Ff3AccountId::new(1),
+                    ff3_id: 7,
+                    name: "Checking".into(),
+                    account_type: "asset".into(),
+                    currency: "EUR".into(),
+                    iban: None,
+                    account_number: None,
+                    synced_at: epoch(),
+                },
+                // Counterparty used by the apply tests: a loan works both ways.
+                Ff3Account {
+                    id: ffm_domain::ids::Ff3AccountId::new(2),
+                    ff3_id: 42,
+                    name: "Loan".into(),
+                    account_type: "liabilities".into(),
+                    currency: "EUR".into(),
+                    iban: None,
+                    account_number: None,
+                    synced_at: epoch(),
+                },
+            ]),
         }),
         csv_decoder: Arc::new(FakeCsvDecoder),
         batches,
@@ -431,6 +454,45 @@ async fn apply_endpoint_creates_and_reports() {
     // Movements confirmed matched via the incremental run.
     assert_eq!(t.movements.status_of(1), MovementStatus::Matched);
     assert_eq!(t.movements.status_of(2), MovementStatus::Matched);
+}
+
+#[tokio::test]
+async fn apply_endpoint_reports_transaction_type_and_accepts_counterparty_name() {
+    let t = test_app(vec![]).await;
+    let body = json!({
+        "movements": [
+            { "movement_id": 1, "counterparty_ff3_id": 42, "counterparty_name": "Shop" },
+            { "movement_id": 2, "counterparty_name": "Employer" }
+        ]
+    });
+    let response = t
+        .app()
+        .oneshot(post_json("/api/imports/1/apply", body))
+        .await
+        .expect("request");
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = read_json(response).await;
+    let report = |id: i64| {
+        json["reports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["movement_id"] == id)
+            .unwrap()
+            .clone()
+    };
+    let rejected = report(1);
+    assert_eq!(rejected["outcome"], "failed");
+    assert!(rejected["transaction_type"].is_null());
+    assert!(rejected["reason"].as_str().unwrap().contains("not both"));
+    let created = report(2);
+    assert_eq!(created["outcome"], "created");
+    assert_eq!(created["transaction_type"], "deposit");
+
+    let calls = t.firefly.created.lock().unwrap().clone();
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].source_name.as_deref(), Some("Employer"));
+    assert_eq!(t.movements.status_of(1), MovementStatus::Missing);
 }
 
 #[tokio::test]

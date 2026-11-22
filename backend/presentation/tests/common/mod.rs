@@ -120,11 +120,11 @@ impl FireflyClient for FakeFireflyClient {
     async fn create_transaction(
         &self,
         _creation: NewFf3TransactionCreation,
-    ) -> Result<i64, ApplicationError> {
+    ) -> Result<ffm_application::dtos::CreatedFf3Transaction, ApplicationError> {
         if self.fail {
             Err(ApplicationError::FireflyClient("FF3 unreachable".into()))
         } else {
-            Ok(100)
+            Ok(100.into())
         }
     }
 
@@ -420,6 +420,8 @@ impl ReconciliationRepository for FakeReconciliationStore {
                     description: t.description.clone(),
                     is_duplicate: t.is_duplicate,
                     created_at: test_epoch(),
+                    counterparty_name: t.counterparty_name.clone(),
+                    counterparty_type: t.counterparty_type.clone(),
                 });
             }
         }

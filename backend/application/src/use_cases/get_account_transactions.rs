@@ -61,6 +61,8 @@ impl<C: FireflyClient, T: Ff3TransactionRepository + ?Sized, M: MatchRepository 
                     amount_cents: t.amount_cents,
                     description: t.description,
                     status,
+                    counterparty_name: t.counterparty_name,
+                    counterparty_type: t.counterparty_type,
                 }
             })
             .collect())

@@ -5,4 +5,5 @@
 pub mod entities;
 pub mod ids;
 pub mod matching_engine;
+pub mod transaction_kind;
 pub mod value_objects;

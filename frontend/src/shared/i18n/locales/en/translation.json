@@ -179,7 +179,6 @@
     "outsidePeriod": "Outside period",
     "selectAll": "Select all",
     "apply": "Create in Firefly III",
-    "counterparty": "Counterparty account",
     "category": "Category (optional)",
     "budget": "Budget (optional)",
     "notes": "Notes (optional)",
@@ -219,6 +218,7 @@
     "col.description": "Description",
     "col.descriptionFf3": "Description (Firefly III)",
     "col.descriptionStatement": "Description (statement)",
+    "col.counterparty": "Counterparty",
     "col.selection": "",
     "col.status": "Status",
     "undo": "Undo",
@@ -254,7 +254,56 @@
     "position": "Movement {{index}} of {{total}}",
     "line": "Line {{line}}",
     "attachFile": "Attach file",
-    "removeAttachment": "Remove attachment"
+    "removeAttachment": "Remove attachment",
+    "cp": {
+      "destination": "Destination account",
+      "source": "Source account",
+      "mixed": "Mixed directions: set the account on each movement.",
+      "keep": "Leave unchanged",
+      "expense": "Expense accounts",
+      "revenue": "Revenue accounts",
+      "liabilities": "Liabilities",
+      "own": "Own accounts",
+      "creditCard": "Credit card",
+      "loan": "Loan",
+      "debt": "Debt",
+      "mortgage": "Mortgage",
+      "createExpense": "Create “{{name}}” as expense account",
+      "createRevenue": "Create “{{name}}” as revenue account",
+      "cashOption": "Cash / no counterparty",
+      "cash": "Cash",
+      "newExpense": "New expense account “{{name}}”",
+      "newRevenue": "New revenue account “{{name}}”",
+      "willCreate": {
+        "withdrawal": "Will be created as a withdrawal",
+        "deposit": "Will be created as a deposit",
+        "transfer": "Will be created as a transfer"
+      },
+      "type": {
+        "withdrawal": "Withdrawal",
+        "deposit": "Deposit",
+        "transfer": "Transfer"
+      },
+      "badge": {
+        "expense": "Expense",
+        "revenue": "Revenue",
+        "asset": "Own account",
+        "cash": "Cash",
+        "loan": "Loan",
+        "debt": "Debt",
+        "mortgage": "Mortgage",
+        "initialBalance": "Initial balance",
+        "reconciliation": "Reconciliation",
+        "liabilityCredit": "Liability credit"
+      }
+    },
+    "confirmField": {
+      "category": "Category: {{value}}",
+      "budget": "Budget: {{value}}",
+      "tags": "Tags: {{value}}",
+      "notes": "Notes: {{value}}",
+      "attachment": "Attachment: {{value}}"
+    }
   },
   "status": {
     "imported": "Imported",
