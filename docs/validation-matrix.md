@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `f29667b` · TRD `5066331` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `f29667b` · TRD `7c258c6` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 >
 > **Legend**
 >
@@ -205,7 +205,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-08  Batch-create missing; edit description/category/budget/tags/attachment/notes
 
-**Status:** implemented (spec v0.10) · **Last verified:** 2026-11-22 · **Spec @** `5066331`
+**Status:** implemented (spec v0.10) · **Last verified:** 2026-11-22 · **Spec @** `7c258c6`
 
 > **v0.10 amendment delta (2026-11-22)**: transfers to own accounts (`ccAsset` included) replace "transfers never generated"; liabilities; counterparty created by name; explicit Cash; type derived on the backend from the rules table (one acceptance criterion per row); rejected combinations (A itself, expense on money in, revenue on money out, own asset in another currency, name + id) are reported `failed` with a `reason` and do not fail the batch; report carries `transaction_type`; grouped searchable picker, type line, confirm dialog with type and counterparty, bulk picker, labels "Destination/Source account". Verified against the v0.10 criteria (one per rules-table row); gate green (Rust 273/273, e2e 271/271 twice) and checked end to end on the local Firefly III: transfer to a `ccAsset`, deposit from a revenue account created by name, withdrawal to a liability and to Cash, with counterparty and type shown in Matched right after creation. Known limit: the confirmation dialog shows \"—\" when the counterparty account is not in the loaded lists; it has no e2e test because the UI cannot produce that state. Not asserted by a test: that the client cannot send `transaction_type` (the apply DTO has no such field).
 >
@@ -315,7 +315,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-11  Created transactions carry origin trace (tag/note: file + batch)
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `2d7604a`
+**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `7c258c6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -487,7 +487,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 | Concern | Tests |
 | --- | --- |
-| **Idempotency (NFR-05)** | `apply_missing.rs::apply_retry_creates_nothing_nfr05` (creation UNIQUE), `upload_import.rs::upload_import_rejects_duplicate_filename` |
+| **Idempotency (NFR-05)** | `apply_missing.rs::apply_retry_creates_nothing_nfr05` (creation UNIQUE), `apply_missing.rs::retry_after_record_failure_does_not_post_again`, `line_already_in_firefly_is_recorded_without_post` (`external_id` recovery), `apply_delete_endpoints.rs::concurrent_applies_create_the_line_once`, `upload_import.rs::upload_import_rejects_duplicate_filename` |
 | **Amounts as cents (NFR-06)** | `matching_engine.rs` (all use `AmountCents::new(cents)`), `value_objects.rs` |
 | **No auto create/delete (O4, O5)** | `apply_missing.rs` requires explicit selection; `delete_firefly_transaction.rs` requires double confirm |
 | **Security (NFR-02)** | `firefly_client.rs` token backend-only (env / app settings); settings GET masks token — `app_settings.rs::get_masks_token_but_reports_presence`, `settings_endpoints.rs::get_settings_returns_url_and_has_token` |
@@ -505,7 +505,7 @@ Per-requirement tracking for `docs/specs/requirements/nfr-*.md`.
 | 02 | Security: backend-only token, masking | implemented | 2026-09-03 | `95378a6` |
 | 03 | Privacy: no telemetry; outbound calls to FF3 only | pending (spec v0.11) | — | `f29667b` |
 | 04 | Performance: reconcile 1000 movements < 5 s | implemented | 2026-09-03 | `95378a6` |
-| 05 | Idempotency: no double creation / duplicate upload | implemented | 2026-09-03 | `95378a6` |
+| 05 | Idempotency: no double creation / duplicate upload | implemented | 2026-11-22 | `7c258c6` |
 | 06 | Amount integrity: signed cents, no floats | implemented | 2026-09-03 | `95378a6` |
 | 07 | Observability | not tested | — | `95378a6` |
 | 08 | Internationalization (en/fr/es) | partial (spec v0.1) | 2026-11-22 | `dff81f3` |
@@ -515,6 +515,8 @@ Per-requirement tracking for `docs/specs/requirements/nfr-*.md`.
 | 12 | Responsive layout | partial (spec original) | 2026-11-19 | `95378a6` |
 | 13 | Browser support | not tested | — | `95378a6` |
 
+> NFR-05 implemented (spec v0.1), verified 2026-11-22 against the 11 acceptance criteria of `nfr-05-idempotency.md` (`external_id` recovery). Backend gate 290/290 (289/289 before the concurrency test) and a live check on the local Firefly III: after deleting the `creations` row the retry recovered transaction 19 as `already_created` without a duplicate, and the same file uploaded under another name to another account created its own transaction 20. Tests: `apply_missing.rs` (App) `each_creation_carries_a_content_based_external_id`, `retry_after_record_failure_does_not_post_again`, `line_already_in_firefly_is_recorded_without_post`, `line_stored_on_another_account_is_not_recovered`, `recovered_tx_matched_to_another_movement_fails_without_recording`, `movement_already_paired_with_another_tx_fails_before_post`, `recovery_record_failure_is_failed_without_post`, `recovery_reports_that_edits_and_attachment_were_not_applied`, `no_search_when_every_movement_is_already_created`, `search_failure_creates_nothing`, `recovery_with_match_already_in_previous_run_does_not_duplicate_it`, `recovering_a_previous_extra_lowers_extra_count_and_keeps_its_counterparty`; `firefly_client.rs` (Infra) `create_transaction_wraps_in_transactions_array` (`external_id` in the payload), `search_by_external_id_prefix_paginates_with_encoded_query`, `search_by_external_id_prefix_propagates_errors`, `create_transaction_timeout_warns_it_may_exist`. Criterion 11 (serialized applies, `apply_lock` in `presentation/src/state.rs`): `apply_delete_endpoints.rs` (Pres) `concurrent_applies_create_the_line_once` (two concurrent applies create the line once; fails without the lock). RF-08 and RF-11 only gained a cross-reference note, so their status is unchanged.
+>
 > NFR-08 partial (spec v0.1): the number format amendment is implemented and verified 2026-11-22 against its 8 acceptance criteria in `number-format.spec.ts` (NF1-NF14: criteria 1 NF10/NF11, 2 NF3/NF14, 3 NF1/NF2/NF13, 4 NF7/NF8, 5 NF1/NF5, 6 NF4/NF6, 7 NF9/NF9b, 8 NF13). Still partial because the original thresholds are not covered: asserted only the sheet/dialog Close button in en/fr/es (`results-edit-sheet` E8e, `results-queue` Q5d), one bulk description (E8d) and COP formatting in es (Q5c); no per-key coverage test and no real `Accept-Language` header test yet (`a11y-followups` L4 only checks that a browser locale `es-419` resolves to the bundled `es`). Zero-decimal currencies (JPY/KRW) now show `,00` (F11, known). Verified 2026-11-22, beyond the NFR-08 criteria: `<html lang>` follows the resolved UI language on first load (es, fr: L2), on switching in Settings without reload (L3) and for a regional variant (L4), in `a11y-followups.spec.ts`.
 >
 > NFR-09 partial (spec original), verified 2026-11-22 against criterion 1 only where listed: Retry affordance (alert with Retry, no empty state posing as "no data") on Settings load (`a11y-followups` SE1), Dashboard imports query (`dashboard-needs-you` D11) and Needs-you batch detail / results (D14, both variants; the row stays). Criterion 3 (partial-failure report): `results-queue` Q5 (RF-08). Not verified: Retry on the other FF3-calling features (accounts, browse, wizard) so the 100% threshold is unproven, and the progress indicator on reconcile/apply (criterion 2). Settings Retry also keeps focus and the alert while a slow retry fails again, and a double Enter sends a single GET (`a11y-followups` SE2); not asserted for Dashboard / Needs-you Retry.
