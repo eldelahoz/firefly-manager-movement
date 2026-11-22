@@ -33,7 +33,7 @@ The origin note is formatted as `ffm:<filename>:<batchId>` (e.g. `ffm:stmt-septe
 ## Expected result
 
 - If enabled: All app-created transactions are searchable in FF3 by their origin note.
-- The trace is identical across retries (the movement is only created once, NFR-05).
+- The trace is identical across retries (the movement is only created once, NFR-05; the transaction also carries an `external_id`, NFR-05 v0.1, separate from the origin note).
 - The origin note appears below any user note with clear line breaks.
 - If disabled: No origin note is added, only user notes appear.
 
