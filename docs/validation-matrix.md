@@ -234,7 +234,9 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Pres** | `apply_delete_endpoints.rs::apply_endpoint_absent_tags_use_default_explicit_empty_does_not` | `POST /apply`: movement without `tags` gets the default tag, one with `"tags": []` does not |
 | **FE** | `results-queue.spec.ts` Q5c, Q5d | Currency and decimals: COP keeps centavos in rows and summary (1.234.567,89 in es); confirm dialog close button translated |
 | **FE** | `results-sheet-settings-race.spec.ts` R3, R4 | R3: default tag arriving after the sheet opened still applies when tags are untouched. R4: a tag cleared before settings arrived is not re-added **in the request** (`tags: []`); the outcome is covered by the backend tests above |
-| **FE** | `results-ignore-undo.spec.ts` U2b, U2c | Undo clicked while the edit sheet is open keeps the sheet and restores the row; a sheet closed because its row vanished does not reopen when the row returns (single edit only; bulk branch untested) |
+| **FE** | `results-ignore-undo.spec.ts` U2b, U2c | Undo clicked while the edit sheet is open keeps the sheet and restores the row; a sheet closed because its row vanished does not reopen when the row returns (single edit) |
+| **FE** | `results-ignore-undo.spec.ts` U2d | Bulk sheet whose selection fell below 2 (row vanished after a refetch) closes and does not reopen when the row returns (frozen clock isolates the page's own reset) |
+| **FE** | `results-ignore-undo.spec.ts` U3b, U3c (single and bulk) | Undo toast is paused while the sheet is open (still there after 9 s), reachable by keyboard (Alt+T, Tab, Tab, Enter) and restores the row; after the sheet closes it counts a full 8 s again |
 | **FE** | `results-ignore-undo.spec.ts` U13 | Create sends a row un-ignored while the results refetch keeps failing (dialog list = request) |
 | **FE** | `results-edit-sheet.spec.ts` E8, E8b, E8c | Bulk personalize: fill-only apply, no prev/next; counterparty listed by direction (same direction → that side, mixed → none) |
 | **FE** | `results-counterparty.spec.ts` | Single edit: deposit → revenue accounts, withdrawal → expense accounts |
@@ -276,6 +278,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Pres** | `reconcile_endpoints.rs::un_ignore_endpoint_restores_latest_run_status` | Un-ignore endpoint restores status per latest run |
 | **FE** | `results-ignore-undo.spec.ts` U1, U2 | Ignore moves the row to the Ignored table before the server answers; Undo restores it and sends un-ignore |
 | **FE** | `results-ignore-undo.spec.ts` U3–U5, U8, U11 | Undo window (8 s); server error rolls back with no Undo; reduced motion; ordered ignore/un-ignore requests; failed refetch keeps state |
+| **FE** | `results-ignore-undo.spec.ts` U3b, U3c (single and bulk) | Undo toast pauses while the edit sheet is open, is keyboard-reachable, and resumes a full 8 s window once the sheet closes |
+| **FE** | `results-ignore-undo.spec.ts` U2d | Bulk sheet reset when the selection drops below 2 does not reopen after Undo |
 | **FE** | `results-ignore-undo.spec.ts` U9, U10, U12 | Focus after ignore / Undo; ignoring every row keeps the Missing tab and the Ignored section |
 | **FE** | `results-queue.spec.ts` Q6 | Ignored is a collapsible section (closed by default, state remembered), shown under every tab |
 | **FE** | `results-queue.spec.ts` Q6b | Nothing missing: opens on Matched and the Ignored section is still there |
@@ -440,7 +444,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Pres** | `settings_endpoints.rs::verify_bad_url_returns_400` | Invalid URL → 400 |
 | **Pres** | `settings_endpoints.rs::verify_unreachable_returns_502` | Unreachable → 502 |
 | **Pres** | `settings_endpoints.rs::get_settings_empty_when_no_row` | Empty state (no row, no env token) |
-| **FE** | `settings-load-race.spec.ts` R2, R2b | Save is disabled until `GET /settings` loads, and stays disabled when it fails, so defaults cannot overwrite stored values (beyond the RF-19 criteria; no Retry UI) |
+| **FE** | `settings-load-race.spec.ts` R2, R2b | Save is disabled until `GET /settings` loads, and stays disabled when it fails, so defaults cannot overwrite stored values (beyond the RF-19 criteria) |
+| **FE** | `a11y-followups.spec.ts` SE1 | Failed `GET /api/settings` shows an alert with Retry; URL stays empty and both Save buttons disabled until Retry succeeds, then values load and Save is enabled (beyond the RF-19 criteria; NFR-09) |
 | **FE** | `pending (Playwright gap)` → `tests/specs/settings-*.spec.ts` (gaps `settings-appearance`, `settings-language`, `settings-connection-verify`, `settings-creation-defaults`) | FF3 connection, verify, creation defaults — pending |
 | **App** | `apply_missing.rs::origin_tag_appended_when_user_tags_empty` | `default_creation_tag` from settings pre-fills tags when user tags empty |
 | **App** | `apply_missing.rs::apply_creates_with_origin_tag_and_confirms_matched` | Origin tag applied even with default tag configured |
@@ -473,15 +478,17 @@ Per-requirement tracking for `docs/specs/requirements/nfr-*.md`.
 | 06 | Amount integrity: signed cents, no floats | implemented | 2026-09-03 | `95378a6` |
 | 07 | Observability | not tested | — | `95378a6` |
 | 08 | Internationalization (en/fr/es) | partial (spec v0.1) | 2026-11-22 | `dff81f3` |
-| 09 | Error handling | not tested | — | `95378a6` |
+| 09 | Error handling | partial (spec original) | 2026-11-22 | `95378a6` |
 | 10 | Data retention | not tested | — | `95378a6` |
-| 11 | Accessibility | partial (spec original) | 2026-11-19 | `95378a6` |
+| 11 | Accessibility | partial (spec original) | 2026-11-22 | `95378a6` |
 | 12 | Responsive layout | partial (spec original) | 2026-11-19 | `95378a6` |
 | 13 | Browser support | not tested | — | `95378a6` |
 
-> NFR-08 partial (spec v0.1): the number format amendment is implemented and verified 2026-11-22 against its 8 acceptance criteria in `number-format.spec.ts` (NF1-NF14: criteria 1 NF10/NF11, 2 NF3/NF14, 3 NF1/NF2/NF13, 4 NF7/NF8, 5 NF1/NF5, 6 NF4/NF6, 7 NF9/NF9b, 8 NF13). Still partial because the original thresholds are not covered: asserted only the sheet/dialog Close button in en/fr/es (`results-edit-sheet` E8e, `results-queue` Q5d), one bulk description (E8d) and COP formatting in es (Q5c); no per-key coverage test or `Accept-Language` detection test yet. Zero-decimal currencies (JPY/KRW) now show `,00` (F11, known).
+> NFR-08 partial (spec v0.1): the number format amendment is implemented and verified 2026-11-22 against its 8 acceptance criteria in `number-format.spec.ts` (NF1-NF14: criteria 1 NF10/NF11, 2 NF3/NF14, 3 NF1/NF2/NF13, 4 NF7/NF8, 5 NF1/NF5, 6 NF4/NF6, 7 NF9/NF9b, 8 NF13). Still partial because the original thresholds are not covered: asserted only the sheet/dialog Close button in en/fr/es (`results-edit-sheet` E8e, `results-queue` Q5d), one bulk description (E8d) and COP formatting in es (Q5c); no per-key coverage test and no real `Accept-Language` header test yet (`a11y-followups` L4 only checks that a browser locale `es-419` resolves to the bundled `es`). Zero-decimal currencies (JPY/KRW) now show `,00` (F11, known). Verified 2026-11-22, beyond the NFR-08 criteria: `<html lang>` follows the resolved UI language on first load (es, fr: L2), on switching in Settings without reload (L3) and for a regional variant (L4), in `a11y-followups.spec.ts`.
 >
-> NFR-11 partial: keyboard/focus flows asserted (`results-ignore-undo` U9–U10, `results-edit-sheet` E5–E7, `sidebar-toggle` SB1) and reduced motion (U5, SB3); no axe audit yet. NFR-12 partial: `responsive-overflow.spec.ts` asserts no horizontal overflow at 390 and 1440 px only; 768 / 1024 / 1920 px (spec thresholds) are not asserted.
+> NFR-09 partial (spec original), verified 2026-11-22 against criterion 1 only where listed: Retry affordance (alert with Retry, no empty state posing as "no data") on Settings load (`a11y-followups` SE1), Dashboard imports query (`dashboard-needs-you` D11) and Needs-you batch detail / results (D14, both variants; the row stays). Criterion 3 (partial-failure report): `results-queue` Q5 (RF-08). Not verified: Retry on the other FF3-calling features (accounts, browse, wizard) so the 100% threshold is unproven, and the progress indicator on reconcile/apply (criterion 2). Settings Retry also keeps focus and the alert while a slow retry fails again, and a double Enter sends a single GET (`a11y-followups` SE2); not asserted for Dashboard / Needs-you Retry.
+>
+> NFR-11 partial: keyboard/focus flows asserted (`results-ignore-undo` U9–U10, `results-edit-sheet` E5–E7, `sidebar-toggle` SB1), Undo toast reachable by keyboard and paused while a sheet is open (`results-ignore-undo` U3b, U3c) and reduced motion (U5, SB3); no axe audit yet. `<html lang>` follows the UI language (`a11y-followups` L2–L4), supporting WCAG 3.1.1. Focus stays on Settings Retry through a failing retry (SE2). SB2c (no animate-on-load) was stabilised, test-only. NFR-12 partial: `responsive-overflow.spec.ts` asserts no horizontal overflow at 390 and 1440 px only; 768 / 1024 / 1920 px (spec thresholds) are not asserted.
 
 ---
 
