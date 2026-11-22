@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `f29667b` · TRD `dff81f3` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `f29667b` · TRD `5066331` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 >
 > **Legend**
 >
@@ -175,8 +175,10 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-07  Results in 3 groups (matched / missing / extras) with visual gap highlighting
 
-**Status:** implemented · **Last verified:** 2026-11-22 · **Spec @** `570f43e`
+**Status:** implemented (spec v0.11) · **Last verified:** 2026-11-22 · **Spec @** `5066331`
 
+> **v0.11 amendment delta (2026-11-22)**: the Matched table shows the counterparty (name and type badge); results API returns `counterparty_name` / `counterparty_type` in `matched[].ff3` and `extra[]`; old snapshots return null and render an empty cell. Verified against the v0.11 criteria; gate green (Rust 273/273, e2e 271/271 twice).
+>
 > UX refresh (2026-11-19, no spec change): summary card with per-group counts, Missing/Extra/Matched tabs with count badges (Missing default when work remains), bulk bar, Ignored as a collapsible section under every tab.
 >
 > v0.10 amendment: extras dated outside the statement `min..max` carry an `Outside period` badge and are excluded from the displayed extras count (persisted run snapshot count unchanged).
@@ -193,14 +195,20 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **FE** | `results-queue.spec.ts` Q1–Q3 | Summary headline + per-group counts; tab counts, default tab; empty state "All reconciled" |
 | **FE** | `results-queue.spec.ts` Q5, Q8 | Status column keeps per-row apply outcome (failed pill + reason); matched row flags a differing FF3 date |
 | **FE** | `results-queue.spec.ts` Q7, Q9 · `responsive-overflow.spec.ts` | Loading skeleton; no overflow / reachable actions at 390 and 1440 px (all tabs) |
+| **App** | `get_results.rs`, `reconcile_batch.rs::confirmation_run_stores_counterparty_from_firefly_response`, `confirmation_run_keeps_previous_snapshot_counterparty` | Counterparty stored per run from the Firefly III response; the earlier snapshot keeps its own |
+| **Infra** | `reconcile_flow_repo.rs` (migration `2026-11-22…_ff3_tx_counterparty`, up + down) | `ff3_transactions.counterparty_name` / `counterparty_type` round trip; old rows stay NULL |
+| **Pres** | `reconcile_endpoints.rs` (counterparty in `matched[].ff3`, null in old rows) | `GET /api/imports/{id}/results` returns `counterparty_name` / `counterparty_type` |
+| **FE** | `results-counterparty-display.spec.ts` D1–D3 | Matched column: name + type badge, empty cell for null (no placeholder), header and badge translated en/fr/es |
 | **FE** | `pending (Playwright gap)` → `tests/specs/virtual-list.spec.ts` (gap `virtual-list`) | Large-list virtualization — pending |
 
 ---
 
 ## RF-08  Batch-create missing; edit description/category/budget/tags/attachment/notes
 
-**Status:** implemented (spec v0.9) · **Last verified:** 2026-11-22 · **Spec @** `8e4b287`
+**Status:** implemented (spec v0.10) · **Last verified:** 2026-11-22 · **Spec @** `5066331`
 
+> **v0.10 amendment delta (2026-11-22)**: transfers to own accounts (`ccAsset` included) replace "transfers never generated"; liabilities; counterparty created by name; explicit Cash; type derived on the backend from the rules table (one acceptance criterion per row); rejected combinations (A itself, expense on money in, revenue on money out, own asset in another currency, name + id) are reported `failed` with a `reason` and do not fail the batch; report carries `transaction_type`; grouped searchable picker, type line, confirm dialog with type and counterparty, bulk picker, labels "Destination/Source account". Verified against the v0.10 criteria (one per rules-table row); gate green (Rust 273/273, e2e 271/271 twice) and checked end to end on the local Firefly III: transfer to a `ccAsset`, deposit from a revenue account created by name, withdrawal to a liability and to Cash, with counterparty and type shown in Matched right after creation. Known limit: the confirmation dialog shows \"—\" when the counterparty account is not in the loaded lists; it has no e2e test because the UI cannot produce that state. Not asserted by a test: that the client cannot send `transaction_type` (the apply DTO has no such field).
+>
 > **2026-11-22 follow-ups (no spec change)**: currency/decimals, late default tag, Undo with the sheet open, sheet reset. Gate e2e 176/176. Backend distinguishes absent `tags` (→ default creation tag) from explicit `[]` (→ no tags), so a cleared selection replaces the default end to end (criterion "the user's selection replaces it"); R4 covers the request payload, the two backend tests below cover the outcome.
 >
 > **v0.9 amendment delta (2026-11-22, wording only)**: "inline editing" / "bulk panel" → one edit sheet (single mode with Previous/Next, bulk mode with fill-only semantics). Re-verified against v0.9 criteria; gate green (e2e 159/159): E1 asserts the tags picker pre-filled with the default creation tag, E8 asserts bulk leaves each row's own category untouched.
@@ -248,6 +256,16 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `list_firefly_accounts.rs::arc_wrapper_delegates_tags_categories_and_budgets` | The wrapper also forwards tags, categories and budgets (edit-sheet pickers) |
 | **Pres** | `firefly_endpoints.rs::get_firefly_accounts_by_type_returns_expense_accounts` | `GET /api/firefly/accounts?type=expense` returns expense accounts; the test fake now filters by type like Firefly III |
 | **Pres** | `firefly_endpoints.rs::get_firefly_tags_categories_and_budgets_return_names` | `GET /api/firefly/tags`, `/categories`, `/budgets` return name lists (edit-sheet pickers: tags, category, budget) |
+| **Domain** | `transaction_kind.rs` (17 unit tests) | Rules table rows 1–6, both directions; rejects expense on money in, revenue on money out, A itself, own asset in another currency, id + name, unknown account type |
+| **App** | `apply_missing.rs::own_asset_counterparty_creates_transfer_and_liability_follows_direction`, `expense_and_revenue_counterparties_report_their_type`, `new_name_sends_destination_or_source_name_without_id`, `cash_reports_withdrawal_and_deposit` | Rows 1–6: type, payload sides and `transaction_type` in the report |
+| **App** | `apply_missing.rs::rejected_counterparty_fails_that_movement_only_and_retry_creates_it`, `invalid_counterparties_are_rejected_before_firefly` | Rejection is per movement with a reason, no Firefly III call, no `creations` row; a valid retry creates it |
+| **Infra** | `firefly_client.rs::create_transaction_sends_transfer_and_counterparty_name`, `create_transaction_returns_both_account_sides`, `accounts_by_type_maps_role_and_liability_type` | `transfer`, `source_name` / `destination_name` payload; account `role` and `liability_type` |
+| **Pres** | `apply_delete_endpoints.rs::apply_endpoint_reports_transaction_type_and_accepts_counterparty_name`, `firefly_endpoints.rs::get_firefly_accounts_exposes_role_and_liability_type` | API contract: `counterparty_name` in, `transaction_type` out; account `role` / `liability_type` |
+| **FE** | `results-counterparty-picker.spec.ts` C1–C4 | Groups per direction, never the batch account, search, keyboard |
+| **FE** | `results-counterparty-picker.spec.ts` C5, C9, C9b | Label "Destination/Source account" per direction (en/fr/es); type line per choice |
+| **FE** | `results-counterparty-picker.spec.ts` C6–C8b | Payload: id only, name only («Create X», out and in), neither for Cash |
+| **FE** | `results-counterparty-picker.spec.ts` C10, C12 | Confirm dialog states type and account; rejected row keeps its reason, stays in Missing, valid retry creates it |
+| **FE** | `results-counterparty-picker.spec.ts` C11–C11e · `results-counterparty-review.spec.ts` R1–R6 | Bulk picker (one direction; mixed → none), created row shows its translated type, clear-choice option, list interactions |
 | **FE** | `settings-creation-defaults.spec.ts` S2 | Default creation tag setting saved |
 | **FE** | `results-ignore-undo.spec.ts` U6 | Create shows no Undo (explicit confirmation kept, no optimistic create) |
 
@@ -344,13 +362,18 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-14  Browse FF3 account transactions by period (min/max date)
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `95378a6`
+**Status:** implemented (spec v0.2) · **Last verified:** 2026-11-22 · **Spec @** `5066331`
+
+> **v0.2 amendment delta (2026-11-22)**: each transaction shows its counterparty (name and type badge); `QUERY /api/firefly/accounts/{id}/transactions` returns `counterparty_name` / `counterparty_type`; empty when absent. Verified against the v0.2 criteria; gate green.
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
 | **App** | `get_account_transactions.rs` | `GetAccountTransactions` use case with start/end |
 | **Infra** | `firefly_client.rs` | Pagination with `start`/`end` query params |
 | **Pres** | `firefly_endpoints.rs` | `QUERY /api/firefly/accounts/{id}/transactions` with body |
+| **Infra** | `firefly_client.rs::account_transactions_counterparty_is_the_opposite_side` | Counterparty = side opposite to the browsed account |
+| **Pres** | `firefly_endpoints.rs` (QUERY transactions, lines ~284) | `counterparty_name` / `counterparty_type` in the response; null when absent |
+| **FE** | `results-counterparty-display.spec.ts` D4, D5 | Browse table: name + type badge per row; null shows no name and no badge |
 | **FE** | `pending (Playwright gap)` → `tests/specs/dashboard-browse.spec.ts` ✅ (gap `dashboard-browse`) | Browse by period — ✅ covered (6 tests) |
 
 ---
