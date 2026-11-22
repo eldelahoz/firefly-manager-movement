@@ -83,6 +83,106 @@ async fn get_firefly_accounts_returns_accounts_and_syncs() {
 }
 
 #[tokio::test]
+async fn get_firefly_accounts_by_type_returns_expense_accounts() {
+    let account = |ff3_id: i64, name: &str, account_type: &str| Ff3AccountDto {
+        ff3_id,
+        name: name.into(),
+        account_type: account_type.into(),
+        currency: "EUR".into(),
+        iban: None,
+        account_number: None,
+    };
+    let accounts = vec![
+        account(1, "Main", "asset"),
+        account(7, "Groceries", "expense"),
+    ];
+    let repo = Arc::new(FakeFf3AccountRepository::new());
+    let state = AppState {
+        firefly: Arc::new(FakeFireflyClient::with_accounts(accounts)),
+        ff3_accounts: repo.clone(),
+        csv_decoder: Arc::new(common::FakeCsvDecoder),
+        batches: Arc::new(common::FakeBatchRepository),
+        movements: Arc::new(common::FakeMovementRepository),
+        csv_mappings: Arc::new(common::FakeCsvMappingRepository),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
+        ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
+    };
+    let router = app(state);
+
+    let response = router
+        .oneshot(
+            Request::builder()
+                .uri("/api/firefly/accounts?type=expense")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(value.as_array().unwrap().len(), 1);
+    assert_eq!(value[0]["id"], 7);
+    assert_eq!(value[0]["name"], "Groceries");
+    assert_eq!(repo.upserted_count(), 1);
+}
+
+#[tokio::test]
+async fn get_firefly_tags_categories_and_budgets_return_names() {
+    let state = AppState {
+        firefly: Arc::new(FakeFireflyClient::ok()),
+        ff3_accounts: Arc::new(FakeFf3AccountRepository::new()),
+        csv_decoder: Arc::new(common::FakeCsvDecoder),
+        batches: Arc::new(common::FakeBatchRepository),
+        movements: Arc::new(common::FakeMovementRepository),
+        csv_mappings: Arc::new(common::FakeCsvMappingRepository),
+        reconciliations: Arc::new(common::FakeReconciliationStore::new()),
+        matches: Arc::new(common::FakeReconciliationStore::new()),
+        ff3_transactions: Arc::new(common::FakeReconciliationStore::new()),
+        creations: Arc::new(common::FakeCreationRepository),
+        deleted_audits: Arc::new(common::FakeDeletedAuditRepository::default()),
+        ff3_health_probe: false,
+        app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
+        env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
+        settings_lock: Arc::new(tokio::sync::Mutex::new(())),
+        firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
+        firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
+            common::FakeFireflyClient::ok(),
+        )),
+    };
+    let router = app(state);
+
+    for (uri, expected) in [
+        ("/api/firefly/tags", json!(["groceries", "rent"])),
+        ("/api/firefly/categories", json!(["Food"])),
+        ("/api/firefly/budgets", json!(["Monthly"])),
+    ] {
+        let response = router
+            .clone()
+            .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK, "{uri}");
+        let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(value, expected, "{uri}");
+    }
+}
+
+#[tokio::test]
 async fn get_firefly_accounts_ff3_error_returns_502() {
     let state = AppState {
         firefly: Arc::new(FakeFireflyClient::failing()),

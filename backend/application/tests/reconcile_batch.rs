@@ -42,6 +42,12 @@ impl FireflyClient for FakeFireflyClient {
     async fn asset_accounts(&self) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
         Ok(self.accounts.clone())
     }
+    async fn accounts_by_type(
+        &self,
+        _account_type: &str,
+    ) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
+        unimplemented!("not used by this fake")
+    }
     async fn account_transactions(
         &self,
         _account_ff3_id: i64,
@@ -599,6 +605,28 @@ async fn reconcile_unknown_account_is_not_found() {
     input.ff3_account_id = 4242;
     let err = f.uc().execute(input).await.expect_err("must fail");
     assert!(matches!(err, ApplicationError::NotFound(_)));
+}
+
+#[tokio::test]
+async fn reconcile_cached_expense_account_is_not_found() {
+    let f = fixture_eur();
+    // The by-type listing caches non-asset accounts too; they must not be targets.
+    f.ff3_accounts
+        .upsert_batch(vec![NewFf3Account {
+            ff3_id: 9,
+            name: "Groceries".into(),
+            account_type: "expense".into(),
+            currency: "EUR".into(),
+            iban: None,
+            account_number: None,
+        }])
+        .await
+        .unwrap();
+    let mut input = f.input();
+    input.ff3_account_id = 9;
+    let err = f.uc().execute(input).await.expect_err("must fail");
+    assert!(matches!(err, ApplicationError::NotFound(_)));
+    assert_eq!(f.reconciliations.run_count(), 0);
 }
 
 #[tokio::test]

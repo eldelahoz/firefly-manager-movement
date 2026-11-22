@@ -83,11 +83,24 @@ impl FireflyClient for FakeFireflyClient {
         }
     }
 
+    // Filters like Firefly III so a wrapper that skips accounts_by_type cannot hide behind it.
     async fn asset_accounts(&self) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
+        self.accounts_by_type("asset").await
+    }
+
+    async fn accounts_by_type(
+        &self,
+        account_type: &str,
+    ) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
         if self.fail {
             Err(ApplicationError::FireflyClient("FF3 unreachable".into()))
         } else {
-            Ok(self.accounts.clone())
+            Ok(self
+                .accounts
+                .iter()
+                .filter(|a| a.account_type == account_type)
+                .cloned()
+                .collect())
         }
     }
 
@@ -120,6 +133,28 @@ impl FireflyClient for FakeFireflyClient {
             Err(ApplicationError::FireflyClient("FF3 unreachable".into()))
         } else {
             Ok(())
+        }
+    }
+
+    async fn tags(&self) -> Result<Vec<String>, ApplicationError> {
+        self.names(&["groceries", "rent"])
+    }
+
+    async fn categories(&self) -> Result<Vec<String>, ApplicationError> {
+        self.names(&["Food"])
+    }
+
+    async fn budgets(&self) -> Result<Vec<String>, ApplicationError> {
+        self.names(&["Monthly"])
+    }
+}
+
+impl FakeFireflyClient {
+    fn names(&self, names: &[&str]) -> Result<Vec<String>, ApplicationError> {
+        if self.fail {
+            Err(ApplicationError::FireflyClient("FF3 unreachable".into()))
+        } else {
+            Ok(names.iter().map(|n| n.to_string()).collect())
         }
     }
 }

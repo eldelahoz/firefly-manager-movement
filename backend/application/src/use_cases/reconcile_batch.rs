@@ -111,6 +111,8 @@ where
             .ff3_accounts
             .by_ff3_id(input.ff3_account_id)
             .await?
+            // The cache also holds expense/revenue/liability accounts; only asset ones are targets.
+            .filter(|a| a.account_type == "asset")
             .ok_or_else(|| {
                 ApplicationError::NotFound(format!(
                     "Firefly III account {} not found",

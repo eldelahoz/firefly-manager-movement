@@ -57,6 +57,12 @@ impl FireflyClient for FakeVerifyClient {
     async fn asset_accounts(&self) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
         Ok(vec![])
     }
+    async fn accounts_by_type(
+        &self,
+        _account_type: &str,
+    ) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
+        unimplemented!("not used by this fake")
+    }
     async fn account_transactions(
         &self,
         _id: i64,
