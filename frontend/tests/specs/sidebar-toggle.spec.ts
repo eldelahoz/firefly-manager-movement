@@ -119,16 +119,25 @@ test.describe('Shell > collapsible sidebar (SB)', () => {
         )
           runs.push(prop);
       });
+      // The window is anchored to the rail's first appearance, not to page time: under load the dev bundle can
+      // take longer than any fixed budget to mount, which used to end sampling before the rail existed.
+      let seenAt = 0;
       const tick = () => {
         const a = document.getElementById('app-sidebar');
-        if (a) w.push(a.getBoundingClientRect().width);
-        if (performance.now() < 1500) requestAnimationFrame(tick);
+        if (a) {
+          seenAt ||= performance.now();
+          w.push(a.getBoundingClientRect().width);
+        }
+        if (!seenAt || performance.now() - seenAt < 1000) requestAnimationFrame(tick);
+        else Object.assign(window, { __done: true });
       };
       requestAnimationFrame(tick);
     });
     await page.goto('/');
     await expect(shell(page)).toHaveAttribute('data-sidebar', 'collapsed');
-    await page.waitForFunction(() => performance.now() >= 1500);
+    await page.waitForFunction(() => (window as unknown as { __done?: boolean }).__done === true, null, {
+      timeout: 10_000,
+    });
     const { w, runs } = await page.evaluate(() => {
       const rec = window as unknown as { __w: number[]; __runs: string[] };
       return { w: rec.__w, runs: rec.__runs };

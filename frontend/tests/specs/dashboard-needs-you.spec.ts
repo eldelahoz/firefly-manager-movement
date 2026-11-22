@@ -214,6 +214,46 @@ test.describe('Dashboard > Needs you', () => {
     });
   });
 
+  for (const failing of ['detail', 'results'] as const) {
+    test(`D14 failed batch ${failing} shows an inline error with Retry; the row stays`, async ({
+      page,
+    }) => {
+      await mockHealth(page);
+      await mockAccounts(page);
+      await mockImports(page, { imports: [RECONCILED] });
+      let fail = true;
+      const detail = {
+        batch: RECONCILED,
+        movements: [{ line_no: 2, date: '2026-08-01', amount_cents: -4200, description: 'Coffee' }],
+        headers: ['date', 'amount', 'desc'],
+        detected_delimiter: ',',
+      };
+      await page.route('**/api/imports/1', async (route) => {
+        if (route.request().method() !== 'GET') return route.fallback();
+        if (fail && failing === 'detail') return route.fulfill({ status: 500, json: { error: 'x' } });
+        await route.fulfill({ json: detail });
+      });
+      await page.route('**/api/imports/1/results', (route) =>
+        fail && failing === 'results'
+          ? route.fulfill({ status: 500, json: { error: 'x' } })
+          : route.fulfill({ json: fixtures.results }),
+      );
+      await page.goto('/');
+      const card = needsYou(page);
+      // The error toast is an alert too, but outside the card.
+      const alert = card.getByRole('alert');
+      await expect(alert).toContainText('Something went wrong');
+      await expect(card.getByText('bank.csv')).toBeVisible();
+      await expect(card.getByRole('link', { name: 'Review bank.csv' })).toBeVisible();
+      await expect(card.locator('li[data-group]')).toHaveCount(0);
+
+      fail = false;
+      await alert.getByRole('button', { name: 'Retry' }).click();
+      await expect(card.locator('li[data-group="missing"]')).toHaveText('2 missing');
+      await expect(alert).toHaveCount(0);
+    });
+  }
+
   test('D11 failed imports query shows an inline error with Retry that recovers', async ({
     page,
   }) => {

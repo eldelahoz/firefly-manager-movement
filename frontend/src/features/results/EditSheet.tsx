@@ -1,4 +1,5 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { toast, type ToastT } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { Ff3Account, MovementDTO } from '@/shared/api/dto';
@@ -61,6 +62,20 @@ export function EditSheet({
   const [opener] = useState(() =>
     document.activeElement instanceof HTMLElement ? document.activeElement : null,
   );
+
+  // The modal hides toasts from keyboard and screen readers: hold toasts with an action (Undo)
+  // while it is open, and give them their full time again once it closes.
+  useEffect(() => {
+    if (!open) return;
+    const held = toast
+      .getToasts()
+      .filter((x): x is ToastT => 'action' in x && !!x.action && x.duration !== Infinity);
+    for (const x of held) toast(x.title, { ...x, duration: Infinity });
+    return () => {
+      const active = new Set(toast.getToasts().map((x) => x.id));
+      for (const x of held) if (active.has(x.id)) toast(x.title, x);
+    };
+  }, [open]);
 
   function run(action: Exclude<Pending, null>) {
     setPending(null);

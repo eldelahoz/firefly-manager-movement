@@ -13,12 +13,14 @@ import {
 } from '@/shared/api/endpoints';
 import type { SettingsResponse } from '@/shared/api/dto';
 import { queryKeys } from '@/shared/lib/keys';
+import { failedWithoutData } from '@/shared/lib/queryClient';
 import { DATE_FORMATS } from '@/shared/lib/dates';
 import { moneyParts, NUMBER_FORMATS, type NumberFormat } from '@/shared/lib/money';
 import { setNumberFormat, useNumberFormat } from '@/shared/lib/numberFormat';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { Button } from '@/shared/ui/button';
 import { Card, CardHeader, CardContent, CardFooter } from '@/shared/ui/card';
+import { EmptyState } from '@/shared/ui/EmptyState';
 import { Input } from '@/shared/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { Switch } from '@/shared/ui/switch';
@@ -99,6 +101,22 @@ export function SettingsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">{t('settings.title')}</h1>
+
+      {failedWithoutData(settings) && (
+        <div role="alert">
+          <EmptyState
+            title={t('common.error')}
+            action={
+              <Button
+                variant="outline"
+                onClick={() => void settings.refetch({ cancelRefetch: false })}
+              >
+                {t('common.retry')}
+              </Button>
+            }
+          />
+        </div>
+      )}
 
       {/* ── Firefly III Connection ────────────────────── */}
       <Card>
