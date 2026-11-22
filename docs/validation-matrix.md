@@ -32,7 +32,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-01  CSV upload (max 10 MB); XLSX → CSV by user
 
-**Status:** implemented · **Last verified:** 2026-11-19 · **Spec @** `220ea85`
+**Status:** implemented · **Last verified:** 2026-11-22 · **Spec @** `220ea85`
 
 > **v0.1 amendment delta (2026-09-12, explicit-Next)**: file selection/drop only stages the file (no request, wizard stays on step 1); upload+parse runs only on Next; Next disabled until a file is staged; Back from preview keeps the staged file and Next re-parses (previous probe batch deleted first); Remove and Change file delete the previous probe batch (no orphan batches). Backend upload/parse semantics unchanged.
 
@@ -50,6 +50,12 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **FE** | `import-wizard.spec.ts` W19 | Explicit-Next (v0.1): staging sends no request and stays on step 1; Next disabled without file; confirm parses exactly once |
 | **FE** | `import-wizard.spec.ts` W20 | Remove after a parse deletes the probe batch (no orphans); Remove without parse sends no request |
 | **FE** | `import-wizard-refresh.spec.ts` N1, N6 | Staged-file card (name + size, Change file / Remove) keeps the explicit-Next flow; every step fits at 390 px |
+| **FE** | `import-wizard-refresh.spec.ts` R1 | Choose, Remove, choose the same file again: staged again, no request (explicit-Next) |
+| **FE** | `import-wizard-refresh.spec.ts` R2, R3 | After a 409 / parse error on Next the error is shown; choosing the same file again re-stages it, clears the error and Next retries the POST (also RF-16) |
+| **FE** | `import-wizard-refresh.spec.ts` R4 | A file arriving before the account (hidden input) shows "Choose the account first" instead of being dropped; Next stays disabled |
+| **FE** | `import-wizard-refresh.spec.ts` R5 | Staged file + account cleared: Next disabled, no POST; choosing an account re-enables it |
+
+> **Not in the spec**: R4/R5 cover account-before-file behavior (notice, Next gated on account) that the RF-01 acceptance criteria do not state; RF-04 only requires selecting the account at import. Spec amendment is the orchestrator's call.
 
 **No XLSX tests** — by design (RF-01: user converts to CSV).
 
