@@ -15,6 +15,8 @@ export class SettingsPage {
   readonly themeDarkButton: Locator;
   readonly languageHeading: Locator;
   readonly languageSelect: Locator;
+  readonly numberFormatSelect: Locator;
+  readonly numberFormatPreview: Locator;
   readonly creationDefaultsHeading: Locator;
   readonly tagSelect: Locator;
   readonly originTraceSwitch: Locator;
@@ -34,6 +36,10 @@ export class SettingsPage {
     this.themeDarkButton = page.getByRole('button', { name: /Dark|Oscuro|Sombre/ });
     this.languageHeading = page.getByRole('heading', { name: /Language|Idioma|Langue/ });
     this.languageSelect = page.getByRole('combobox', { name: /Language|Idioma|Langue/ });
+    this.numberFormatSelect = page.getByRole('combobox', {
+      name: /Number format|Formato de números|Format des nombres/,
+    });
+    this.numberFormatPreview = page.getByTestId('number-format-preview');
     this.creationDefaultsHeading = page.getByText(/Creation defaults|Valores por defecto|Valeurs par défaut/);
     this.tagSelect = page.getByRole('combobox', { name: /Default creation tag|Etiqueta de creación|Tag de création/ });
     this.originTraceSwitch = page.getByRole('switch');

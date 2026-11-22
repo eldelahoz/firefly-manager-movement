@@ -30,6 +30,8 @@ flowchart LR
 | Frontend | React + Vite + TypeScript | SPA: upload, mapping, reconciliation table, batch creation (built at image build time, calls relative `/api`) |
 | Database | SQLite 3 (>= 3.35, embedded) | Persistence of batches, movements, results, CSV mappings — one `.db` file on a volume |
 
+> **Client-only preferences (NFR-08 v0.1)**: the UI language (`localStorage` key `ffm.locale`) and the number format (`ffm.numberFormat`) live in the browser only; no backend, API or database change.
+>
 > **Amendment (v0.10, 2026-11-18) — SQLite + single image**: MySQL 8 is replaced by an embedded SQLite file and the 3-service stack (`backend`, `frontend`, `mysql`) by one container. No data migration: the 13 MySQL migrations are replaced by one initial SQLite migration (no existing data to preserve).
 
 ## 2. Data model

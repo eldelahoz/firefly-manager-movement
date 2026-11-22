@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `f29667b` · TRD `f29667b` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `f29667b` · TRD `dff81f3` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 >
 > **Legend**
 >
@@ -472,14 +472,14 @@ Per-requirement tracking for `docs/specs/requirements/nfr-*.md`.
 | 05 | Idempotency: no double creation / duplicate upload | implemented | 2026-09-03 | `95378a6` |
 | 06 | Amount integrity: signed cents, no floats | implemented | 2026-09-03 | `95378a6` |
 | 07 | Observability | not tested | — | `95378a6` |
-| 08 | Internationalization (en/fr/es) | partial (spec original) | 2026-11-22 | `95378a6` |
+| 08 | Internationalization (en/fr/es) | partial (spec v0.1) | 2026-11-22 | `dff81f3` |
 | 09 | Error handling | not tested | — | `95378a6` |
 | 10 | Data retention | not tested | — | `95378a6` |
 | 11 | Accessibility | partial (spec original) | 2026-11-19 | `95378a6` |
 | 12 | Responsive layout | partial (spec original) | 2026-11-19 | `95378a6` |
 | 13 | Browser support | not tested | — | `95378a6` |
 
-> NFR-08 partial: asserted only the sheet/dialog Close button in en/fr/es (`results-edit-sheet` E8e, `results-queue` Q5d), one bulk description (E8d) and COP formatting in es (Q5c); no per-key coverage test or `Accept-Language` detection test yet. Zero-decimal currencies (JPY/KRW) now show `,00` (F11, known).
+> NFR-08 partial (spec v0.1): the number format amendment is implemented and verified 2026-11-22 against its 8 acceptance criteria in `number-format.spec.ts` (NF1-NF14: criteria 1 NF10/NF11, 2 NF3/NF14, 3 NF1/NF2/NF13, 4 NF7/NF8, 5 NF1/NF5, 6 NF4/NF6, 7 NF9/NF9b, 8 NF13). Still partial because the original thresholds are not covered: asserted only the sheet/dialog Close button in en/fr/es (`results-edit-sheet` E8e, `results-queue` Q5d), one bulk description (E8d) and COP formatting in es (Q5c); no per-key coverage test or `Accept-Language` detection test yet. Zero-decimal currencies (JPY/KRW) now show `,00` (F11, known).
 >
 > NFR-11 partial: keyboard/focus flows asserted (`results-ignore-undo` U9–U10, `results-edit-sheet` E5–E7, `sidebar-toggle` SB1) and reduced motion (U5, SB3); no axe audit yet. NFR-12 partial: `responsive-overflow.spec.ts` asserts no horizontal overflow at 390 and 1440 px only; 768 / 1024 / 1920 px (spec thresholds) are not asserted.
 
