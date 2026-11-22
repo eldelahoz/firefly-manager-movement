@@ -79,6 +79,8 @@ diesel::table! {
         description -> Text,
         is_duplicate -> Bool,
         created_at -> Timestamp,
+        counterparty_name -> Nullable<Text>,
+        counterparty_type -> Nullable<Text>,
     }
 }
 

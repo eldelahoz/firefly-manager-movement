@@ -20,6 +20,8 @@ pub struct Ff3TransactionModel {
     pub description: String,
     pub is_duplicate: bool,
     pub created_at: NaiveDateTime,
+    pub counterparty_name: Option<String>,
+    pub counterparty_type: Option<String>,
 }
 
 impl From<Ff3TransactionModel> for Ff3Transaction {
@@ -33,6 +35,8 @@ impl From<Ff3TransactionModel> for Ff3Transaction {
             amount_cents: AmountCents::new(m.amount_cents),
             description: m.description,
             is_duplicate: m.is_duplicate,
+            counterparty_name: m.counterparty_name,
+            counterparty_type: m.counterparty_type,
             created_at: m.created_at,
         }
     }
@@ -48,6 +52,8 @@ pub struct NewFf3TransactionModel {
     pub amount_cents: i64,
     pub description: String,
     pub is_duplicate: bool,
+    pub counterparty_name: Option<String>,
+    pub counterparty_type: Option<String>,
 }
 
 impl From<NewFf3Transaction> for NewFf3TransactionModel {
@@ -60,6 +66,8 @@ impl From<NewFf3Transaction> for NewFf3TransactionModel {
             amount_cents: d.amount_cents.as_i64(),
             description: d.description,
             is_duplicate: d.is_duplicate,
+            counterparty_name: d.counterparty_name,
+            counterparty_type: d.counterparty_type,
         }
     }
 }

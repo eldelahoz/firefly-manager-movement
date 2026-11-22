@@ -119,6 +119,50 @@ async fn asset_accounts_maps_iban_and_account_number() {
 }
 
 #[tokio::test]
+async fn accounts_by_type_maps_role_and_liability_type() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/accounts"))
+        .and(query_param("type", "liability"))
+        .and(query_param("page", "1"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [
+                {
+                    "id": "7",
+                    "attributes": {
+                        "name": "Prestamo Moto",
+                        "type": "liabilities",
+                        "currency_code": "COP",
+                        "account_role": null,
+                        "liability_type": "loan"
+                    }
+                },
+                {
+                    "id": "4",
+                    "attributes": {
+                        "name": "Tarjeta",
+                        "type": "asset",
+                        "currency_code": "COP",
+                        "account_role": "ccAsset"
+                    }
+                }
+            ],
+            "meta": { "pagination": { "current_page": 1, "total_pages": 1 } }
+        })))
+        .mount(&server)
+        .await;
+
+    let accounts = make_client(&server)
+        .accounts_by_type("liability")
+        .await
+        .unwrap();
+    assert_eq!(accounts[0].liability_type.as_deref(), Some("loan"));
+    assert_eq!(accounts[0].role, None);
+    assert_eq!(accounts[1].role.as_deref(), Some("ccAsset"));
+    assert_eq!(accounts[1].liability_type, None);
+}
+
+#[tokio::test]
 async fn asset_accounts_paginates() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
@@ -770,12 +814,14 @@ async fn create_transaction_ok() {
         description: "test tx".into(),
         source_ff3_id: Some(1),
         destination_ff3_id: Some(2),
+        source_name: None,
+        destination_name: None,
         category: None,
         budget: None,
         notes: None,
         tags: vec![],
     };
-    let id = client.create_transaction(creation).await.unwrap();
+    let id = client.create_transaction(creation).await.unwrap().ff3_id;
     assert_eq!(id, 77);
 }
 
@@ -800,12 +846,14 @@ async fn create_transaction_wraps_in_transactions_array() {
         description: "salary".into(),
         source_ff3_id: Some(10),
         destination_ff3_id: Some(20),
+        source_name: None,
+        destination_name: None,
         category: Some("Income".into()),
         budget: None,
         notes: Some("monthly".into()),
         tags: vec!["tag1".into()],
     };
-    let id = client.create_transaction(creation).await.unwrap();
+    let id = client.create_transaction(creation).await.unwrap().ff3_id;
     assert_eq!(id, 1);
 
     // Verify the request body has transactions array at TOP LEVEL
@@ -855,6 +903,8 @@ async fn create_transaction_sends_absolute_amount() {
         description: "groceries".into(),
         source_ff3_id: Some(1),
         destination_ff3_id: Some(2),
+        source_name: None,
+        destination_name: None,
         category: None,
         budget: None,
         notes: None,
@@ -891,6 +941,8 @@ async fn create_transaction_omits_absent_account_side() {
         description: "no counterparty".into(),
         source_ff3_id: Some(1),
         destination_ff3_id: None,
+        source_name: None,
+        destination_name: None,
         category: None,
         budget: None,
         notes: None,
@@ -906,4 +958,157 @@ async fn create_transaction_omits_absent_account_side() {
         tx.get("destination_id").is_none(),
         "counterparty side must be omitted, got: {tx}"
     );
+}
+
+#[tokio::test]
+async fn create_transaction_sends_transfer_and_counterparty_name() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v1/transactions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": { "id": "77" }
+        })))
+        .expect(2)
+        .mount(&server)
+        .await;
+
+    let client = make_client(&server);
+    let base = ffm_application::dtos::NewFf3TransactionCreation {
+        transaction_type: "transfer".into(),
+        amount: AmountCents::from_str("-25.00").unwrap(),
+        date: NaiveDate::from_ymd_opt(2026, 9, 3).unwrap(),
+        description: "pay card".into(),
+        source_ff3_id: Some(1),
+        destination_ff3_id: Some(4),
+        source_name: None,
+        destination_name: None,
+        category: None,
+        budget: None,
+        notes: None,
+        tags: vec![],
+    };
+    client.create_transaction(base.clone()).await.unwrap();
+    client
+        .create_transaction(ffm_application::dtos::NewFf3TransactionCreation {
+            transaction_type: "deposit".into(),
+            amount: AmountCents::from_str("10.00").unwrap(),
+            source_ff3_id: None,
+            destination_ff3_id: Some(1),
+            source_name: Some("New Employer".into()),
+            ..base
+        })
+        .await
+        .unwrap();
+
+    let requests = server.received_requests().await.unwrap();
+    let tx = |i: usize| -> serde_json::Value {
+        let body: serde_json::Value = serde_json::from_slice(&requests[i].body).unwrap();
+        body["transactions"][0].clone()
+    };
+    let transfer = tx(0);
+    assert_eq!(transfer["type"], "transfer");
+    assert_eq!(transfer["amount"], "25.00");
+    assert_eq!(transfer["source_id"], "1");
+    assert_eq!(transfer["destination_id"], "4");
+    assert!(transfer.get("source_name").is_none());
+    let deposit = tx(1);
+    assert_eq!(deposit["type"], "deposit");
+    assert_eq!(deposit["source_name"], "New Employer");
+    assert!(deposit.get("source_id").is_none());
+    assert_eq!(deposit["destination_id"], "1");
+}
+
+#[tokio::test]
+async fn account_transactions_counterparty_is_the_opposite_side() {
+    let server = MockServer::start().await;
+    let split =
+        |src: &str, src_name: &str, src_type: &str, dst: &str, dst_name: &str, dst_type: &str| {
+            serde_json::json!({
+                "date": "2026-01-05T00:00:00+00:00",
+                "amount": "10.00",
+                "description": "x",
+                "type": "withdrawal",
+                "source_id": src, "source_name": src_name, "source_type": src_type,
+                "destination_id": dst, "destination_name": dst_name, "destination_type": dst_type
+            })
+        };
+    Mock::given(method("GET"))
+        .and(path("/api/v1/accounts/1/transactions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [
+                { "id": "1", "attributes": { "transactions": [
+                    split("1", "Bank", "Asset account", "5", "Planautos S A", "Expense account")
+                ] } },
+                { "id": "2", "attributes": { "transactions": [
+                    split("7", "Prestamo Moto", "Loan", "1", "Bank", "Asset account")
+                ] } },
+                { "id": "3", "attributes": { "transactions": [{
+                    "date": "2026-01-05T00:00:00+00:00", "amount": "1.00",
+                    "description": "old", "source_id": "1", "destination_id": "9"
+                }] } }
+            ],
+            "meta": { "pagination": { "current_page": 1, "total_pages": 1 } }
+        })))
+        .mount(&server)
+        .await;
+
+    let txs = make_client(&server)
+        .account_transactions(
+            1,
+            Some(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()),
+            Some(NaiveDate::from_ymd_opt(2026, 1, 31).unwrap()),
+        )
+        .await
+        .unwrap();
+    let by_id = |id: i64| txs.iter().find(|t| t.ff3_id == id).unwrap();
+    assert_eq!(by_id(1).counterparty_name.as_deref(), Some("Planautos S A"));
+    assert_eq!(
+        by_id(1).counterparty_type.as_deref(),
+        Some("Expense account")
+    );
+    assert_eq!(by_id(2).counterparty_name.as_deref(), Some("Prestamo Moto"));
+    assert_eq!(by_id(2).counterparty_type.as_deref(), Some("Loan"));
+    assert_eq!(by_id(3).counterparty_name, None);
+    assert_eq!(by_id(3).counterparty_type, None);
+}
+
+#[tokio::test]
+async fn create_transaction_returns_both_account_sides() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v1/transactions"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": {
+                "id": "88",
+                "attributes": { "transactions": [{
+                    "source_id": "1", "source_name": "Bancolombia Ahorros", "source_type": "Asset account",
+                    "destination_id": "7", "destination_name": "Prestamo Moto", "destination_type": "Loan"
+                }] }
+            }
+        })))
+        .mount(&server)
+        .await;
+
+    let created = make_client(&server)
+        .create_transaction(ffm_application::dtos::NewFf3TransactionCreation {
+            transaction_type: "withdrawal".into(),
+            amount: AmountCents::from_str("-5.00").unwrap(),
+            date: NaiveDate::from_ymd_opt(2026, 9, 3).unwrap(),
+            description: "loan payment".into(),
+            source_ff3_id: Some(1),
+            destination_ff3_id: Some(7),
+            source_name: None,
+            destination_name: None,
+            category: None,
+            budget: None,
+            notes: None,
+            tags: vec![],
+        })
+        .await
+        .unwrap();
+    assert_eq!(created.ff3_id, 88);
+    assert_eq!(created.source_name.as_deref(), Some("Bancolombia Ahorros"));
+    assert_eq!(created.source_type.as_deref(), Some("Asset account"));
+    assert_eq!(created.destination_name.as_deref(), Some("Prestamo Moto"));
+    assert_eq!(created.destination_type.as_deref(), Some("Loan"));
 }

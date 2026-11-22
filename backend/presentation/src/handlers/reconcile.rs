@@ -51,6 +51,12 @@ pub struct Ff3TransactionResponse {
     pub description: String,
     pub is_duplicate: bool,
     pub created_at: NaiveDateTime,
+    /// Opposite-side account name; null for snapshots saved before RF-07 v0.11.
+    #[schema(example = "Planautos S A")]
+    pub counterparty_name: Option<String>,
+    /// Firefly III type of that account (`Expense account`, `Loan`, …).
+    #[schema(example = "Expense account")]
+    pub counterparty_type: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -109,6 +115,8 @@ impl From<Ff3Transaction> for Ff3TransactionResponse {
             description: t.description,
             is_duplicate: t.is_duplicate,
             created_at: t.created_at,
+            counterparty_name: t.counterparty_name,
+            counterparty_type: t.counterparty_type,
         }
     }
 }
@@ -252,12 +260,14 @@ pub struct AttachmentRequest {
 #[derive(Deserialize, ToSchema)]
 pub struct ApplyMovementBody {
     pub movement_id: i64,
-    /// Counterparty account (external FF3 id).
-    ///
-    /// `null`/absent = omitted from the FF3 payload; Firefly III applies
-    /// its default handling for the movement.
+    /// Existing counterparty account (external FF3 id): expense, revenue,
+    /// liability or own asset. The transaction type is derived from it.
+    /// Both this and `counterparty_name` absent = Cash; both present = failed.
     #[serde(default)]
     pub counterparty_ff3_id: Option<i64>,
+    /// New expense (money out) or revenue (money in) account, created by name.
+    #[serde(default)]
+    pub counterparty_name: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
@@ -289,6 +299,9 @@ pub struct ApplyReportResponse {
     pub ff3_id: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    /// `withdrawal`, `deposit` or `transfer`; null unless created in this run.
+    #[schema(example = "transfer")]
+    pub transaction_type: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -343,6 +356,7 @@ pub async fn apply(
                 .map(|m| MovementApply {
                     movement_id: MovementId::new(m.movement_id),
                     counterparty_ff3_id: m.counterparty_ff3_id,
+                    counterparty_name: m.counterparty_name,
                     description: m.description,
                     category: m.category,
                     budget: m.budget,
@@ -373,6 +387,7 @@ pub async fn apply(
                     outcome: outcome.to_string(),
                     ff3_id: r.ff3_id,
                     reason: r.reason,
+                    transaction_type: r.transaction_type.map(|k| k.as_str().to_string()),
                 }
             })
             .collect(),

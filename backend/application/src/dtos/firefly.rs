@@ -19,6 +19,10 @@ pub struct Ff3AccountDto {
     pub currency: String,
     pub iban: Option<String>,
     pub account_number: Option<String>,
+    /// `account_role` of asset accounts (`defaultAsset`, `ccAsset`, …).
+    pub role: Option<String>,
+    /// `loan`, `debt` or `mortgage` for liabilities.
+    pub liability_type: Option<String>,
 }
 
 /// Firefly III transaction as returned by the API (no local ID).
@@ -31,6 +35,10 @@ pub struct Ff3TransactionDto {
     /// In-window splits on the queried account when the group has 2 or
     /// more; empty otherwise. `amount_cents` is their total.
     pub splits: Vec<Ff3SplitDto>,
+    /// Account on the opposite side of the queried account (RF-14 v0.2):
+    /// its name and Firefly III type (`Expense account`, `Loan`, …).
+    pub counterparty_name: Option<String>,
+    pub counterparty_type: Option<String>,
 }
 
 /// One journal of a split transaction group, signed for the queried account.
@@ -72,6 +80,28 @@ pub struct BrowseTxDto {
     pub amount_cents: AmountCents,
     pub description: String,
     pub status: Option<Ff3TxStatus>,
+    pub counterparty_name: Option<String>,
+    pub counterparty_type: Option<String>,
+}
+
+/// A transaction just created in Firefly III: its id and both account
+/// sides as Firefly III stored them (names of accounts it created included).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CreatedFf3Transaction {
+    pub ff3_id: i64,
+    pub source_name: Option<String>,
+    pub source_type: Option<String>,
+    pub destination_name: Option<String>,
+    pub destination_type: Option<String>,
+}
+
+impl From<i64> for CreatedFf3Transaction {
+    fn from(ff3_id: i64) -> Self {
+        Self {
+            ff3_id,
+            ..Default::default()
+        }
+    }
 }
 
 /// Data to create a transaction in Firefly III (RF-08/RF-11).
@@ -83,6 +113,9 @@ pub struct NewFf3TransactionCreation {
     pub description: String,
     pub source_ff3_id: Option<i64>,
     pub destination_ff3_id: Option<i64>,
+    /// Account Firefly III creates by name (`withdrawal`/`deposit` only).
+    pub source_name: Option<String>,
+    pub destination_name: Option<String>,
     pub category: Option<String>,
     pub budget: Option<String>,
     pub notes: Option<String>,

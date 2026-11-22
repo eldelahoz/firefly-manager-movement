@@ -39,6 +39,8 @@ fn ff3(id: i64, date: &str, cents: i64) -> Ff3Transaction {
         description: String::new(),
         is_duplicate: false,
         created_at: dt(),
+        counterparty_name: None,
+        counterparty_type: None,
     }
 }
 
@@ -249,6 +251,8 @@ fn benchmark_1000_movements_under_5s_nfr04() {
             description: String::new(),
             is_duplicate: false,
             created_at: dt(),
+            counterparty_name: None,
+            counterparty_type: None,
         })
         .collect();
 

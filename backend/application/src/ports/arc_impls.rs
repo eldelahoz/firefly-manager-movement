@@ -16,9 +16,9 @@ use ffm_domain::ids::{
 use ffm_domain::value_objects::{BatchStatus, HeaderSignature, MovementStatus};
 
 use crate::dtos::{
-    About, Ff3AccountDto, Ff3TransactionDto, NewAppSettings, NewBatch, NewCreation, NewCsvMapping,
-    NewDeletedAudit, NewFf3Account, NewFf3Transaction, NewFf3TransactionCreation, NewMatch,
-    NewMovement, NewReconciliation, ReconciliationRun,
+    About, CreatedFf3Transaction, Ff3AccountDto, Ff3TransactionDto, NewAppSettings, NewBatch,
+    NewCreation, NewCsvMapping, NewDeletedAudit, NewFf3Account, NewFf3Transaction,
+    NewFf3TransactionCreation, NewMatch, NewMovement, NewReconciliation, ReconciliationRun,
 };
 use crate::error::ApplicationError;
 
@@ -58,7 +58,7 @@ impl FireflyClient for Arc<dyn FireflyClient> {
     async fn create_transaction(
         &self,
         creation: NewFf3TransactionCreation,
-    ) -> Result<i64, ApplicationError> {
+    ) -> Result<CreatedFf3Transaction, ApplicationError> {
         self.as_ref().create_transaction(creation).await
     }
     async fn delete_transaction(&self, ff3_id: i64) -> Result<(), ApplicationError> {

@@ -8,6 +8,9 @@ use crate::ports::{
     Ff3TransactionRepository, MatchRepository, MovementRepository, ReconciliationRepository,
 };
 use ffm_domain::ids::{Ff3TransactionId, MovementId, ReconciliationId};
+use ffm_domain::transaction_kind::{
+    transaction_kind, AccountRef, BatchSide, Counterparty, Direction, TransactionKind,
+};
 use ffm_domain::value_objects::{BatchStatus, MovementStatus};
 use std::collections::HashMap;
 
@@ -26,6 +29,8 @@ pub struct ApplyMovementReport {
     pub outcome: ApplyOutcome,
     pub ff3_id: Option<i64>,
     pub reason: Option<String>,
+    /// Type sent to Firefly III; `None` unless created in this run.
+    pub transaction_type: Option<TransactionKind>,
 }
 
 /// Output of the apply-missing use case.
@@ -168,6 +173,7 @@ where
 
         let mut reports = Vec::new();
         let mut created_ff3_ids: Vec<i64> = Vec::new();
+        let mut created_counterparties: Vec<(Option<String>, Option<String>)> = Vec::new();
         let mut successful_movement_ids: Vec<MovementId> = Vec::new();
 
         for cust in input.movements {
@@ -183,6 +189,7 @@ where
                     outcome: ApplyOutcome::AlreadyCreated,
                     ff3_id: Some(existing.ff3_id),
                     reason: None,
+                    transaction_type: None,
                 });
                 continue;
             }
@@ -194,17 +201,62 @@ where
                     outcome: ApplyOutcome::Failed,
                     ff3_id: None,
                     reason: Some("amount is zero".into()),
+                    transaction_type: None,
                 });
                 continue;
             }
 
-            // ── Determine type + counterparties by sign ───────────
-            // Optional counterparty (v0.8): the batch account is always the known
-            // side; the opposite side is `None` when the user omitted it.
-            let (transaction_type, source, destination) = if m.amount_cents.as_i64() < 0 {
-                ("withdrawal", Some(account_ff3_id), cust.counterparty_ff3_id)
-            } else {
-                ("deposit", cust.counterparty_ff3_id, Some(account_ff3_id))
+            // ── Type from sign + counterparty (RF-08 v0.10) ───────
+            let new_name = cust
+                .counterparty_name
+                .as_deref()
+                .map(str::trim)
+                .filter(|n| !n.is_empty());
+            let cached = match (cust.counterparty_ff3_id, new_name) {
+                (Some(id), None) => self.accounts.by_ff3_id(id).await?,
+                _ => None,
+            };
+            let counterparty = match (cust.counterparty_ff3_id, new_name, &cached) {
+                (Some(_), Some(_), _) => Ok(Counterparty::IdAndName),
+                (Some(id), None, None) => Err(format!(
+                    "counterparty {id} is not a known account; reload the account list"
+                )),
+                (Some(_), None, Some(a)) => Ok(Counterparty::Existing(AccountRef {
+                    ff3_id: a.ff3_id,
+                    account_type: &a.account_type,
+                    currency: &a.currency,
+                })),
+                (None, Some(_), _) => Ok(Counterparty::NewName),
+                (None, None, _) => Ok(Counterparty::Cash),
+            };
+            let batch_ref = AccountRef {
+                ff3_id: account_ff3_id,
+                account_type: &account.account_type,
+                currency: &account.currency,
+            };
+            let resolved = counterparty.and_then(|c| {
+                transaction_kind(Direction::from_cents(m.amount_cents.as_i64()), batch_ref, c)
+                    .map_err(|e| e.to_string())
+            });
+            let (kind, batch_side) = match resolved {
+                Ok(r) => r,
+                Err(reason) => {
+                    reports.push(ApplyMovementReport {
+                        movement_id: m.id,
+                        outcome: ApplyOutcome::Failed,
+                        ff3_id: None,
+                        reason: Some(reason),
+                        transaction_type: None,
+                    });
+                    continue;
+                }
+            };
+            let name = new_name.map(str::to_string);
+            let (source, destination, source_name, destination_name) = match batch_side {
+                BatchSide::Source => (Some(account_ff3_id), cust.counterparty_ff3_id, None, name),
+                BatchSide::Destination => {
+                    (cust.counterparty_ff3_id, Some(account_ff3_id), name, None)
+                }
             };
 
             // ── Description: override > statement ─────────────────
@@ -235,12 +287,14 @@ where
             };
 
             let creation = NewFf3TransactionCreation {
-                transaction_type: transaction_type.to_string(),
+                transaction_type: kind.as_str().to_string(),
                 amount: m.amount_cents,
                 date: m.date,
                 description,
                 source_ff3_id: source,
                 destination_ff3_id: destination,
+                source_name,
+                destination_name,
                 category: cust.category.clone().filter(|c| !c.trim().is_empty()),
                 budget: cust.budget.clone().filter(|b| !b.trim().is_empty()),
                 notes: if notes.is_empty() { None } else { Some(notes) },
@@ -248,7 +302,13 @@ where
             };
 
             match self.firefly.create_transaction(creation).await {
-                Ok(ff3_id) => {
+                Ok(created) => {
+                    let ff3_id = created.ff3_id;
+                    // The counterparty is the side opposite to the batch account.
+                    created_counterparties.push(match batch_side {
+                        BatchSide::Source => (created.destination_name, created.destination_type),
+                        BatchSide::Destination => (created.source_name, created.source_type),
+                    });
                     self.creations
                         .insert(NewCreation {
                             movement_id: m.id,
@@ -278,6 +338,7 @@ where
                         outcome: ApplyOutcome::Created,
                         ff3_id: Some(ff3_id),
                         reason,
+                        transaction_type: Some(kind),
                     });
                 }
                 Err(e) => {
@@ -286,6 +347,7 @@ where
                         outcome: ApplyOutcome::Failed,
                         ff3_id: None,
                         reason: Some(format!("FF3 error: {e}")),
+                        transaction_type: None,
                     });
                 }
             }
@@ -307,6 +369,8 @@ where
                     amount_cents: t.amount_cents,
                     description: t.description.clone(),
                     is_duplicate: t.is_duplicate,
+                    counterparty_name: t.counterparty_name.clone(),
+                    counterparty_type: t.counterparty_type.clone(),
                 })
                 .collect();
 
@@ -318,7 +382,11 @@ where
                 .collect();
 
             // Add newly created transactions (build from successful movements + created FF3 ids).
-            for (movement, ff3_id) in successful_movement_ids.iter().zip(created_ff3_ids.iter()) {
+            for ((movement, ff3_id), (cp_name, cp_type)) in successful_movement_ids
+                .iter()
+                .zip(created_ff3_ids.iter())
+                .zip(created_counterparties.iter())
+            {
                 let stmt = batch_movements.iter().find(|s| s.id == *movement).unwrap();
                 new_cached.push(RunFf3Transaction {
                     ff3_id: *ff3_id,
@@ -327,6 +395,8 @@ where
                     amount_cents: stmt.amount_cents,
                     description: stmt.description.clone(),
                     is_duplicate: false,
+                    counterparty_name: cp_name.clone(),
+                    counterparty_type: cp_type.clone(),
                 });
             }
 

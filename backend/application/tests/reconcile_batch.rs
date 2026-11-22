@@ -59,7 +59,7 @@ impl FireflyClient for FakeFireflyClient {
     async fn create_transaction(
         &self,
         _creation: NewFf3TransactionCreation,
-    ) -> Result<i64, ApplicationError> {
+    ) -> Result<ffm_application::dtos::CreatedFf3Transaction, ApplicationError> {
         Err(ApplicationError::InvalidState("not used in F4".into()))
     }
     async fn delete_transaction(&self, _ff3_id: i64) -> Result<(), ApplicationError> {
@@ -384,6 +384,8 @@ fn tx(ff3_id: i64, date: NaiveDate, cents: i64) -> Ff3TransactionDto {
         amount_cents: AmountCents::new(cents),
         description: format!("tx{ff3_id}"),
         splits: vec![],
+        counterparty_name: Some(format!("cp{ff3_id}")),
+        counterparty_type: Some("Expense account".into()),
     }
 }
 
@@ -424,6 +426,8 @@ impl Fixture {
                 currency: "EUR".into(),
                 iban: None,
                 account_number: None,
+                role: None,
+                liability_type: None,
             }],
             transactions: self.firefly_transactions.lock().unwrap().clone(),
         })
@@ -529,6 +533,11 @@ async fn reconcile_persists_run_and_updates_statuses() {
 
     // All fetched FF3 transactions cached for the run; 103 flagged duplicate (RF-15).
     assert_eq!(run.ff3_transactions.len(), 4);
+    // RF-07 v0.11: every new snapshot row carries its counterparty.
+    for t in &run.ff3_transactions {
+        assert_eq!(t.counterparty_name, Some(format!("cp{}", t.ff3_id)));
+        assert_eq!(t.counterparty_type.as_deref(), Some("Expense account"));
+    }
     let by_ff3: HashSet<i64> = run.ff3_transactions.iter().map(|t| t.ff3_id).collect();
     assert_eq!(by_ff3, HashSet::from([101, 102, 103, 104]));
     assert!(
@@ -710,6 +719,8 @@ fn split_tx(ff3_id: i64, splits: &[(i64, NaiveDate, i64)]) -> Ff3TransactionDto 
                 description: format!("split{journal_id}"),
             })
             .collect(),
+        counterparty_name: None,
+        counterparty_type: None,
     }
 }
 

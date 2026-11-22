@@ -50,6 +50,12 @@ pub struct FireflyAccountResponse {
     #[serde(rename = "type")]
     pub account_type: String,
     pub currency: String,
+    /// Firefly III `account_role` of asset accounts (`ccAsset` = credit card).
+    #[schema(example = "ccAsset")]
+    pub role: Option<String>,
+    /// `loan`, `debt` or `mortgage` for liabilities.
+    #[schema(example = "loan")]
+    pub liability_type: Option<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -64,6 +70,13 @@ pub struct FireflyTransactionResponse {
     /// was never seen in a reconciliation.
     #[schema(example = "matched")]
     pub status: Option<String>,
+    /// Account on the opposite side of the browsed account (RF-14 v0.2).
+    #[schema(example = "Planautos S A")]
+    pub counterparty_name: Option<String>,
+    /// Its Firefly III type: `Expense account`, `Revenue account`, `Asset account`,
+    /// `Cash account`, `Loan`, `Debt` or `Mortgage`.
+    #[schema(example = "Expense account")]
+    pub counterparty_type: Option<String>,
 }
 
 // ── GET /api/firefly/accounts ───────────────────────────────────────────
@@ -101,6 +114,8 @@ pub async fn list_accounts(
                 name: a.name,
                 account_type: a.account_type,
                 currency: a.currency,
+                role: a.role,
+                liability_type: a.liability_type,
             })
             .collect(),
     ))
@@ -233,6 +248,8 @@ async fn handle_transactions(
                 amount_cents: t.amount_cents.as_i64(),
                 description: t.description,
                 status: t.status.map(|s| s.as_str().to_string()),
+                counterparty_name: t.counterparty_name,
+                counterparty_type: t.counterparty_type,
             })
             .collect(),
     ))

@@ -6,7 +6,9 @@ use std::sync::{Arc, RwLock};
 use async_trait::async_trait;
 
 use chrono::NaiveDate;
-use ffm_application::dtos::{About, Ff3AccountDto, Ff3TransactionDto, NewFf3TransactionCreation};
+use ffm_application::dtos::{
+    About, CreatedFf3Transaction, Ff3AccountDto, Ff3TransactionDto, NewFf3TransactionCreation,
+};
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::{FireflyClient, FireflyClientFactory, FireflyConnectionManager};
 
@@ -73,7 +75,7 @@ impl FireflyClient for DynamicFireflyClient {
     async fn create_transaction(
         &self,
         creation: NewFf3TransactionCreation,
-    ) -> Result<i64, ApplicationError> {
+    ) -> Result<CreatedFf3Transaction, ApplicationError> {
         self.current().create_transaction(creation).await
     }
 

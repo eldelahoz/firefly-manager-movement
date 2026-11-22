@@ -74,8 +74,8 @@ impl FireflyClient for FakeVerifyClient {
     async fn create_transaction(
         &self,
         _c: NewFf3TransactionCreation,
-    ) -> Result<i64, ApplicationError> {
-        Ok(1)
+    ) -> Result<ffm_application::dtos::CreatedFf3Transaction, ApplicationError> {
+        Ok(1.into())
     }
     async fn delete_transaction(&self, _id: i64) -> Result<(), ApplicationError> {
         Ok(())
