@@ -179,7 +179,6 @@
     "outsidePeriod": "Hors période",
     "selectAll": "Tout sélectionner",
     "apply": "Créer dans Firefly III",
-    "counterparty": "Compte de contrepartie",
     "category": "Catégorie (facultatif)",
     "budget": "Budget (facultatif)",
     "notes": "Notes (facultatif)",
@@ -219,6 +218,7 @@
     "col.description": "Description",
     "col.descriptionFf3": "Description (Firefly III)",
     "col.descriptionStatement": "Description (relevé)",
+    "col.counterparty": "Contrepartie",
     "col.selection": "",
     "col.status": "Statut",
     "undo": "Annuler",
@@ -254,7 +254,56 @@
     "position": "Mouvement {{index}} sur {{total}}",
     "line": "Ligne {{line}}",
     "attachFile": "Joindre un fichier",
-    "removeAttachment": "Retirer la pièce jointe"
+    "removeAttachment": "Retirer la pièce jointe",
+    "cp": {
+      "destination": "Compte de destination",
+      "source": "Compte source",
+      "mixed": "Sens mixtes : choisissez le compte sur chaque mouvement.",
+      "keep": "Laisser inchangé",
+      "expense": "Comptes de dépenses",
+      "revenue": "Comptes de revenus",
+      "liabilities": "Passifs",
+      "own": "Comptes propres",
+      "creditCard": "Carte de crédit",
+      "loan": "Prêt",
+      "debt": "Dette",
+      "mortgage": "Hypothèque",
+      "createExpense": "Créer « {{name}} » comme compte de dépenses",
+      "createRevenue": "Créer « {{name}} » comme compte de revenus",
+      "cashOption": "Espèces / sans contrepartie",
+      "cash": "Espèces",
+      "newExpense": "Nouveau compte de dépenses « {{name}} »",
+      "newRevenue": "Nouveau compte de revenus « {{name}} »",
+      "willCreate": {
+        "withdrawal": "Sera créée comme dépense",
+        "deposit": "Sera créée comme dépôt",
+        "transfer": "Sera créée comme transfert"
+      },
+      "type": {
+        "withdrawal": "Dépense",
+        "deposit": "Dépôt",
+        "transfer": "Transfert"
+      },
+      "badge": {
+        "expense": "Dépense",
+        "revenue": "Revenu",
+        "asset": "Compte propre",
+        "cash": "Espèces",
+        "loan": "Prêt",
+        "debt": "Dette",
+        "mortgage": "Hypothèque",
+        "initialBalance": "Solde initial",
+        "reconciliation": "Rapprochement",
+        "liabilityCredit": "Crédit de passif"
+      }
+    },
+    "confirmField": {
+      "category": "Catégorie : {{value}}",
+      "budget": "Budget : {{value}}",
+      "tags": "Étiquettes : {{value}}",
+      "notes": "Notes : {{value}}",
+      "attachment": "Pièce jointe : {{value}}"
+    }
   },
   "status": {
     "imported": "Importé",

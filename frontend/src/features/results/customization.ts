@@ -1,5 +1,11 @@
+import type { Ff3Account } from '@/shared/api/dto';
+
+/** RF-08 v0.10: an existing account, a new expense/revenue account by name, or null/undefined = Cash.
+ *  One field, so a bulk fill replaces the whole choice (null = explicit Cash over each row). */
+export type Counterparty = { id: number } | { name: string } | null;
+
 export interface Customization {
-  counterpartyId?: number;
+  counterparty?: Counterparty;
   description?: string;
   category?: string;
   budget?: string;
@@ -11,7 +17,7 @@ export interface Customization {
 export type BulkFields = Partial<
   Pick<
     Customization,
-    'counterpartyId' | 'description' | 'category' | 'budget' | 'tags' | 'notes' | 'attachment'
+    'counterparty' | 'description' | 'category' | 'budget' | 'tags' | 'notes' | 'attachment'
   >
 >;
 
@@ -31,4 +37,20 @@ export function applyBulkFillOnly(
     next[id] = applied;
   }
   return next;
+}
+
+export type Direction = 'withdrawal' | 'deposit';
+export type TransactionType = Direction | 'transfer';
+
+/** Mirror of the backend rule, for display only: an own asset is a transfer, anything else follows the sign.
+ *  Undefined when the account is not in the loaded lists: the type is not guessed. */
+export function transactionType(
+  direction: Direction,
+  counterparty: Counterparty | undefined,
+  accounts: Ff3Account[],
+): TransactionType | undefined {
+  if (!counterparty || !('id' in counterparty)) return direction;
+  const account = accounts.find((a) => a.id === counterparty.id);
+  if (!account) return undefined;
+  return account.type === 'asset' ? 'transfer' : direction;
 }

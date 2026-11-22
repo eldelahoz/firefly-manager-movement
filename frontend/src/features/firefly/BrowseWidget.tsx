@@ -10,6 +10,7 @@ import { MoneyText } from '@/shared/ui/MoneyText';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { StatusPill } from '@/shared/ui/StatusPill';
+import { Counterparty } from '@/shared/ui/Counterparty';
 import { TableSkeleton } from '@/shared/ui/Skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 import { DeleteDuplicateDialog } from './DeleteDuplicateDialog';
@@ -120,8 +121,11 @@ export function BrowseWidget() {
                   <span className="w-20 shrink-0 text-xs text-text-3">
                     {formatDate(tx.date, i18n.language)}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm @max-[30rem]:basis-32">
-                    {tx.description}
+                  <span className="min-w-0 flex-1 text-sm @max-[30rem]:basis-32">
+                    <span className="block truncate">{tx.description}</span>
+                    <span className="mt-0.5 flex text-xs text-text-2 empty:hidden">
+                      <Counterparty name={tx.counterparty_name} type={tx.counterparty_type} />
+                    </span>
                   </span>
                   <MoneyText cents={tx.amount_cents} currency={currency} />
                   <span className="w-24 shrink-0">
@@ -153,8 +157,11 @@ export function BrowseWidget() {
                 <span className="w-20 shrink-0 text-xs text-text-3">
                   {formatDate(tx.date, i18n.language)}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm @max-[30rem]:basis-32">
-                  {tx.description}
+                <span className="min-w-0 flex-1 text-sm @max-[30rem]:basis-32">
+                  <span className="block truncate">{tx.description}</span>
+                  <span className="mt-0.5 flex text-xs text-text-2 empty:hidden">
+                    <Counterparty name={tx.counterparty_name} type={tx.counterparty_type} />
+                  </span>
                 </span>
                 <MoneyText cents={tx.amount_cents} currency={currency} />
                 <span className="w-24 shrink-0">

@@ -22,6 +22,7 @@ import { Button } from '@/shared/ui/button';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { StatusPill } from '@/shared/ui/StatusPill';
+import { Counterparty } from '@/shared/ui/Counterparty';
 import { usePageHeader } from '@/shared/ui/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { useRerun } from '@/app/reconcileContext';
@@ -35,6 +36,7 @@ import { IgnoredRow } from './IgnoredRow';
 import { ExtraRow } from './ExtraRow';
 import { EditSheet } from './EditSheet';
 import { ConfirmCreateDialog } from './ConfirmCreateDialog';
+import { TransactionTypeIcon } from './TransactionTypeIcon';
 import { TableHeader, CELL, GRID_COLS, GROUP_ACCENT, TABLE_WRAPPER } from './tableLayout';
 
 type Tab = 'matched' | 'missing' | 'extra';
@@ -105,6 +107,11 @@ export function ResultsPage() {
     queryFn: () => getAccountsByType('expense'),
     staleTime: 300_000,
   });
+  const liabilityAccounts = useQuery({
+    queryKey: queryKeys.accountsByType('liability'),
+    queryFn: () => getAccountsByType('liability'),
+    staleTime: 300_000,
+  });
   const tags = useQuery({
     queryKey: queryKeys.tags,
     queryFn: () => import('@/shared/api/endpoints').then((m) => m.getTags()),
@@ -129,7 +136,10 @@ export function ResultsPage() {
         ids.map(async (sid) => {
           const c = customizations[sid] ?? {};
           const payload: ApplyMovementRequest = { movement_id: sid };
-          if (c.counterpartyId != null) payload.counterparty_ff3_id = c.counterpartyId;
+          if (c.counterparty && 'id' in c.counterparty)
+            payload.counterparty_ff3_id = c.counterparty.id;
+          if (c.counterparty && 'name' in c.counterparty)
+            payload.counterparty_name = c.counterparty.name;
           if (c.description) payload.description = c.description;
           if (c.category) payload.category = c.category;
           if (c.budget) payload.budget = c.budget;
@@ -257,8 +267,9 @@ export function ResultsPage() {
       ...(accounts.data ?? []),
       ...(revenueAccounts.data ?? []),
       ...(expenseAccounts.data ?? []),
+      ...(liabilityAccounts.data ?? []),
     ],
-    [accounts.data, revenueAccounts.data, expenseAccounts.data],
+    [accounts.data, revenueAccounts.data, expenseAccounts.data, liabilityAccounts.data],
   );
   const isOutsidePeriod = useMemo(
     () => outsideStatementPeriod(detail.data?.movements ?? []),
@@ -338,6 +349,7 @@ export function ResultsPage() {
   const sheetLists = {
     defaultTag,
     accounts: allAccounts,
+    batchAccountId: detail.data.batch.account_id,
     tags: tags.data ?? [],
     categories: categories.data ?? [],
     budgets: budgets.data ?? [],
@@ -401,6 +413,10 @@ export function ResultsPage() {
                   renderItem={(i) => {
                     const { movement, ff3 } = results.data.matched[i];
                     const last = i === counts.matched - 1;
+                    // RF-08 v0.10: rows created in this session show the type the backend chose.
+                    const createdType = currentReports.find(
+                      (r) => r.movement_id === movement.id && r.outcome === 'created',
+                    )?.transaction_type;
                     return (
                       <div
                         role="row"
@@ -425,6 +441,18 @@ export function ResultsPage() {
                           title={ff3.description}
                         >
                           {ff3.description}
+                        </span>
+                        <span
+                          role="cell"
+                          className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 ${CELL.matched.counterparty}`}
+                        >
+                          {createdType && (
+                            <span className="inline-flex shrink-0 items-center gap-1 text-text-2">
+                              <TransactionTypeIcon type={createdType} />
+                              {t(`results.cp.type.${createdType}`)}
+                            </span>
+                          )}
+                          <Counterparty name={ff3.counterparty_name} type={ff3.counterparty_type} />
                         </span>
                         <div role="cell" className={`text-right ${CELL.matched.amount}`}>
                           <MoneyText cents={movement.amount_cents} currency={currency} />

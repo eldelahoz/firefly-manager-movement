@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
  *  Shared columns (date/amount/status/actions) keep identical widths across groups. */
 export const GRID_COLS = {
   matched:
-    'grid-cols-[7.5rem_minmax(0,1fr)_minmax(0,1fr)_8rem_7.5rem] @max-[40rem]:grid-cols-[minmax(0,1fr)_auto] @max-[40rem]:gap-y-1',
+    'grid-cols-[7.5rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_8rem_7.5rem] @max-[40rem]:grid-cols-[minmax(0,1fr)_auto] @max-[40rem]:gap-y-1',
   missing:
     'grid-cols-[2rem_7.5rem_minmax(0,1fr)_8rem_7.5rem_6rem] @max-[40rem]:grid-cols-[2rem_minmax(0,1fr)_auto] @max-[40rem]:gap-y-1',
   extra:
@@ -25,6 +25,7 @@ export const CELL = {
     date: `@max-[40rem]:col-start-1 @max-[40rem]:row-start-2 ${SM_META}`,
     desc: '@max-[40rem]:col-start-1 @max-[40rem]:row-start-1',
     ff3: `@max-[40rem]:col-span-2 @max-[40rem]:col-start-1 @max-[40rem]:row-start-3 ${SM_META}`,
+    counterparty: `@max-[40rem]:col-span-2 @max-[40rem]:col-start-1 @max-[40rem]:row-start-4 @max-[40rem]:empty:hidden ${SM_META}`,
     amount: '@max-[40rem]:col-start-2 @max-[40rem]:row-start-1',
     status: SM_HIDE,
   },
@@ -90,6 +91,7 @@ const LABELS: Record<GroupKey, string[]> = {
     'col.date',
     'col.descriptionStatement',
     'col.descriptionFf3',
+    'col.counterparty',
     'col.amount',
     'col.status',
   ],

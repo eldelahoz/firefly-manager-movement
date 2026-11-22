@@ -62,6 +62,10 @@ export interface Ff3Account {
   currency: string;
   iban?: string | null;
   account_number?: string | null;
+  /** Asset accounts: Firefly III `account_role` (`ccAsset` = credit card). */
+  role?: string | null;
+  /** Liabilities: `loan`, `debt` or `mortgage`. */
+  liability_type?: string | null;
 }
 
 export interface Ff3TxDTO {
@@ -70,6 +74,8 @@ export interface Ff3TxDTO {
   amount_cents: number;
   description: string;
   status?: 'matched' | 'duplicate' | 'extra' | null;
+  counterparty_name?: string | null;
+  counterparty_type?: string | null;
 }
 
 export interface Ff3CachedTxDTO {
@@ -80,6 +86,9 @@ export interface Ff3CachedTxDTO {
   description: string;
   is_duplicate: boolean;
   created_at: string;
+  /** Null for snapshots saved before RF-07 v0.11. */
+  counterparty_name?: string | null;
+  counterparty_type?: string | null;
 }
 
 export interface ReconcileRequest {
@@ -116,8 +125,10 @@ export interface AttachmentPayload {
 
 export interface ApplyMovementRequest {
   movement_id: number;
-  /** Optional since spec v0.8: omitted → FF3 default handling. */
+  /** RF-08 v0.10: an existing account; with `counterparty_name` absent too = Cash. Never both. */
   counterparty_ff3_id?: number;
+  /** Creates an expense (money out) or revenue (money in) account by name. */
+  counterparty_name?: string;
   description?: string;
   category?: string;
   budget?: string;
@@ -133,6 +144,7 @@ export interface ApplyReport {
   outcome: 'created' | 'already_created' | 'failed';
   ff3_id?: number;
   reason?: string;
+  transaction_type?: 'withdrawal' | 'deposit' | 'transfer' | null;
 }
 
 export interface ApplyResponse {

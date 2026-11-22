@@ -45,6 +45,7 @@ export function EditSheet({
   currency: string;
   defaultTag: string | null;
   accounts: Ff3Account[];
+  batchAccountId: number | null;
   tags: string[];
   categories: string[];
   budgets: string[];
@@ -161,6 +162,7 @@ export function EditSheet({
             movement ? (movement.amount_cents < 0 ? 'withdrawal' : 'deposit') : bulkDirection
           }
           {...lists}
+          currency={currency}
           onDirtyChange={setDirty}
           onSave={(c) => {
             onSave(c);
