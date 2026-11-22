@@ -165,6 +165,7 @@
     "changeFile": "Cambiar archivo",
     "removeFile": "Eliminar",
     "selectFileFirst": "Selecciona un archivo CSV para continuar",
+    "chooseAccountFirst": "Elige primero la cuenta",
     "stagedFile": "Archivo seleccionado",
     "fileInput": "Archivo del extracto",
     "samplesFor": "Valores de ejemplo: {{field}}",

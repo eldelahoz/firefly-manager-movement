@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Ff3Account } from '@/shared/api/dto';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
@@ -35,18 +35,15 @@ export function UploadStep({
   const inputRef = useRef<HTMLInputElement>(null);
   const [tooLarge, setTooLarge] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [needsAccount, setNeedsAccount] = useState(false);
   const currency = accounts?.find((a) => a.id === Number(accountId))?.currency;
   const ready = !!accountId;
 
-  // Reset file input when file is removed so the same file can be re-selected
-  useEffect(() => {
-    if (!file && inputRef.current) {
-      inputRef.current.value = '';
-    }
-  }, [file]);
-
   function handle(f: File | undefined) {
-    if (!f || !ready) return;
+    if (!f) return;
+    // Say why instead of dropping it: staging needs the account (RF-04)
+    setNeedsAccount(!ready);
+    if (!ready) return;
     const oversize = f.size > MAX_BYTES;
     setTooLarge(oversize);
     if (!oversize) onFile(f);
@@ -68,6 +65,7 @@ export function UploadStep({
             value={accountId === '' ? 'none' : accountId}
             onValueChange={(v) => {
               const id = v === 'none' ? '' : v;
+              setNeedsAccount(false);
               onAccount(id, accounts?.find((a) => a.id === Number(id))?.currency ?? '');
             }}
           >
@@ -88,6 +86,12 @@ export function UploadStep({
           <p className="mt-1 text-xs text-text-3">{t('wizard.accountCurrency', { currency })}</p>
         )}
       </div>
+
+      {needsAccount && !ready && (
+        <p role="alert" className="mt-2 text-sm font-medium text-danger">
+          {t('wizard.chooseAccountFirst')}
+        </p>
+      )}
 
       {error && (
         <div
@@ -211,7 +215,11 @@ export function UploadStep({
         accept=".csv"
         aria-label={t('wizard.fileInput')}
         className="hidden"
-        onChange={(e) => handle(e.target.files?.[0])}
+        onChange={(e) => {
+          handle(e.target.files?.[0]);
+          // Clear so picking the same file again still fires change (after an error or Change file)
+          e.target.value = '';
+        }}
       />
       <WizardFooter
         onCancel={onCancel}
@@ -219,8 +227,10 @@ export function UploadStep({
         backLabel={t('common.back')}
         primaryLabel={t('common.next')}
         onPrimary={onNext}
-        primaryDisabled={!file || uploading}
-        primaryHelper={file ? null : t('wizard.selectFileFirst')}
+        primaryDisabled={!ready || !file || uploading}
+        primaryHelper={
+          !ready ? t('wizard.chooseAccountFirst') : file ? null : t('wizard.selectFileFirst')
+        }
       />
     </div>
   );

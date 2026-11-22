@@ -165,6 +165,7 @@
     "changeFile": "Change file",
     "removeFile": "Remove",
     "selectFileFirst": "Select a CSV file to continue",
+    "chooseAccountFirst": "Choose the account first",
     "stagedFile": "Selected file",
     "fileInput": "Statement file",
     "samplesFor": "Sample values: {{field}}",
