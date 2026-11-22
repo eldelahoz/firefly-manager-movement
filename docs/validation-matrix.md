@@ -111,6 +111,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Infra** | `ff3_account_repo.rs` | `Ff3AccountRepository` upsert + query (includes IBAN/number) |
 | **Infra** | `firefly_client.rs` | `asset_accounts()` calls `GET /api/v1/accounts?type=asset` |
 | **Pres** | `firefly_endpoints.rs` | `GET /api/firefly/accounts` returns cached asset accounts |
+| **Pres** | `firefly_endpoints.rs::get_firefly_accounts_by_type_returns_expense_accounts` | `GET /api/firefly/accounts?type=expense` returns only expense accounts (same endpoint as the asset list; criteria for this listing are RF-08's counterparty picker) |
 | **FE** | `import-wizard.spec.ts` W7 | Account selector at wizard step 1 (upload) with currency |
 | **FE** | `import-wizard.spec.ts` W23 | Fresh reconcile: import-time account shown locked (name + hint, no account combobox) |
 | **FE** | `import-wizard.spec.ts` W12 | Resume: account locked hint displayed |
@@ -161,6 +162,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **App** | `reconcile_batch.rs::reconcile_persists_run_and_updates_statuses` | Full use case with tolerance, window, snapshots |
 | **App** | `reconcile_batch.rs::reconcile_currency_mismatch_is_blocked` | Batch currency ≠ account currency → blocked |
 | **App** | `reconcile_batch.rs::reconcile_rerun_creates_new_reconciliation` | RF-13 re-reconciliation updates counts |
+| **App** | `reconcile_batch.rs::reconcile_cached_expense_account_is_not_found` | Criterion "scoped to exactly one target FF3 asset account": a cached non-asset (expense) account is `NotFound` as target and no run is created (the by-type listing caches those accounts too) |
 | **App** | `exact_user_rows.rs` | Real-world row scenarios |
 | **App** | `reconcile_batch.rs::reconcile_matches_each_split_when_the_statement_lists_them_apart` | Split total matches no line → each split matched to its own line (TRD v0.9) |
 | **App** | `reconcile_batch.rs::reconcile_keeps_unmatched_sibling_split_as_extra` | One split matched, sibling split kept as extra |
@@ -203,6 +205,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 >
 > **v0.9 amendment delta (2026-11-22, wording only)**: "inline editing" / "bulk panel" → one edit sheet (single mode with Previous/Next, bulk mode with fill-only semantics). Re-verified against v0.9 criteria; gate green (e2e 159/159): E1 asserts the tags picker pre-filled with the default creation tag, E8 asserts bulk leaves each row's own category untouched.
 >
+> **2026-11-22 correction (no spec change)**: with a real Firefly III the counterparty picker was empty for expense/revenue accounts: the `Arc` wrapper did not forward `accounts_by_type` (nor tags, categories, budgets), so the trait default returned asset accounts only. Fixed in `arc_impls.rs`; the earlier FE and presentation rows passed because mocks and the fake hid it. Verified 2026-11-22 in a real browser against the local Firefly III (dev backend): the sheet lists expense accounts for a withdrawal and revenue accounts for a deposit, and a transaction created with an expense counterparty reached Firefly III as a withdrawal to that expense account with the origin note (screenshot: `docs/superpowers/specs/account-type-listing/shots/sheet-counterparty-listed.png`).
+>
 > UX refresh (2026-11-19): edit sheet (right side ≥ 900 px, bottom sheet below); Personalize / Create live in a selection bar. Bulk counterparty picker lists by direction: one direction → that side's accounts, mixed selection → none.
 
 | Layer | Test | What it validates |
@@ -237,7 +241,11 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **FE** | `results-ignore-undo.spec.ts` U2b, U2c | Undo clicked while the edit sheet is open keeps the sheet and restores the row; a sheet closed because its row vanished does not reopen when the row returns (single edit only; bulk branch untested) |
 | **FE** | `results-ignore-undo.spec.ts` U13 | Create sends a row un-ignored while the results refetch keeps failing (dialog list = request) |
 | **FE** | `results-edit-sheet.spec.ts` E8, E8b, E8c | Bulk personalize: fill-only apply, no prev/next; counterparty listed by direction (same direction → that side, mixed → none) |
-| **FE** | `results-counterparty.spec.ts` | Single edit: deposit → revenue accounts, withdrawal → expense accounts |
+| **FE** | `results-counterparty.spec.ts` | Single edit: deposit → revenue accounts, withdrawal → expense accounts (mocked responses only: it could not catch the by-type bug below) |
+| **App** | `list_firefly_accounts.rs::lists_expense_accounts_through_the_arc_wrapper` | `accounts_by_type("expense")` through the shared `Arc<dyn FireflyClient>` wrapper reaches the real client (counterparty picker, criterion "lists FF3 accounts by direction") |
+| **App** | `list_firefly_accounts.rs::arc_wrapper_delegates_tags_categories_and_budgets` | The wrapper also forwards tags, categories and budgets (edit-sheet pickers) |
+| **Pres** | `firefly_endpoints.rs::get_firefly_accounts_by_type_returns_expense_accounts` | `GET /api/firefly/accounts?type=expense` returns expense accounts; the test fake now filters by type like Firefly III |
+| **Pres** | `firefly_endpoints.rs::get_firefly_tags_categories_and_budgets_return_names` | `GET /api/firefly/tags`, `/categories`, `/budgets` return name lists (edit-sheet pickers: tags, category, budget) |
 | **FE** | `settings-creation-defaults.spec.ts` S2 | Default creation tag setting saved |
 | **FE** | `results-ignore-undo.spec.ts` U6 | Create shows no Undo (explicit confirmation kept, no optimistic create) |
 
