@@ -282,6 +282,114 @@ test.describe('Import > Wizard refresh', () => {
     expect(tolerance).toBe(3);
   });
 
+  test.describe('re-selecting the same file', () => {
+    async function countPosts(page: Page, respond: (n: number, route: Route) => Promise<void>) {
+      const posts = { n: 0 };
+      await page.route('**/api/imports', async (route: Route) => {
+        if (route.request().method() !== 'POST') return route.fallback();
+        posts.n += 1;
+        await respond(posts.n, route);
+      });
+      return posts;
+    }
+
+    test('R1 choose, Remove, choose the same file again: staged again, nothing uploaded', async ({
+      page,
+    }) => {
+      const posts = await countPosts(page, (_n, r) => r.fulfill({ json: autoMapped }));
+      const wizard = new ImportWizardPage(page);
+      await page.goto('/imports');
+      await wizard.openWizard();
+      await wizard.selectAccount('Checking');
+      const file = csvPath('bank.csv', CSV);
+      const card = page.getByRole('group', { name: 'Selected file' });
+      await wizard.selectFile(file);
+      await expect(card).toContainText('bank.csv');
+      await card.getByRole('button', { name: 'Remove' }).click();
+      await expect(card).toHaveCount(0);
+      await wizard.selectFile(file);
+      await expect(card).toContainText('bank.csv');
+      await expect(wizard.nextButton).toBeEnabled();
+      expect(posts.n, 'explicit Next: choosing never uploads').toBe(0);
+    });
+
+    for (const [name, status, error] of [
+      ['R2 409 on Next', 409, 'file already imported'],
+      ['R3 parse error on Next', 422, 'cannot parse csv'],
+    ] as const) {
+      test(`${name}: choosing the same file again stages it and Next retries the POST`, async ({
+        page,
+      }) => {
+        const posts = await countPosts(page, async (n, r) => {
+          if (n === 1) await r.fulfill({ status, json: { error } });
+          else await r.fulfill({ json: autoMapped });
+        });
+        const wizard = new ImportWizardPage(page);
+        await page.goto('/imports');
+        await wizard.openWizard();
+        await wizard.selectAccount('Checking');
+        const file = csvPath('bank.csv', CSV);
+        await wizard.selectFile(file);
+        await wizard.confirmUpload();
+        await expect(page.getByRole('alert').filter({ hasText: error })).toBeVisible();
+        expect(posts.n).toBe(1);
+
+        await wizard.selectFile(file);
+        await expect(page.getByRole('group', { name: 'Selected file' })).toContainText('bank.csv');
+        await expect(page.getByRole('alert').filter({ hasText: error })).toHaveCount(0);
+        expect(posts.n, 'choosing again does not upload').toBe(1);
+
+        await wizard.confirmUpload();
+        await expect(wizard.previewTable).toBeVisible();
+        expect(posts.n).toBe(2);
+      });
+    }
+
+    test('R4 a file that arrives before the account is never dropped silently', async ({
+      page,
+    }) => {
+      const posts = await countPosts(page, (_n, r) => r.fulfill({ json: autoMapped }));
+      const wizard = new ImportWizardPage(page);
+      await page.goto('/imports');
+      await wizard.openWizard();
+      // No account yet: the dropzone is not rendered, so the file comes in through the hidden input.
+      await wizard.fileInput.setInputFiles(csvPath('bank.csv', CSV));
+      const notice = page.getByRole('alert').filter({ hasText: 'Choose the account first' });
+      await expect(notice).toBeVisible();
+      await expect(wizard.nextButton).toBeDisabled();
+
+      await wizard.selectAccount('Checking');
+      await expect(notice).toHaveCount(0);
+      // The notice said "choose the account": picking the file now must work, the same file included.
+      await wizard.selectFile(csvPath('bank.csv', CSV));
+      await expect(page.getByRole('group', { name: 'Selected file' })).toContainText('bank.csv');
+      expect(posts.n).toBe(0);
+    });
+  });
+
+  test('R5 staged file, account back to "—": Next is disabled and no POST can be sent; choosing an account restores it', async ({
+    page,
+  }) => {
+    let posts = 0;
+    await page.route('**/api/imports', async (route: Route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      posts += 1;
+      await route.fulfill({ json: autoMapped });
+    });
+    const wizard = await stage(page, 'bank.csv', CSV);
+    await expect(wizard.nextButton).toBeEnabled();
+    await wizard.accountSelect.click();
+    await page.getByRole('option', { name: '—' }).click();
+    await expect(wizard.nextButton).toBeDisabled();
+    await wizard.nextButton.click({ force: true });
+    expect(posts, 'a disabled Next must not upload without an account').toBe(0);
+    await wizard.selectAccount('Checking');
+    await expect(wizard.nextButton).toBeEnabled();
+    await wizard.confirmUpload();
+    await expect(wizard.previewTable).toBeVisible();
+    expect(posts).toBe(1);
+  });
+
   test.describe('at 390px', () => {
     test.use({ viewport: { width: 390, height: 844 } });
 
