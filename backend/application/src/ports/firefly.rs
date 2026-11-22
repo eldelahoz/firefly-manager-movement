@@ -17,14 +17,7 @@ pub trait FireflyClient: Send + Sync {
     async fn accounts_by_type(
         &self,
         account_type: &str,
-    ) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
-        // Default: filter asset_accounts (fakes only serve asset fixtures).
-        let accounts = self.asset_accounts().await?;
-        Ok(accounts
-            .into_iter()
-            .filter(|a| a.account_type == account_type)
-            .collect())
-    }
+    ) -> Result<Vec<Ff3AccountDto>, ApplicationError>;
     async fn account_transactions(
         &self,
         account_ff3_id: i64,

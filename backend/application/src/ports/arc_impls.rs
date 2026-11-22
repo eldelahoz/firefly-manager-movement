@@ -39,6 +39,12 @@ impl FireflyClient for Arc<dyn FireflyClient> {
     async fn asset_accounts(&self) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
         self.as_ref().asset_accounts().await
     }
+    async fn accounts_by_type(
+        &self,
+        account_type: &str,
+    ) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
+        self.as_ref().accounts_by_type(account_type).await
+    }
     async fn account_transactions(
         &self,
         account_ff3_id: i64,
@@ -57,6 +63,15 @@ impl FireflyClient for Arc<dyn FireflyClient> {
     }
     async fn delete_transaction(&self, ff3_id: i64) -> Result<(), ApplicationError> {
         self.as_ref().delete_transaction(ff3_id).await
+    }
+    async fn tags(&self) -> Result<Vec<String>, ApplicationError> {
+        self.as_ref().tags().await
+    }
+    async fn categories(&self) -> Result<Vec<String>, ApplicationError> {
+        self.as_ref().categories().await
+    }
+    async fn budgets(&self) -> Result<Vec<String>, ApplicationError> {
+        self.as_ref().budgets().await
     }
     async fn attach_to_transaction(
         &self,

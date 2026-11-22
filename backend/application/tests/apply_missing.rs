@@ -64,6 +64,12 @@ impl FireflyClient for FakeFirefly {
     async fn asset_accounts(&self) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
         Ok(self.accounts.clone())
     }
+    async fn accounts_by_type(
+        &self,
+        _account_type: &str,
+    ) -> Result<Vec<Ff3AccountDto>, ApplicationError> {
+        unimplemented!("not used by this fake")
+    }
     async fn account_transactions(
         &self,
         _account_ff3_id: i64,
