@@ -5,7 +5,7 @@ use chrono::NaiveDate;
 use serde::Deserialize;
 
 use ffm_application::dtos::{
-    About, CreatedFf3Transaction, Ff3AccountDto, Ff3SplitDto, Ff3TransactionDto,
+    About, CreatedFf3Transaction, ExternalIdHit, Ff3AccountDto, Ff3SplitDto, Ff3TransactionDto,
     NewFf3TransactionCreation,
 };
 use ffm_application::error::ApplicationError;
@@ -135,6 +135,41 @@ struct CreatedSplit {
     source_type: Option<String>,
     #[serde(default)]
     destination_name: Option<String>,
+    #[serde(default)]
+    destination_type: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct SearchResponse {
+    data: Vec<SearchGroup>,
+    meta: PaginationMeta,
+}
+
+#[derive(Deserialize)]
+struct SearchGroup {
+    id: String,
+    attributes: SearchAttributes,
+}
+
+#[derive(Deserialize)]
+struct SearchAttributes {
+    transactions: Vec<SearchSplit>,
+}
+
+#[derive(Deserialize)]
+struct SearchSplit {
+    #[serde(default)]
+    external_id: Option<String>,
+    #[serde(default)]
+    source_id: Option<String>,
+    #[serde(default)]
+    destination_id: Option<String>,
+    #[serde(default)]
+    source_name: Option<String>,
+    #[serde(default)]
+    destination_name: Option<String>,
+    #[serde(default)]
+    source_type: Option<String>,
     #[serde(default)]
     destination_type: Option<String>,
 }
@@ -548,6 +583,9 @@ impl FireflyClient for ReqwestFireflyClient {
         if !creation.tags.is_empty() {
             obj.insert("tags".into(), json!(creation.tags));
         }
+        if let Some(ref external_id) = creation.external_id {
+            obj.insert("external_id".into(), json!(external_id));
+        }
 
         // FF3 transactions endpoint does NOT use the JSON-API data/attributes
         // wrapper on requests: TransactionStore has `transactions` at top level.
@@ -562,7 +600,15 @@ impl FireflyClient for ReqwestFireflyClient {
             .json(&payload)
             .send()
             .await
-            .map_err(|e| ApplicationError::FireflyClient(e.to_string()))?;
+            .map_err(|e| {
+                // Firefly III may still store it after the client gave up.
+                let hint = if e.is_timeout() {
+                    "; it may have been created in Firefly III; wait a moment before retrying"
+                } else {
+                    ""
+                };
+                ApplicationError::FireflyClient(format!("{e}{hint}"))
+            })?;
         let status = resp.status();
         if !status.is_success() {
             let text = resp.text().await.unwrap_or_else(|_| "<no body>".into());
@@ -593,6 +639,62 @@ impl FireflyClient for ReqwestFireflyClient {
             },
             None => ff3_id.into(),
         })
+    }
+
+    async fn transactions_by_external_id_prefix(
+        &self,
+        account_ff3_id: i64,
+        prefix: &str,
+    ) -> Result<Vec<ExternalIdHit>, ApplicationError> {
+        // `account_id:` narrows the search; the split filter below is what counts.
+        let query = format!("account_id:{account_ff3_id} external_id_starts:\"{prefix}\"");
+        let account = account_ff3_id.to_string();
+        // Only used to URL-encode the query string.
+        let mut url = reqwest::Url::parse("http://localhost/").expect("static url");
+        let mut all = Vec::new();
+        let mut page: u32 = 1;
+        loop {
+            url.query_pairs_mut()
+                .clear()
+                .append_pair("query", &query)
+                .append_pair("page", &page.to_string());
+            let resp: SearchResponse = self
+                .get_json(&format!(
+                    "/api/v1/search/transactions?{}",
+                    url.query().unwrap_or_default()
+                ))
+                .await?;
+            for group in resp.data {
+                let ff3_id = group.id.parse::<i64>().map_err(|e| {
+                    ApplicationError::Parse(format!("invalid FF3 transaction id: {e}"))
+                })?;
+                for split in group.attributes.transactions {
+                    let Some(external_id) = split.external_id.filter(|e| e.starts_with(prefix))
+                    else {
+                        continue;
+                    };
+                    let (counterparty_name, counterparty_type) =
+                        if split.source_id.as_deref() == Some(&account) {
+                            (split.destination_name, split.destination_type)
+                        } else if split.destination_id.as_deref() == Some(&account) {
+                            (split.source_name, split.source_type)
+                        } else {
+                            continue;
+                        };
+                    all.push(ExternalIdHit {
+                        external_id,
+                        ff3_id,
+                        counterparty_name,
+                        counterparty_type,
+                    });
+                }
+            }
+            if page >= resp.meta.pagination.total_pages {
+                break;
+            }
+            page += 1;
+        }
+        Ok(all)
     }
 
     async fn delete_transaction(&self, ff3_id: i64) -> Result<(), ApplicationError> {

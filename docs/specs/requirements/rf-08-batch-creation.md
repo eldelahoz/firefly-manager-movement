@@ -57,7 +57,7 @@ The user selects missing movements (individual checkboxes + "select all") and ha
 
 **Per-movement processing**: an FF3 error on one movement MUST NOT abort the batch; the run continues and ends with a per-movement report (success/failure/reason) (NFR-09).
 
-**Idempotency**: before each creation the system checks whether the movement was already created; already-created movements are skipped silently (NFR-05). Only movements in `missing` status are accepted.
+**Idempotency**: before each creation the system checks whether the movement was already created; already-created movements are skipped silently (NFR-05). Each created transaction also carries a stable `external_id` that lets a retry recover a creation that Firefly III accepted but the app did not record (NFR-05 v0.1). Only movements in `missing` status are accepted.
 
 **After success**: the movement moves to `created`; a confirmation re-reconciliation moves `created → matched` without losing provenance (status semantics, RF-09).
 

@@ -241,6 +241,7 @@ async fn post_imports_parses_and_persists_movements() {
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
+        apply_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -309,6 +310,7 @@ async fn get_imports_lists_batches() {
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
+        apply_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -380,6 +382,7 @@ async fn get_import_returns_batch_and_movements() {
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
+        apply_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -467,6 +470,7 @@ async fn post_imports_same_filename_twice_returns_409() {
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
+        apply_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -529,6 +533,7 @@ async fn delete_import_removes_parsed_batch() {
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
+        apply_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -608,6 +613,7 @@ async fn delete_import_rejects_reconciled_batch() {
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
+        apply_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -673,6 +679,7 @@ async fn put_import_mapping_saves_mapping() {
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
+        apply_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -776,6 +783,7 @@ fn df_router(mappings: Arc<FakeCsvMappingRepo>) -> axum::Router {
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
+        apply_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),

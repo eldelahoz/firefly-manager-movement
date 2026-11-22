@@ -5,7 +5,7 @@ use ffm_domain::entities::Ff3Account;
 use ffm_domain::ids::Ff3AccountId;
 
 use crate::dtos::{
-    About, CreatedFf3Transaction, Ff3AccountDto, Ff3TransactionDto, NewFf3Account,
+    About, CreatedFf3Transaction, ExternalIdHit, Ff3AccountDto, Ff3TransactionDto, NewFf3Account,
     NewFf3TransactionCreation,
 };
 use crate::error::ApplicationError;
@@ -30,6 +30,12 @@ pub trait FireflyClient: Send + Sync {
         creation: NewFf3TransactionCreation,
     ) -> Result<CreatedFf3Transaction, ApplicationError>;
     async fn delete_transaction(&self, ff3_id: i64) -> Result<(), ApplicationError>;
+    /// Splits on `account_ff3_id` whose `external_id` starts with `prefix`.
+    async fn transactions_by_external_id_prefix(
+        &self,
+        account_ff3_id: i64,
+        prefix: &str,
+    ) -> Result<Vec<ExternalIdHit>, ApplicationError>;
     async fn tags(&self) -> Result<Vec<String>, ApplicationError> {
         Err(ApplicationError::FireflyClient(
             "tags unsupported by this client".into(),

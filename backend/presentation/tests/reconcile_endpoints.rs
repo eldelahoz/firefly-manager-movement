@@ -82,6 +82,13 @@ impl FireflyClient for FireflyAtRequest {
     ) -> Result<ffm_application::dtos::CreatedFf3Transaction, ApplicationError> {
         unimplemented!("F5")
     }
+    async fn transactions_by_external_id_prefix(
+        &self,
+        _account_ff3_id: i64,
+        _prefix: &str,
+    ) -> Result<Vec<ffm_application::dtos::ExternalIdHit>, ApplicationError> {
+        Ok(vec![])
+    }
     async fn delete_transaction(&self, _ff3_id: i64) -> Result<(), ApplicationError> {
         unimplemented!("F5")
     }
@@ -345,6 +352,7 @@ fn test_app(transactions: Vec<Ff3TransactionDto>) -> TestApp {
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
+        apply_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),

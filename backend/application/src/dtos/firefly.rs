@@ -120,6 +120,18 @@ pub struct NewFf3TransactionCreation {
     pub budget: Option<String>,
     pub notes: Option<String>,
     pub tags: Vec<String>,
+    /// Stable id stored on the split so a retry can find it (NFR-05).
+    pub external_id: Option<String>,
+}
+
+/// A split on one account found by its `external_id` (NFR-05 recovery).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExternalIdHit {
+    pub external_id: String,
+    pub ff3_id: i64,
+    /// The side opposite to the queried account.
+    pub counterparty_name: Option<String>,
+    pub counterparty_type: Option<String>,
 }
 
 #[derive(Debug, Clone)]

@@ -77,6 +77,13 @@ impl FireflyClient for FakeVerifyClient {
     ) -> Result<ffm_application::dtos::CreatedFf3Transaction, ApplicationError> {
         Ok(1.into())
     }
+    async fn transactions_by_external_id_prefix(
+        &self,
+        _account_ff3_id: i64,
+        _prefix: &str,
+    ) -> Result<Vec<ffm_application::dtos::ExternalIdHit>, ApplicationError> {
+        Ok(vec![])
+    }
     async fn delete_transaction(&self, _id: i64) -> Result<(), ApplicationError> {
         Ok(())
     }
@@ -124,6 +131,7 @@ fn make_state_with_env(
         firefly_factory: Arc::new(factory),
         env_defaults,
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
+        apply_lock: Arc::new(tokio::sync::Mutex::new(())),
     }
 }
 

@@ -56,6 +56,13 @@ impl FireflyClient for FakeFirefly {
     ) -> Result<ffm_application::dtos::CreatedFf3Transaction, ApplicationError> {
         unimplemented!()
     }
+    async fn transactions_by_external_id_prefix(
+        &self,
+        _account_ff3_id: i64,
+        _prefix: &str,
+    ) -> Result<Vec<ffm_application::dtos::ExternalIdHit>, ApplicationError> {
+        Ok(vec![])
+    }
     async fn delete_transaction(&self, ff3_id: i64) -> Result<(), ApplicationError> {
         if self.fail {
             return Err(ApplicationError::FireflyClient("FF3 500".into()));
