@@ -125,7 +125,7 @@ export function SettingsPage() {
             {t('settings.testConnection')}
           </Button>
           <Button
-            disabled={save.isPending}
+            disabled={save.isPending || !settings.data}
             aria-busy={save.isPending && save.variables === 'connection'}
             onClick={() => save.mutate('connection')}
           >
@@ -168,7 +168,7 @@ export function SettingsPage() {
         </CardContent>
         <CardFooter>
           <Button
-            disabled={save.isPending}
+            disabled={save.isPending || !settings.data}
             aria-busy={save.isPending && save.variables === 'creation'}
             onClick={() => save.mutate('creation')}
           >
@@ -204,7 +204,7 @@ export function SettingsPage() {
         </CardContent>
         <CardFooter>
           <Button
-            disabled={save.isPending}
+            disabled={save.isPending || !settings.data}
             aria-busy={save.isPending && save.variables === 'import'}
             onClick={() => save.mutate('import')}
           >

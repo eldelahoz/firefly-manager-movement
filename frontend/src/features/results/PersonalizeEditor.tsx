@@ -51,10 +51,10 @@ export function PersonalizeEditor({
   const [category, setCategory] = useState(initial.category ?? 'none');
   const [budget, setBudget] = useState(initial.budget ?? 'none');
   const [notes, setNotes] = useState(initial.notes ?? '');
-  const [selectedTags, setSelectedTags] = useState<string[]>(
-    initial.tags ?? (defaultTag ? [defaultTag] : []),
-  );
-  const [tagsTouched, setTagsTouched] = useState(false);
+  // Derived until the user picks, so a default tag from settings that loads late still applies.
+  const [tagsDraft, setTagsDraft] = useState<string[] | null>(null);
+  const tagsTouched = tagsDraft !== null;
+  const selectedTags = tagsDraft ?? initial.tags ?? (defaultTag ? [defaultTag] : []);
   const [attachment, setAttachment] = useState(initial.attachment);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -114,7 +114,6 @@ export function PersonalizeEditor({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4">
-        {bulk && <p className="text-xs text-text-3">{t('results.bulkHint')}</p>}
         {select(
           t('results.counterparty'),
           counterpartyId,
@@ -141,8 +140,7 @@ export function PersonalizeEditor({
             value={selectedTags}
             options={tags}
             onChange={(v) => {
-              setSelectedTags(v);
-              setTagsTouched(true);
+              setTagsDraft(v);
               touch();
             }}
           />

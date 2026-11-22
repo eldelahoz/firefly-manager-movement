@@ -62,6 +62,15 @@ export function ResultsSummary({
   );
 }
 
+/** RF-07 v0.10: extras dated outside the statement's min..max date are not counted as extras.
+ *  Shared by the Results page and the dashboard so both show the same number. */
+export function outsideStatementPeriod(movements: { date: string }[]) {
+  if (movements.length === 0) return () => false;
+  const dates = movements.map((m) => m.date).sort();
+  const [min, max] = [dates[0], dates[dates.length - 1]];
+  return (date: string) => date < min || date > max;
+}
+
 /** Proportional bar plus per-group legend; shared by the Results summary and the dashboard. */
 export function SummaryBreakdown({
   counts,

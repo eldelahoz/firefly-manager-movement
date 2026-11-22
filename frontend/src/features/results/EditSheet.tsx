@@ -73,6 +73,10 @@ export function EditSheet({
   return (
     <Sheet open={open} onOpenChange={(o) => !o && request('close')}>
       <SheetContent
+        // A toast (Undo) lives outside the sheet; clicking it must not close the sheet.
+        onInteractOutside={(e) => {
+          if ((e.target as Element | null)?.closest('[data-sonner-toaster]')) e.preventDefault();
+        }}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
           (opener?.isConnected
@@ -114,7 +118,7 @@ export function EditSheet({
               </div>
             )}
           </div>
-          <SheetDescription className={movement ? '' : 'sr-only'}>
+          <SheetDescription>
             {movement && position
               ? t('results.position', { index: position.index + 1, total: position.total })
               : t('results.bulkHint')}

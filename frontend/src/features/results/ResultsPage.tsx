@@ -28,7 +28,7 @@ import { useRerun } from '@/app/reconcileContext';
 import type { BulkFields, Customization } from './customization';
 import { applyBulkFillOnly } from './customization';
 import { VirtualList } from './VirtualList';
-import { ResultsSkeleton, ResultsSummary } from './ResultsSummary';
+import { outsideStatementPeriod, ResultsSkeleton, ResultsSummary } from './ResultsSummary';
 import { BulkBar } from './BulkBar';
 import { MissingRow } from './MissingRow';
 import { IgnoredRow } from './IgnoredRow';
@@ -260,12 +260,10 @@ export function ResultsPage() {
     ],
     [accounts.data, revenueAccounts.data, expenseAccounts.data],
   );
-  const statementRange = useMemo(() => {
-    const mv = detail.data?.movements ?? [];
-    if (mv.length === 0) return null;
-    const dates = mv.map((m) => m.date).sort();
-    return { min: dates[0], max: dates[dates.length - 1] };
-  }, [detail.data]);
+  const isOutsidePeriod = useMemo(
+    () => outsideStatementPeriod(detail.data?.movements ?? []),
+    [detail.data],
+  );
   if (!Number.isFinite(id)) {
     return (
       <EmptyState
@@ -292,8 +290,6 @@ export function ResultsPage() {
       />
     );
   }
-  const isOutsidePeriod = (d: string) =>
-    !!statementRange && (d < statementRange.min || d > statementRange.max);
   const extraRows = results.data.extra;
   // Same order as the backend (line_no), so a moved row lands where the refetch will put it.
   const byLine = (a: { line_no: number }, b: { line_no: number }) => a.line_no - b.line_no;
@@ -336,6 +332,9 @@ export function ResultsPage() {
   // Not found (e.g. the row was ignored or the batch changed) = the sheet closes.
   const editingIndex = editingId != null ? missingRows.findIndex((m) => m.id === editingId) : -1;
   const editingMovement = editingIndex >= 0 ? missingRows[editingIndex] : null;
+  // Drop the open-state with the sheet, so it does not pop back when the row or selection returns.
+  if (editingId != null && editingIndex < 0) setEditingId(null);
+  if (bulkOpen && activeSelected.length < 2) setBulkOpen(false);
   const sheetLists = {
     defaultTag,
     accounts: allAccounts,

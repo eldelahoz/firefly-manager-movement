@@ -129,6 +129,11 @@
   border-inline-start: 0;
 }
 
+/* Radix modals set pointer-events: none on <body>; keep toasts (Undo) clickable over a sheet or dialog. */
+[data-sonner-toaster] {
+  pointer-events: auto;
+}
+
 /* Row move/exit (shared/lib/viewTransition.ts); skipped entirely under reduced motion. */
 ::view-transition {
   pointer-events: none;
