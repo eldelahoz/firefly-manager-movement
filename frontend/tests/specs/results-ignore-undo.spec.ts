@@ -171,6 +171,118 @@ test.describe('Results > optimistic ignore + Undo', () => {
     await expect(dialog).toHaveCount(0);
   });
 
+  test('U2d a bulk sheet whose selection fell below 2 does not reopen when it returns', async ({
+    page,
+  }) => {
+    // Radix reports the unmount (onCloseAutoFocus -> onClose) from a setTimeout(0). With timers frozen that
+    // callback has not run, so only the page's own reset (bulkOpen && selection < 2) can clear bulkOpen.
+    await page.clock.install();
+    const { state } = await mockResults(page);
+    const LUNCH = { ...BOOK, id: 14, line_no: 5, description: 'Lunch' };
+    state.missing.push(LUNCH);
+    await page.goto('/results/1');
+    await page.getByRole('tab', { name: /Missing/ }).click();
+    // The Undo toast is the handle to trigger refetches while the sheet is open (Lunch is never selected).
+    await row(page, 'Lunch').getByRole('button', { name: 'Ignore' }).click();
+    await row(page, 'Book').getByRole('checkbox').check();
+    await row(page, 'Salary').getByRole('checkbox').check();
+    const personalize = page
+      .getByRole('toolbar', { name: 'Selection' })
+      .getByRole('button', { name: 'Personalize (2)' });
+    await personalize.click();
+    const bulk = page.getByRole('dialog', { name: 'Personalize 2 movements' });
+    await expect(bulk).toBeVisible();
+    await page.clock.pauseAt(new Date(Date.now() + 1000));
+
+    // The refetch after Undo no longer has Book: the selection drops to 1 and the sheet unmounts.
+    const book = state.missing.splice(
+      state.missing.findIndex((m) => m.id === BOOK.id),
+      1,
+    )[0];
+    await page.locator('[data-sonner-toast] button', { hasText: 'Undo' }).click();
+    await expect(row(page, 'Book')).toHaveCount(0);
+    await expect(bulk).toHaveCount(0);
+
+    // Book returns with the next refetch (Ignore settles). Both rows are selected again: no dialog.
+    state.missing.unshift(book);
+    await row(page, 'Lunch').getByRole('button', { name: 'Ignore' }).click();
+    await expect(row(page, 'Book')).toBeVisible();
+    await expect(personalize).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  // P4: the Undo toast is paused while a sheet is open. Single: ignore Salary, edit Book. Bulk: ignore Lunch,
+  // personalize Book + Salary. Either way the ignored row is the one Undo must bring back.
+  async function ignoreThenOpenSheet(page: Page, kind: 'single' | 'bulk') {
+    const LUNCH = { ...BOOK, id: 14, line_no: 5, description: 'Lunch' };
+    const { state, posts } = await mockResults(page);
+    if (kind === 'bulk') state.missing.push(LUNCH);
+    await page.goto('/results/1');
+    await page.getByRole('tab', { name: /Missing/ }).click();
+    const ignored = kind === 'single' ? { name: 'Salary', id: 13 } : { name: 'Lunch', id: 14 };
+    await row(page, ignored.name).getByRole('button', { name: 'Ignore' }).click();
+    await expect(undo(page)).toBeVisible();
+    if (kind === 'single') {
+      await row(page, 'Book').getByRole('button', { name: 'Edit' }).click();
+    } else {
+      await row(page, 'Book').getByRole('checkbox').check();
+      await row(page, 'Salary').getByRole('checkbox').check();
+      await page
+        .getByRole('toolbar', { name: 'Selection' })
+        .getByRole('button', { name: 'Personalize (2)' })
+        .click();
+    }
+    const dialog = page.getByRole('dialog', {
+      name: kind === 'single' ? 'Edit movement' : 'Personalize 2 movements',
+    });
+    await expect(dialog).toBeVisible();
+    return { dialog, ignored, posts };
+  }
+
+  for (const kind of ['single', 'bulk'] as const) {
+    test(`U3b (${kind}) the Undo toast waits while the sheet is open; keyboard Undo then restores the row`, async ({
+      page,
+    }) => {
+      await page.clock.install();
+      const { dialog, ignored, posts } = await ignoreThenOpenSheet(page, kind);
+
+      // Past the 8 s window while the sheet is open: the toast must still be there.
+      await page.clock.runFor(9000);
+      await expect(undo(page)).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await page.clock.runFor(100); // Radix reports the close (focus return) from a setTimeout(0)
+      await expect(undo(page)).toBeVisible();
+
+      // Alt+T focuses the toast region; Tab, Tab reaches the Undo action.
+      await page.keyboard.press('Alt+T');
+      await page.keyboard.press('Tab');
+      await page.keyboard.press('Tab');
+      await expect(undo(page)).toBeFocused();
+      await page.keyboard.press('Enter');
+      await expect(row(page, ignored.name)).toBeVisible();
+      expect(posts).toEqual([
+        { id: ignored.id, ignored: true },
+        { id: ignored.id, ignored: false },
+      ]);
+    });
+
+    test(`U3c (${kind}) once the sheet closes the toast counts a full 8 s again, then goes`, async ({
+      page,
+    }) => {
+      await page.clock.install();
+      const { dialog } = await ignoreThenOpenSheet(page, kind);
+      await page.clock.runFor(9000);
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await page.clock.runFor(100);
+      await page.clock.runFor(6000);
+      await expect(undo(page)).toBeVisible();
+      await page.clock.runFor(2500);
+      await expect(undo(page)).toHaveCount(0);
+    });
+  }
+
   test('U3 Undo lasts the 8 s window, then the toast is gone', async ({ page }) => {
     await page.clock.install();
     await mockResults(page);
