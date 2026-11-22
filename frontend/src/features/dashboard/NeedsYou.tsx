@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { BatchSummary } from '@/shared/api/dto';
 import { getImport, getResults } from '@/shared/api/endpoints';
 import { queryKeys } from '@/shared/lib/keys';
+import { failedWithoutData } from '@/shared/lib/queryClient';
 import { useImportWizard } from '@/app/importWizardContext';
 import { Button } from '@/shared/ui/button';
 import { Skeleton } from '@/shared/ui/Skeleton';
@@ -69,6 +70,20 @@ export function NeedsYou({ batches }: { batches: BatchSummary[] }) {
             </div>
             {counts ? (
               <SummaryBreakdown counts={counts} />
+            ) : failedWithoutData(results) || failedWithoutData(detail) ? (
+              <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+                <span className="text-text-2">{t('common.error')}</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    if (failedWithoutData(results)) void results.refetch({ cancelRefetch: false });
+                    if (failedWithoutData(detail)) void detail.refetch({ cancelRefetch: false });
+                  }}
+                >
+                  {t('common.retry')}
+                </Button>
+              </div>
             ) : (
               (results.isPending || detail.isPending) && (
                 <Skeleton className="h-2 w-full rounded-full" />

@@ -5,6 +5,11 @@ import en from './locales/en/translation.json';
 import fr from './locales/fr/translation.json';
 import es from './locales/es/translation.json';
 
+// Screen readers pick their voice from <html lang>; init also emits languageChanged.
+i18n.on('languageChanged', () => {
+  document.documentElement.lang = i18n.resolvedLanguage ?? 'en';
+});
+
 void i18n
   .use(LanguageDetector)
   .use(initReactI18next)

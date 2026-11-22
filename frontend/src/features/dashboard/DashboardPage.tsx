@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useImportWizard } from '@/app/importWizardContext';
 import { getImports } from '@/shared/api/endpoints';
 import { queryKeys } from '@/shared/lib/keys';
+import { failedWithoutData } from '@/shared/lib/queryClient';
 import { HealthCard } from './HealthCard';
 import { NeedsYou } from './NeedsYou';
 import { RecentBatches } from './RecentBatches';
@@ -26,23 +27,22 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <HealthCard />
-      {imports.isPending ? (
-        <Skeleton className="h-40 w-full rounded-xl" />
-      ) : imports.isError && batches.length === 0 ? (
+      {(imports.isError || failedWithoutData(imports)) && batches.length === 0 ? (
         <div role="alert">
           <EmptyState
             title={t('common.error')}
             action={
               <Button
                 variant="outline"
-                disabled={imports.isFetching}
-                onClick={() => void imports.refetch()}
+                onClick={() => void imports.refetch({ cancelRefetch: false })}
               >
                 {t('common.retry')}
               </Button>
             }
           />
         </div>
+      ) : imports.isPending ? (
+        <Skeleton className="h-40 w-full rounded-xl" />
       ) : batches.length === 0 ? (
         <EmptyState
           title={t('dashboard.firstRun')}

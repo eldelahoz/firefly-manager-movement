@@ -20,3 +20,8 @@ export const queryClient = new QueryClient({
     },
   }),
 });
+
+/** Failed and still has no data. Without data, a refetch puts the query back in `pending`, so
+ *  `isError` alone would unmount the error and its focused Retry on every retry. */
+export const failedWithoutData = (q: { data: unknown; errorUpdateCount: number }) =>
+  q.data === undefined && q.errorUpdateCount > 0;
