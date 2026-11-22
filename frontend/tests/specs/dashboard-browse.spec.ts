@@ -1,8 +1,19 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/api.fixture';
 import { DashboardPage } from '../pages/DashboardPage';
 import { fixtures } from '../fixtures/fixtures';
 
 const { txs } = fixtures;
+
+// Wait for the browse POST that carries this date. A bare "next POST" waiter can catch an earlier
+// in-flight fetch (selection, clearing a field, intermediate typing) under parallel load.
+const txsPost = (page: Page, field: 'start' | 'end', value: string) =>
+  page.waitForResponse(
+    (r) =>
+      r.url().includes('/api/firefly/accounts/1/transactions') &&
+      r.request().method() === 'POST' &&
+      r.request().postDataJSON()?.[field] === value,
+  );
 
 test.describe('Dashboard > BrowseWidget', () => {
   test.beforeEach(async ({ page, mockDashboard }) => {
@@ -56,19 +67,12 @@ test.describe('Dashboard > BrowseWidget', () => {
     await firstResponse;
 
     // Set up listener for the next POST triggered by date change
-    const dateResponse = page.waitForResponse(
-      (r) =>
-        r.url().includes('/api/firefly/accounts/1/transactions') &&
-        r.request().method() === 'POST',
-    );
+    const dateResponse = txsPost(page, 'start', '2026-09-04');
 
     // Change "From" date to 2026-09-04 (default end is 2026-09-09)
     // Only Salary (2026-09-05) fits in [09-04, 09-09]
     await dashboard.setFromDate('2026-09-04');
-
-    const response = await dateResponse;
-    const body = response.request().postDataJSON();
-    expect(body.start).toBe('2026-09-04');
+    await dateResponse;
 
     // Mock returns filtered results (date >= 2026-09-04), only Salary
     await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(1, { timeout: 5000 });
@@ -87,19 +91,12 @@ test.describe('Dashboard > BrowseWidget', () => {
     await dashboard.selectAccount('Checking');
     await firstResponse;
 
-    const dateResponse = page.waitForResponse(
-      (r) =>
-        r.url().includes('/api/firefly/accounts/1/transactions') &&
-        r.request().method() === 'POST',
-    );
+    const dateResponse = txsPost(page, 'end', '2026-09-02');
 
     // Change "To" date to 2026-09-02 (default start is 2026-09-01)
     // Only Coffee (2026-09-01) fits in [09-01, 09-02]
     await dashboard.setToDate('2026-09-02');
-
-    const response = await dateResponse;
-    const body = response.request().postDataJSON();
-    expect(body.end).toBe('2026-09-02');
+    await dateResponse;
 
     // Only Coffee (2026-09-01) fits
     await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(1, { timeout: 5000 });
@@ -123,11 +120,7 @@ test.describe('Dashboard > BrowseWidget', () => {
     expect(rows).toHaveLength(3);
 
     // 2. Narrow From to Sept 4 → only Salary (Sept 5) fits
-    const narrowResponse = page.waitForResponse(
-      (r) =>
-        r.url().includes('/api/firefly/accounts/1/transactions') &&
-        r.request().method() === 'POST',
-    );
+    const narrowResponse = txsPost(page, 'start', '2026-09-04');
     await dashboard.setFromDate('2026-09-04');
     await narrowResponse;
     await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(1, { timeout: 5000 });
@@ -188,12 +181,9 @@ test.describe('Dashboard > BrowseWidget', () => {
     await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(3, { timeout: 5000 });
 
     // Set From to 2026-09-03 → 2 (Duplicate A 03 + Salary 05), Coffee 01 filtered out
-    const to03Resp = page.waitForResponse(
-      (r) => r.url().includes('/api/firefly/accounts/1/transactions') && r.request().method() === 'POST',
-    );
+    const to03Resp = txsPost(page, 'start', '2026-09-03');
     await dashboard.setFromDate('2026-09-03');
-    const resp03 = await to03Resp;
-    expect(resp03.request().postDataJSON().start).toBe('2026-09-03');
+    await to03Resp;
     await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(2, { timeout: 5000 });
     const texts03 = await Promise.all(
       (await dashboard.getTransactionRows()).map((r) => dashboard.getTransactionText(r)),
@@ -232,15 +222,10 @@ test.describe('Dashboard > BrowseWidget', () => {
     await expect(dashboard.fromInput).toHaveValue('');
     // Wait for the refetch after clearing From (open start, end still 2026-09-12 -> 3)
     await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(3, { timeout: 5000 });
-    const to03Resp = page.waitForResponse(
-      (r) => r.url().includes('/api/firefly/accounts/1/transactions') && r.request().method() === 'POST',
-    );
+    const to03Resp = txsPost(page, 'end', '2026-09-03');
     await dashboard.setToDate('2026-09-03');
     await expect(dashboard.toInput).toHaveValue('2026-09-03');
-    const resp = await to03Resp;
-    const body = resp.request().postDataJSON();
-    expect(body.start).toBeUndefined();
-    expect(body.end).toBe('2026-09-03');
+    expect((await to03Resp).request().postDataJSON().start).toBeUndefined();
     await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(2, { timeout: 5000 });
     const texts = await Promise.all((await dashboard.getTransactionRows()).map((r) => dashboard.getTransactionText(r)));
     expect(texts.some((t) => t.includes('Coffee'))).toBeTruthy();
@@ -292,12 +277,9 @@ test.describe('Dashboard > BrowseWidget', () => {
     await expect(dashboard.toInput).toHaveValue('');
 
     // Set From to 2026-09-10 with To empty -> open end from 10 -> 0 (no tx on/after 10)
-    const noDataResp = page.waitForResponse(
-      (r) => r.url().includes('/api/firefly/accounts/1/transactions') && r.request().method() === 'POST',
-    );
+    const noDataResp = txsPost(page, 'start', '2026-09-10');
     await dashboard.setFromDate('2026-09-10');
     const body = (await noDataResp).request().postDataJSON();
-    expect(body.start).toBe('2026-09-10');
     expect(body.end).toBeUndefined();
     await expect(dashboard.browseEmpty).toBeVisible();
     await expect(dashboard.browseList.getByRole('listitem')).toHaveCount(0);

@@ -24,7 +24,11 @@
   --color-status-extra: var(--status-extra);
   --color-status-extra-bg: var(--status-extra-bg);
   --color-status-extra-txt: var(--status-extra-txt);
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --color-status-ignored: var(--status-ignored);
+  --color-status-ignored-bg: var(--status-ignored-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif;
 
   --color-background: var(--canvas);
   --color-foreground: var(--text-1);
@@ -33,15 +37,15 @@
   --color-popover: var(--surface);
   --color-popover-foreground: var(--text-1);
   --color-primary: var(--accent);
-  --color-primary-foreground: #ffffff;
+  --color-primary-foreground: var(--accent-fg);
   --color-secondary: var(--accent-soft);
   --color-secondary-foreground: var(--accent);
   --color-muted: var(--canvas);
   --color-muted-foreground: var(--text-2);
-  --color-accent-foreground: #ffffff;
+  --color-accent-foreground: var(--accent-fg);
   --color-destructive-foreground: #ffffff;
   --color-border: var(--border-subtle);
-  --color-input: var(--border-subtle);
+  --color-input: var(--border-strong); /* controls need 3:1 (WCAG 1.4.11) */
   --color-ring: var(--accent);
   --radius-lg: 12px;
   --radius-md: 8px;
@@ -56,7 +60,168 @@
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--text-1);
+  }
   .tabular-money {
     font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Collapsible sidebar (>= md). One variable drives the rail width and the content offset so both move together. */
+.ffm-shell {
+  --sidebar-w: 220px;
+}
+.ffm-shell[data-sidebar='collapsed'] {
+  --sidebar-w: 64px;
+}
+.ffm-shell[data-sidebar='collapsed'] .ffm-sidebar-label {
+  opacity: 0;
+}
+/* the 40px toggle must fit the 40px rail interior */
+.ffm-shell[data-sidebar='collapsed'] .ffm-brand {
+  padding-inline: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ffm-sidebar {
+    transition: width var(--dur-3) var(--ease-enter);
+  }
+  /* The content offset does not animate: it snaps once (start of expand, end of collapse), so the results
+     container never flips between stacked and table layout mid-animation and the rail never covers content. */
+  .ffm-shell[data-sidebar='collapsed'] .ffm-content {
+    transition: padding-left 0s linear var(--dur-3-exit);
+  }
+  .ffm-sidebar-label {
+    transition: opacity 180ms var(--ease-enter) 60ms;
+  }
+  .ffm-shell[data-sidebar='collapsed'] .ffm-sidebar {
+    transition-duration: var(--dur-3-exit);
+    transition-timing-function: var(--ease-exit);
+  }
+  .ffm-shell[data-sidebar='collapsed'] .ffm-sidebar-label {
+    transition-duration: var(--dur-1);
+    transition-delay: 0ms;
+  }
+}
+
+/* Inline metadata separated by a 1px rule instead of a glyph: silent for screen readers, survives forced colours
+   (design-system-research §1). The container clip hides the rule that would lead a wrapped line. */
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.meta > li {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.1;
+  padding-inline-start: 0.75em;
+  margin-inline-start: calc(-1px);
+  border-inline-start: 1px solid var(--border-strong);
+}
+.meta > li:first-child {
+  padding-inline-start: 0;
+  border-inline-start: 0;
+}
+
+/* Row move/exit (shared/lib/viewTransition.ts); skipped entirely under reduced motion. */
+::view-transition {
+  pointer-events: none;
+}
+/* The rest of the page snaps: a root crossfade ghosts the rows shifting under the moved one. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+::view-transition-group(vt-move) {
+  animation-duration: var(--dur-3);
+  animation-timing-function: var(--ease-move);
+}
+::view-transition-old(vt-move):only-child {
+  animation: vt-exit var(--dur-3-exit) var(--ease-exit) both;
+}
+@keyframes vt-exit {
+  to {
+    opacity: 0;
+    translate: 8px 0;
+  }
+}
+
+/* Results summary bar re-proportions; bulk bar slides in (exit is instant: it unmounts). */
+@media (prefers-reduced-motion: no-preference) {
+  .ffm-seg {
+    transition: flex-grow var(--dur-3) var(--ease-move);
+  }
+  .ffm-bulkbar {
+    transition:
+      opacity var(--dur-2) var(--ease-enter),
+      transform var(--dur-2) var(--ease-enter);
+  }
+  @starting-style {
+    .ffm-bulkbar {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
+  /* Wizard step entry (the step container remounts per step). */
+  .ffm-step {
+    transition:
+      opacity var(--dur-2) var(--ease-enter),
+      translate var(--dur-2) var(--ease-enter);
+  }
+  @starting-style {
+    .ffm-step {
+      opacity: 0;
+      translate: 0 6px;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ffm-bulkbar,
+  .ffm-step {
+    transition: opacity var(--dur-1) linear;
+  }
+  @starting-style {
+    .ffm-bulkbar,
+    .ffm-step {
+      opacity: 0;
+    }
+  }
+}
+.ffm-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.ffm-disclosure[open] > summary .ffm-chevron {
+  rotate: 90deg;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ffm-chevron {
+    transition: rotate var(--dur-2) var(--ease-move);
+  }
+}
+
+/* Edit sheet: 280ms in / 210ms out; under reduced motion a short fade, no slide. */
+.ffm-sheet[data-state='open'] {
+  animation-duration: var(--dur-3);
+  animation-timing-function: var(--ease-enter);
+}
+.ffm-sheet[data-state='closed'] {
+  animation-duration: var(--dur-3-exit);
+  animation-timing-function: var(--ease-exit);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ffm-sheet[data-state] {
+    --tw-enter-translate-x: 0;
+    --tw-enter-translate-y: 0;
+    --tw-exit-translate-x: 0;
+    --tw-exit-translate-y: 0;
+    --tw-enter-opacity: 0;
+    --tw-exit-opacity: 0;
+    animation-duration: var(--dur-1);
   }
 }

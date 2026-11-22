@@ -12,8 +12,8 @@ const SetHeaderContext = createContext<((config: PageHeaderConfig | null) => voi
 export function PageHeader({ title, description, actions }: PageHeaderConfig) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="min-w-0">
-        <h1 className="text-2xl font-bold">{title}</h1>
+      <div className="min-w-0 flex-1 basis-48">
+        <h1 className="truncate text-2xl font-bold">{title}</h1>
         {description ? <p className="mt-1 text-text-2">{description}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
@@ -26,7 +26,7 @@ export function PageHeaderProvider({ children }: { children: ReactNode }) {
   return (
     <SetHeaderContext.Provider value={setHeader}>
       {header ? (
-        <header className="sticky top-0 z-20 border-b border-border-subtle bg-surface px-4 py-3 shadow-sm">
+        <header className="sticky top-0 z-20 [view-transition-name:page-header] border-b border-border-subtle bg-surface px-4 py-3 shadow-sm">
           <PageHeader {...header} />
         </header>
       ) : null}

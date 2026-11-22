@@ -6,7 +6,7 @@ import { MoneyText } from '@/shared/ui/MoneyText';
 import { Button } from '@/shared/ui/button';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { StatusPill } from '@/shared/ui/StatusPill';
-import { GRID_COLS, GROUP_ACCENT } from './tableLayout';
+import { CELL, GRID_COLS, GROUP_ACCENT } from './tableLayout';
 
 export function MissingRow({
   movement,
@@ -31,37 +31,48 @@ export function MissingRow({
   return (
     <div
       role="row"
+      data-vt-key={`mv-${movement.id}`}
       className={`grid ${GRID_COLS.missing} items-center gap-3 px-4 py-3 text-sm transition-colors ${
         isLast ? '' : 'border-b border-border-subtle'
       } ${GROUP_ACCENT.missing.rowHover}`}
     >
-      <div role="cell" className="flex justify-center">
+      <div role="cell" className={`flex justify-center ${CELL.missing.select}`}>
         <Checkbox
           aria-label={movement.description}
           checked={selected ?? false}
           onCheckedChange={() => onToggle?.(movement.id)}
         />
       </div>
-      <span role="cell">{formatDate(movement.date, i18n.language)}</span>
-      <span role="cell" className="min-w-0 truncate" title={movement.description}>
-        {movement.description}
+      <span role="cell" className={CELL.missing.date}>
+        {formatDate(movement.date, i18n.language)}
       </span>
-      <div role="cell" className="text-right">
+      <span role="cell" className={`min-w-0 ${CELL.missing.desc}`} title={movement.description}>
+        <span className="block truncate">{movement.description}</span>
+        {report?.outcome === 'failed' && report.reason ? (
+          <span className="block text-xs text-danger">{report.reason}</span>
+        ) : null}
+      </span>
+      <div role="cell" className={`text-right ${CELL.missing.amount}`}>
         <MoneyText cents={movement.amount_cents} currency={currency} />
       </div>
       {report ? (
-        <div role="cell" title={report.reason ?? ''} className="flex justify-center">
+        <div
+          role="cell"
+          title={report.reason ?? ''}
+          className={`flex justify-center ${CELL.missing.statusReport}`}
+        >
           <StatusPill status={report.outcome} />
         </div>
       ) : (
-        <div role="cell" className="flex justify-center">
+        <div role="cell" className={`flex justify-center ${CELL.missing.status}`}>
           <StatusPill status={movement.status} />
         </div>
       )}
-      <span role="cell" className="flex items-center justify-end gap-1">
+      <span role="cell" className={`flex items-center justify-end gap-1 ${CELL.missing.actions}`}>
         <Button
           variant="ghost"
           size="icon-sm"
+          className="@max-[40rem]:size-10"
           aria-label={t('results.edit')}
           title={t('results.edit')}
           onClick={() => onEdit?.()}
@@ -71,6 +82,7 @@ export function MissingRow({
         <Button
           variant="ghost"
           size="icon-sm"
+          className="@max-[40rem]:size-10"
           aria-label={t('results.ignore')}
           title={t('results.ignore')}
           onClick={() => onIgnore?.(movement.id)}

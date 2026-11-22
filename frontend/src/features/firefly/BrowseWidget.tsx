@@ -43,7 +43,7 @@ export function BrowseWidget() {
     [accounts.data, accountId],
   );
   return (
-    <section className="rounded-xl border border-border-subtle bg-surface p-4 shadow-sm">
+    <section className="@container min-w-0 rounded-xl border border-border-subtle bg-surface p-4 shadow-sm">
       <h2 className="mb-3 font-semibold">{t('dashboard.browseTitle')}</h2>
       <div className="flex flex-col gap-2">
         <Select
@@ -102,7 +102,7 @@ export function BrowseWidget() {
         ) : txs.isPending ? (
           <TableSkeleton rows={4} cols={3} />
         ) : txs.isError ? (
-          <p role="alert" className="py-4 text-center text-status-extra-txt">
+          <p role="alert" className="py-4 text-center text-danger">
             {t('health.degraded')}
           </p>
         ) : !txs.data || txs.data.length === 0 ? (
@@ -116,21 +116,23 @@ export function BrowseWidget() {
             renderItem={(index) => {
               const tx = txs.data![index];
               return (
-                <div className="flex items-center gap-3 py-2.5 border-b border-border-subtle">
+                <div className="flex items-center gap-x-3 gap-y-1 py-2.5 border-b border-border-subtle @max-[30rem]:flex-wrap">
                   <span className="w-20 shrink-0 text-xs text-text-3">
                     {formatDate(tx.date, i18n.language)}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm">{tx.description}</span>
-                  <MoneyText cents={tx.amount_cents} currency={currency} signed colored />
+                  <span className="min-w-0 flex-1 truncate text-sm @max-[30rem]:basis-32">
+                    {tx.description}
+                  </span>
+                  <MoneyText cents={tx.amount_cents} currency={currency} />
                   <span className="w-24 shrink-0">
                     {tx.status && <StatusPill status={tx.status} />}
                   </span>
-                  <span className="flex w-24 shrink-0 justify-end">
+                  <span className="flex w-24 shrink-0 justify-end @max-[30rem]:empty:hidden">
                     {tx.status === 'duplicate' && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-status-extra-txt hover:bg-status-extra-bg hover:text-status-extra-txt"
+                        className="text-danger hover:bg-danger-bg hover:text-danger"
                         onClick={() => setPendingDelete(tx)}
                       >
                         {t('dashboard.deleteDuplicate')}
@@ -144,21 +146,26 @@ export function BrowseWidget() {
         ) : (
           <ul className="divide-y divide-border-subtle">
             {txs.data.map((tx) => (
-              <li key={tx.id} className="flex items-center gap-3 py-2.5">
+              <li
+                key={tx.id}
+                className="flex items-center gap-x-3 gap-y-1 py-2.5 @max-[30rem]:flex-wrap"
+              >
                 <span className="w-20 shrink-0 text-xs text-text-3">
                   {formatDate(tx.date, i18n.language)}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm">{tx.description}</span>
-                <MoneyText cents={tx.amount_cents} currency={currency} signed colored />
+                <span className="min-w-0 flex-1 truncate text-sm @max-[30rem]:basis-32">
+                  {tx.description}
+                </span>
+                <MoneyText cents={tx.amount_cents} currency={currency} />
                 <span className="w-24 shrink-0">
                   {tx.status && <StatusPill status={tx.status} />}
                 </span>
-                <span className="flex w-24 shrink-0 justify-end">
+                <span className="flex w-24 shrink-0 justify-end @max-[30rem]:empty:hidden">
                   {tx.status === 'duplicate' && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-status-extra-txt hover:bg-status-extra-bg hover:text-status-extra-txt"
+                      className="text-danger hover:bg-danger-bg hover:text-danger"
                       onClick={() => setPendingDelete(tx)}
                     >
                       {t('dashboard.deleteDuplicate')}

@@ -23,7 +23,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-01  CSV upload (max 10 MB); XLSX → CSV by user
 
-**Status:** implemented · **Last verified:** 2026-09-12 · **Spec @** `220ea85`
+**Status:** implemented · **Last verified:** 2026-11-19 · **Spec @** `220ea85`
 
 > **v0.1 amendment delta (2026-09-12, explicit-Next)**: file selection/drop only stages the file (no request, wizard stays on step 1); upload+parse runs only on Next; Next disabled until a file is staged; Back from preview keeps the staged file and Next re-parses (previous probe batch deleted first); Remove and Change file delete the previous probe batch (no orphan batches). Backend upload/parse semantics unchanged.
 
@@ -40,6 +40,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **FE** | `import-wizard.spec.ts` W4 | Duplicate filename refused at staging (case-insensitive), Next stays disabled |
 | **FE** | `import-wizard.spec.ts` W19 | Explicit-Next (v0.1): staging sends no request and stays on step 1; Next disabled without file; confirm parses exactly once |
 | **FE** | `import-wizard.spec.ts` W20 | Remove after a parse deletes the probe batch (no orphans); Remove without parse sends no request |
+| **FE** | `import-wizard-refresh.spec.ts` N1, N6 | Staged-file card (name + size, Change file / Remove) keeps the explicit-Next flow; every step fits at 390 px |
 
 **No XLSX tests** — by design (RF-01: user converts to CSV).
 
@@ -161,7 +162,9 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-07  Results in 3 groups (matched / missing / extras) with visual gap highlighting
 
-**Status:** implemented · **Last verified:** 2026-10-09 · **Spec @** `570f43e`
+**Status:** implemented · **Last verified:** 2026-11-19 · **Spec @** `570f43e`
+
+> UX refresh (2026-11-19, no spec change): summary card with per-group counts, Missing/Extra/Matched tabs with count badges (Missing default when work remains), bulk bar, Ignored as a collapsible section under every tab.
 
 > v0.10 amendment: extras dated outside the statement `min..max` carry an `Outside period` badge and are excluded from the displayed extras count (persisted run snapshot count unchanged).
 
@@ -173,13 +176,20 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Infra** | `reconciliation_repo.rs` | `ReconciliationRepository` saves run with snapshot |
 | **Pres** | `reconcile_endpoints.rs` | `GET /api/imports/{id}/results` returns grouped DTOs |
 | **FE** | `results-extra-period.spec.ts::X1` | Out-of-period extras badged and excluded from the displayed count |
-| **FE** | `pending (Playwright gap)` → `tests/specs/results-groups.spec.ts` + `tests/specs/virtual-list.spec.ts` (gaps `results-matched-missing-extra`, `virtual-list`) | 3 groups, headers, VirtualList — pending |
+| **FE** | `results-queue.spec.ts` Q1–Q3 | Summary headline + per-group counts; tab counts, default tab; empty state "All reconciled" |
+| **FE** | `results-queue.spec.ts` Q5, Q8 | Status column keeps per-row apply outcome (failed pill + reason); matched row flags a differing FF3 date |
+| **FE** | `results-queue.spec.ts` Q7, Q9 · `responsive-overflow.spec.ts` | Loading skeleton; no overflow / reachable actions at 390 and 1440 px (all tabs) |
+| **FE** | `pending (Playwright gap)` → `tests/specs/virtual-list.spec.ts` (gap `virtual-list`) | Large-list virtualization — pending |
 
 ---
 
 ## RF-08  Batch-create missing; edit description/category/budget/tags/attachment/notes
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `ae8790d`
+**Status:** implemented (spec v0.9) · **Last verified:** 2026-11-22 · **Spec @** `8e4b287`
+
+> **v0.9 amendment delta (2026-11-22, wording only)**: "inline editing" / "bulk panel" → one edit sheet (single mode with Previous/Next, bulk mode with fill-only semantics). Re-verified against v0.9 criteria; gate green (e2e 159/159): E1 asserts the tags picker pre-filled with the default creation tag, E8 asserts bulk leaves each row's own category untouched.
+
+> UX refresh (2026-11-19): edit sheet (right side ≥ 900 px, bottom sheet below); Personalize / Create live in a selection bar. Bulk counterparty picker lists by direction: one direction → that side's accounts, mixed selection → none.
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -201,7 +211,16 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Pres** | `apply_delete_endpoints.rs::apply_endpoint_creates_without_counterparty` | Apply endpoint creates without counterparty (v0.8) |
 | **Pres** | `apply_delete_endpoints.rs::apply_partial_failure_continues_and_reports_reason` | Partial failure reporting |
 | **Pres** | `apply_delete_endpoints.rs::apply_retry_endpoint_is_idempotent` | Retry returns same results |
-| **FE** | `pending (Playwright gap)` → `tests/specs/results-apply.spec.ts` (gap `results-apply-personalize`) | Batch-create missing, edit fields, origin tag — pending |
+| **FE** | `results-queue.spec.ts` Q4, Q5 | Selection bar only while rows are selected; Create → confirmation dialog → per-row outcomes, partial failure counted |
+| **FE** | `results-edit-sheet.spec.ts` E1–E4 | Edit sheet: prefilled from the statement, Save keeps fields locally until Create, unchanged description not stored, prev/next |
+| **FE** | `results-edit-sheet.spec.ts` E5–E7, E9, E10 | Dirty guard (Cancel / Next / Escape), focus return, sheet does not outlive the route, bottom sheet at 390 px |
+| **FE** | `results-edit-sheet.spec.ts` E11 (×2) | Create clears only the personalizations it consumed: unselected and failed rows keep theirs for a retry |
+| **FE** | `results-queue.spec.ts` Q5b | Confirmation dialog amounts use the batch currency |
+| **FE** | `results-ignore-undo.spec.ts` U13 | Create sends a row un-ignored while the results refetch keeps failing (dialog list = request) |
+| **FE** | `results-edit-sheet.spec.ts` E8, E8b, E8c | Bulk personalize: fill-only apply, no prev/next; counterparty listed by direction (same direction → that side, mixed → none) |
+| **FE** | `results-counterparty.spec.ts` | Single edit: deposit → revenue accounts, withdrawal → expense accounts |
+| **FE** | `settings-creation-defaults.spec.ts` S2 | Default creation tag setting saved |
+| **FE** | `results-ignore-undo.spec.ts` U6 | Create shows no Undo (explicit confirmation kept, no optimistic create) |
 
 ---
 
@@ -221,7 +240,9 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-10  Manual ignore / un-ignore; dedicated table below the results
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `d734652`
+**Status:** implemented · **Last verified:** 2026-11-22 · **Spec @** `d734652`
+
+> UX refresh (2026-11-19, no spec change): ignore is optimistic with an Undo toast; the Ignored table is a collapsible section (closed by default), shown under every tab.
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -234,7 +255,12 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Pres** | `reconcile_endpoints.rs::results_include_ignored_movements` | Endpoint returns ignored movements in results |
 | **Pres** | `reconcile_endpoints.rs` | Ignore endpoint sets the ignored state |
 | **Pres** | `reconcile_endpoints.rs::un_ignore_endpoint_restores_latest_run_status` | Un-ignore endpoint restores status per latest run |
-| **FE** | `pending (Playwright gap)` → `tests/specs/results-ignore.spec.ts` (gap `results-ignore-unignore`) | Ignore/un-ignore, dedicated section — pending |
+| **FE** | `results-ignore-undo.spec.ts` U1, U2 | Ignore moves the row to the Ignored table before the server answers; Undo restores it and sends un-ignore |
+| **FE** | `results-ignore-undo.spec.ts` U3–U5, U8, U11 | Undo window (8 s); server error rolls back with no Undo; reduced motion; ordered ignore/un-ignore requests; failed refetch keeps state |
+| **FE** | `results-ignore-undo.spec.ts` U9, U10, U12 | Focus after ignore / Undo; ignoring every row keeps the Missing tab and the Ignored section |
+| **FE** | `results-queue.spec.ts` Q6 | Ignored is a collapsible section (closed by default, state remembered), shown under every tab |
+| **FE** | `results-queue.spec.ts` Q6b | Nothing missing: opens on Matched and the Ignored section is still there |
+| **FE** | `results-ignore-undo.spec.ts` U13 | Create sends a row un-ignored while the results refetch keeps failing |
 
 ---
 
@@ -350,7 +376,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-18  Resume incomplete import: wizard reopens at first pending step (reconcile); free back/forward navigation
 
-**Status:** implemented · **Last verified:** 2026-09-13 · **Spec @** `95378a6`
+**Status:** implemented · **Last verified:** 2026-11-19 · **Spec @** `95378a6`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -361,6 +387,8 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **FE** | `import-wizard.spec.ts` W14 | Wizard state does not persist across reload (fresh resume works) |
 | **FE** | `import-wizard.spec.ts` W2-resume | Back → preview → Next → mapping reachable on resume |
 | **FE** | `import-wizard.spec.ts` W22 | Mapping step lists the persisted CSV columns on resume |
+| **FE** | `import-wizard-refresh.spec.ts` N4 | Resume has no file in memory: mapping shows a fallback line instead of sample values |
+| **FE** | `dashboard-needs-you.spec.ts` D3, D4, D6 | Dashboard Needs-you / Recent batches offer Resume for `parsed` batches with movements (opens the wizard); empty probes are not resumable |
 
 ---
 
@@ -426,9 +454,11 @@ Per-requirement tracking for `docs/specs/requirements/nfr-*.md`.
 | 08 | Internationalization (en/fr/es) | not tested | — | `95378a6` |
 | 09 | Error handling | not tested | — | `95378a6` |
 | 10 | Data retention | not tested | — | `95378a6` |
-| 11 | Accessibility | not tested | — | `95378a6` |
-| 12 | Responsive layout | not tested | — | `95378a6` |
+| 11 | Accessibility | partial (spec original) | 2026-11-19 | `95378a6` |
+| 12 | Responsive layout | partial (spec original) | 2026-11-19 | `95378a6` |
 | 13 | Browser support | not tested | — | `95378a6` |
+
+> NFR-11 partial: keyboard/focus flows asserted (`results-ignore-undo` U9–U10, `results-edit-sheet` E5–E7, `sidebar-toggle` SB1) and reduced motion (U5, SB3); no axe audit yet. NFR-12 partial: `responsive-overflow.spec.ts` asserts no horizontal overflow at 390 and 1440 px only; 768 / 1024 / 1920 px (spec thresholds) are not asserted.
 
 ---
 
@@ -489,7 +519,7 @@ cd ../frontend && pnpm lint && pnpm build && pnpm e2e
 
 ---
 
-## Coverage Summary (as of 2026-09-09 — purge Vitest, solo Playwright)
+## Coverage Summary (as of 2026-11-19; RF-01/07/08/10/18 refreshed, rest 2026-09-09 — purge Vitest, solo Playwright)
 
 All RFs are backend-implemented; FE now solo Playwright. `⏳` = pending Playwright gap (see plan 2026-09-09).
 
@@ -501,10 +531,10 @@ All RFs are backend-implemented; FE now solo Playwright. `⏳` = pending Playwri
 | 04 | — | ✅ | ✅ | ✅ | ⏳/✅ | implemented (FE BrowseWidget ✅, resto pending) |
 | 05 | — | ✅ | ✅ | ✅ | — | implemented |
 | 06 | ✅ | ✅ | — | — | — | implemented |
-| 07 | ✅ | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `results-matched-missing-extra`/`virtual-list`) |
-| 08 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `results-apply-personalize`) |
+| 07 | ✅ | ✅ | ✅ | ✅ | ⏳/✅ | implemented (FE ✅ `results-queue`; `virtual-list` still pending) |
+| 08 | — | ✅ | ✅ | ✅ | ✅ | implemented (spec v0.9; FE ✅ `results-edit-sheet`, `results-queue`) |
 | 09 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `imports-resume-delete`) |
-| 10 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `results-ignore-unignore`) |
+| 10 | — | ✅ | ✅ | ✅ | ✅ | implemented (FE ✅ `results-ignore-undo`, `results-queue` Q6) |
 | 11 | — | ✅ | — | — | ⏳ | implemented (FE pending `results-apply-personalize`) |
 | 12 | — | ✅ | — | — | ⏳ | implemented (FE pending `imports-upload-mapping-reconcile`) |
 | 13 | — | ✅ | — | ✅ | ⏳ | implemented (FE pending `imports-upload-mapping-reconcile`) |
@@ -512,7 +542,7 @@ All RFs are backend-implemented; FE now solo Playwright. `⏳` = pending Playwri
 | 15 | ✅ | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `browse-delete-duplicate`) |
 | 16 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `imports-upload-mapping-reconcile`) |
 | 17 | — | ✅ | — | ✅ | ⏳ | implemented (FE pending `imports-resume-delete`) |
-| 18 | — | ✅ | — | — | ⏳ | implemented (FE pending `imports-resume-delete`) |
+| 18 | — | ✅ | — | — | ✅ | implemented (FE ✅ `import-wizard` W12–W22, `import-wizard-refresh` N4, `dashboard-needs-you` D3) |
 | 19 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `settings-*`) |
 
 **✅ = covered; ⏳ = pending Playwright gap; — = not applicable**

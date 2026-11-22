@@ -2,7 +2,10 @@
   "nav": {
     "dashboard": "Panel",
     "imports": "Importaciones",
-    "settings": "Ajustes"
+    "settings": "Ajustes",
+    "toggleSidebar": "Mostrar u ocultar la barra lateral",
+    "themeToLight": "Cambiar al tema claro",
+    "themeToDark": "Cambiar al tema oscuro"
   },
   "settings": {
     "title": "Ajustes",
@@ -50,7 +53,6 @@
   },
   "dashboard": {
     "title": "Panel",
-    "totalBatches": "Lotes totales",
     "noReconciled": "Aún no hay conciliaciones",
     "recentBatches": "Lotes recientes",
     "date": "Fecha",
@@ -59,7 +61,15 @@
     "browseFrom": "Desde",
     "browseTo": "Hasta",
     "browseEmpty": "Sin transacciones en este rango",
-    "deleteDuplicate": "Eliminar duplicado"
+    "deleteDuplicate": "Eliminar duplicado",
+    "needsYou": "Pendiente",
+    "review": "Revisar",
+    "reviewBatch": "Revisar {{filename}}",
+    "resumeBatch": "Reanudar {{filename}}",
+    "notFinished": "Importación sin terminar",
+    "nothingNeeded": "Nada pendiente por ahora.",
+    "firstRun": "Importa tu primer extracto bancario",
+    "actions": "Acciones"
   },
   "imports": {
     "title": "Importaciones",
@@ -159,7 +169,12 @@
     "originWarning": "Valores de la columna de origen: {{values}}. Selecciona la cuenta manualmente.",
     "changeFile": "Cambiar archivo",
     "removeFile": "Eliminar",
-    "selectFileFirst": "Selecciona un archivo CSV para continuar"
+    "selectFileFirst": "Selecciona un archivo CSV para continuar",
+    "stagedFile": "Archivo seleccionado",
+    "fileInput": "Archivo del extracto",
+    "samplesFor": "Valores de ejemplo: {{field}}",
+    "samplesUnavailable": "Los valores de ejemplo no están disponibles al reanudar: el archivo no se conserva tras la subida.",
+    "backToMapping": "Volver al mapeo"
   },
   "results": {
     "title": "Resultados",
@@ -173,7 +188,9 @@
     "category": "Categoría (opcional)",
     "budget": "Presupuesto (opcional)",
     "notes": "Notas (opcional)",
-    "applyRecap": "Creados {{created}} · ya creados {{already}} · fallidos {{failed}}",
+    "applyCreated": "Creados {{count}}",
+    "applyAlready": "ya creados {{count}}",
+    "applyFailed": "fallidos {{count}}",
     "ignore": "Ignorar",
     "unignore": "Dejar de ignorar",
     "ignored": "Ignorados",
@@ -210,7 +227,41 @@
     "col.descriptionFf3": "Descripción (Firefly III)",
     "col.descriptionStatement": "Descripción (extracto)",
     "col.selection": "",
-    "col.status": "Estado"
+    "col.status": "Estado",
+    "undo": "Deshacer",
+    "ignoredToast": "«{{description}}» ignorado",
+    "unignoredToast": "«{{description}}» restaurado",
+    "selected_one": "{{count}} seleccionado",
+    "selected_other": "{{count}} seleccionados",
+    "selection": "Selección",
+    "clearSelection": "Borrar selección",
+    "ff3DateChip": "Firefly III {{date}} · {{delta}} d",
+    "summary": {
+      "label": "Resumen de la conciliación",
+      "toCreate_one": "{{count}} por crear",
+      "toCreate_other": "{{count}} por crear",
+      "allReconciled": "Todo conciliado",
+      "notInFf3": "No está en Firefly III: {{amounts}}",
+      "out": "{{amount}} de salida",
+      "in": "{{amount}} de entrada",
+      "loading": "Cargando resultados",
+      "matched_one": "{{count}} conciliado",
+      "matched_other": "{{count}} conciliados",
+      "missing_one": "{{count}} faltante",
+      "missing_other": "{{count}} faltantes",
+      "extra_one": "{{count}} sobrante",
+      "extra_other": "{{count}} sobrantes",
+      "ignored_one": "{{count}} ignorado",
+      "ignored_other": "{{count}} ignorados",
+      "failed_one": "{{count}} fallido",
+      "failed_other": "{{count}} fallidos"
+    },
+    "prevMovement": "Movimiento anterior",
+    "nextMovement": "Movimiento siguiente",
+    "position": "Movimiento {{index}} de {{total}}",
+    "line": "Línea {{line}}",
+    "attachFile": "Adjuntar archivo",
+    "removeAttachment": "Quitar adjunto"
   },
   "status": {
     "imported": "Importado",

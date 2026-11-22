@@ -2,7 +2,10 @@
   "nav": {
     "dashboard": "Tableau de bord",
     "imports": "Imports",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "toggleSidebar": "Afficher ou masquer la barre latérale",
+    "themeToLight": "Passer au thème clair",
+    "themeToDark": "Passer au thème sombre"
   },
   "settings": {
     "title": "Paramètres",
@@ -50,7 +53,6 @@
   },
   "dashboard": {
     "title": "Tableau de bord",
-    "totalBatches": "Lots au total",
     "noReconciled": "Aucun rapprochement pour l'instant",
     "recentBatches": "Lots récents",
     "date": "Date",
@@ -59,7 +61,15 @@
     "browseFrom": "Du",
     "browseTo": "Au",
     "browseEmpty": "Aucune transaction dans cette période",
-    "deleteDuplicate": "Supprimer le doublon"
+    "deleteDuplicate": "Supprimer le doublon",
+    "needsYou": "À traiter",
+    "review": "Examiner",
+    "reviewBatch": "Examiner {{filename}}",
+    "resumeBatch": "Reprendre {{filename}}",
+    "notFinished": "Import non terminé",
+    "nothingNeeded": "Rien à traiter pour l'instant.",
+    "firstRun": "Importez votre premier relevé bancaire",
+    "actions": "Actions"
   },
   "imports": {
     "title": "Imports",
@@ -159,7 +169,12 @@
     "originWarning": "Valeurs de la colonne d'origine : {{values}}. Sélectionnez le compte manuellement.",
     "changeFile": "Changer le fichier",
     "removeFile": "Retirer",
-    "selectFileFirst": "Sélectionnez un fichier CSV pour continuer"
+    "selectFileFirst": "Sélectionnez un fichier CSV pour continuer",
+    "stagedFile": "Fichier sélectionné",
+    "fileInput": "Fichier de relevé",
+    "samplesFor": "Exemples de valeurs : {{field}}",
+    "samplesUnavailable": "Les exemples de valeurs ne sont pas disponibles à la reprise : le fichier n'est pas conservé après l'envoi.",
+    "backToMapping": "Retour au mappage"
   },
   "results": {
     "title": "Résultats",
@@ -173,7 +188,9 @@
     "category": "Catégorie (facultatif)",
     "budget": "Budget (facultatif)",
     "notes": "Notes (facultatif)",
-    "applyRecap": "Créés {{created}} · déjà créés {{already}} · échoués {{failed}}",
+    "applyCreated": "Créés {{count}}",
+    "applyAlready": "déjà créés {{count}}",
+    "applyFailed": "échoués {{count}}",
     "ignore": "Ignorer",
     "unignore": "Réactiver",
     "ignored": "Ignorés",
@@ -210,7 +227,41 @@
     "col.descriptionFf3": "Description (Firefly III)",
     "col.descriptionStatement": "Description (relevé)",
     "col.selection": "",
-    "col.status": "Statut"
+    "col.status": "Statut",
+    "undo": "Annuler",
+    "ignoredToast": "« {{description}} » ignoré",
+    "unignoredToast": "« {{description}} » réactivé",
+    "selected_one": "{{count}} sélectionné",
+    "selected_other": "{{count}} sélectionnés",
+    "selection": "Sélection",
+    "clearSelection": "Effacer la sélection",
+    "ff3DateChip": "Firefly III {{date}} · {{delta}} j",
+    "summary": {
+      "label": "Résumé du rapprochement",
+      "toCreate_one": "{{count}} à créer",
+      "toCreate_other": "{{count}} à créer",
+      "allReconciled": "Tout est rapproché",
+      "notInFf3": "Absent de Firefly III : {{amounts}}",
+      "out": "{{amount}} sortants",
+      "in": "{{amount}} entrants",
+      "loading": "Chargement des résultats",
+      "matched_one": "{{count}} rapproché",
+      "matched_other": "{{count}} rapprochés",
+      "missing_one": "{{count}} manquant",
+      "missing_other": "{{count}} manquants",
+      "extra_one": "{{count}} en trop",
+      "extra_other": "{{count}} en trop",
+      "ignored_one": "{{count}} ignoré",
+      "ignored_other": "{{count}} ignorés",
+      "failed_one": "{{count}} en échec",
+      "failed_other": "{{count}} en échec"
+    },
+    "prevMovement": "Mouvement précédent",
+    "nextMovement": "Mouvement suivant",
+    "position": "Mouvement {{index}} sur {{total}}",
+    "line": "Ligne {{line}}",
+    "attachFile": "Joindre un fichier",
+    "removeAttachment": "Retirer la pièce jointe"
   },
   "status": {
     "imported": "Importé",

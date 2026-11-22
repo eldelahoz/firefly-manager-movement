@@ -2,7 +2,10 @@
   "nav": {
     "dashboard": "Dashboard",
     "imports": "Imports",
-    "settings": "Settings"
+    "settings": "Settings",
+    "toggleSidebar": "Toggle sidebar",
+    "themeToLight": "Switch to light theme",
+    "themeToDark": "Switch to dark theme"
   },
   "settings": {
     "title": "Settings",
@@ -50,7 +53,6 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "totalBatches": "Total batches",
     "noReconciled": "No reconciliation yet",
     "recentBatches": "Recent batches",
     "date": "Date",
@@ -59,7 +61,15 @@
     "browseFrom": "From",
     "browseTo": "To",
     "browseEmpty": "No transactions in this range",
-    "deleteDuplicate": "Delete duplicate"
+    "deleteDuplicate": "Delete duplicate",
+    "needsYou": "Needs you",
+    "review": "Review",
+    "reviewBatch": "Review {{filename}}",
+    "resumeBatch": "Resume {{filename}}",
+    "notFinished": "Import not finished",
+    "nothingNeeded": "Nothing needs you right now.",
+    "firstRun": "Import your first bank statement",
+    "actions": "Actions"
   },
   "imports": {
     "title": "Imports",
@@ -159,7 +169,12 @@
     "originWarning": "Origin column values: {{values}}. Pick the account manually.",
     "changeFile": "Change file",
     "removeFile": "Remove",
-    "selectFileFirst": "Select a CSV file to continue"
+    "selectFileFirst": "Select a CSV file to continue",
+    "stagedFile": "Selected file",
+    "fileInput": "Statement file",
+    "samplesFor": "Sample values: {{field}}",
+    "samplesUnavailable": "Sample values aren't available when resuming: the file isn't kept after upload.",
+    "backToMapping": "Back to mapping"
   },
   "results": {
     "title": "Results",
@@ -173,7 +188,9 @@
     "category": "Category (optional)",
     "budget": "Budget (optional)",
     "notes": "Notes (optional)",
-    "applyRecap": "Created {{created}} · already created {{already}} · failed {{failed}}",
+    "applyCreated": "Created {{count}}",
+    "applyAlready": "already created {{count}}",
+    "applyFailed": "failed {{count}}",
     "ignore": "Ignore",
     "unignore": "Un-ignore",
     "ignored": "Ignored",
@@ -210,7 +227,41 @@
     "col.descriptionFf3": "Description (Firefly III)",
     "col.descriptionStatement": "Description (statement)",
     "col.selection": "",
-    "col.status": "Status"
+    "col.status": "Status",
+    "undo": "Undo",
+    "ignoredToast": "“{{description}}” ignored",
+    "unignoredToast": "“{{description}}” restored",
+    "selected_one": "{{count}} selected",
+    "selected_other": "{{count}} selected",
+    "selection": "Selection",
+    "clearSelection": "Clear selection",
+    "ff3DateChip": "Firefly III {{date}} · {{delta}} d",
+    "summary": {
+      "label": "Reconciliation summary",
+      "toCreate_one": "{{count}} to create",
+      "toCreate_other": "{{count}} to create",
+      "allReconciled": "All reconciled",
+      "notInFf3": "Not in Firefly III: {{amounts}}",
+      "out": "{{amount}} out",
+      "in": "{{amount}} in",
+      "loading": "Loading results",
+      "matched_one": "{{count}} matched",
+      "matched_other": "{{count}} matched",
+      "missing_one": "{{count}} missing",
+      "missing_other": "{{count}} missing",
+      "extra_one": "{{count}} extra",
+      "extra_other": "{{count}} extra",
+      "ignored_one": "{{count}} ignored",
+      "ignored_other": "{{count}} ignored",
+      "failed_one": "{{count}} failed",
+      "failed_other": "{{count}} failed"
+    },
+    "prevMovement": "Previous movement",
+    "nextMovement": "Next movement",
+    "position": "Movement {{index}} of {{total}}",
+    "line": "Line {{line}}",
+    "attachFile": "Attach file",
+    "removeAttachment": "Remove attachment"
   },
   "status": {
     "imported": "Imported",

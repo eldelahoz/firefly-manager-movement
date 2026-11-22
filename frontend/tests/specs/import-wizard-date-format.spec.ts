@@ -6,7 +6,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 
 function csvPath(name: string, content: string): string {
-  const p = path.join(os.tmpdir(), name);
+  // Own dir per call: parallel tests reuse names (bank.csv), and a rewrite can truncate a file mid-upload.
+  const p = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ffm-e2e-')), name);
   fs.writeFileSync(p, content);
   return p;
 }
@@ -62,15 +63,15 @@ test.describe('Import > Wizard date format (RF-02 v0.8)', () => {
     const preview = page.getByTestId('date-format-preview');
     await expect(preview).toBeVisible();
     // Auto-detect: legacy order tries dd/mm/yyyy before mm/dd/yyyy
-    await expect(preview).toContainText('2026-01-05');
+    await expect(preview).toContainText('Jan 5, 2026');
     await page.getByRole('combobox', { name: formatSelect }).click();
     await page.getByRole('option', { name: 'MM/DD/YYYY' }).click();
-    await expect(preview).toContainText('2026-05-01');
-    await expect(preview).toContainText('2026-06-01');
+    await expect(preview).toContainText('May 1, 2026');
+    await expect(preview).toContainText('Jun 1, 2026');
     await page.getByRole('combobox', { name: formatSelect }).click();
     await page.getByRole('option', { name: 'DD/MM/YYYY' }).click();
-    await expect(preview).toContainText('2026-01-05');
-    await expect(preview).toContainText('2026-01-06');
+    await expect(preview).toContainText('Jan 5, 2026');
+    await expect(preview).toContainText('Jan 6, 2026');
   });
 
   test('DF2 ambiguous warning in auto mode', async ({ page }) => {
@@ -104,7 +105,13 @@ test.describe('Import > Wizard date format (RF-02 v0.8)', () => {
       }
       await route.fulfill({
         json: {
-          batch: { id: 100, filename: 'dates.csv', status: 'parsed', currency: 'EUR', account_id: 1 },
+          batch: {
+            id: 100,
+            filename: 'dates.csv',
+            status: 'parsed',
+            currency: 'EUR',
+            account_id: 1,
+          },
           movements: [],
           headers: ['Fecha', 'Valor', 'Desc'],
           detected_delimiter: ',',
