@@ -28,7 +28,11 @@
     "enableOriginTraceHint": "Adds source file + batch reference to created transactions",
     "importDefaults": "Import defaults",
     "defaultDateFormat": "Default date format",
-    "defaultDateFormatHint": "Used when a file's headers have no memorized format."
+    "defaultDateFormatHint": "Used when a file's headers have no memorized format.",
+    "languageAndFormat": "Language and format",
+    "numberFormat": "Number format",
+    "numberFormatAuto": "Auto ({{example}})",
+    "numberFormatPreview": "Preview:"
   },
   "common": {
     "retry": "Retry",

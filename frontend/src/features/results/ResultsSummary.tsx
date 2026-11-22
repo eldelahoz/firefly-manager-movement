@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { CircleCheck } from 'lucide-react';
 import { formatMoney } from '@/shared/lib/money';
+import { useNumberFormat } from '@/shared/lib/numberFormat';
 import { Skeleton } from '@/shared/ui/Skeleton';
 import { TABLE_WRAPPER } from './tableLayout';
 
@@ -28,7 +29,9 @@ export function ResultsSummary({
   currency: string;
 }) {
   const { t, i18n } = useTranslation();
-  const money = (c: number) => formatMoney(Math.abs(c), currency, i18n.language);
+  const numberFormat = useNumberFormat();
+  const money = (c: number) =>
+    formatMoney(c, currency, i18n.resolvedLanguage ?? i18n.language, numberFormat);
   const flows = [
     outCents ? t('results.summary.out', { amount: money(outCents) }) : null,
     inCents ? t('results.summary.in', { amount: money(inCents) }) : null,

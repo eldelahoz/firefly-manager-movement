@@ -28,7 +28,11 @@
     "enableOriginTraceHint": "Ajoute la référence du fichier source + lot aux transactions créées",
     "importDefaults": "Valeurs par défaut pour l'import",
     "defaultDateFormat": "Format de date par défaut",
-    "defaultDateFormatHint": "Utilisé quand les en-têtes du fichier n'ont pas de format mémorisé."
+    "defaultDateFormatHint": "Utilisé quand les en-têtes du fichier n'ont pas de format mémorisé.",
+    "languageAndFormat": "Langue et format",
+    "numberFormat": "Format des nombres",
+    "numberFormatAuto": "Auto ({{example}})",
+    "numberFormatPreview": "Aperçu :"
   },
   "common": {
     "retry": "Réessayer",

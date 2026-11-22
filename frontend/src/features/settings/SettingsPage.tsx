@@ -4,10 +4,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { LoaderCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTheme } from '@/app/ThemeProvider';
-import { getSettings, putSettings, postVerifySettings, getTags } from '@/shared/api/endpoints';
+import {
+  getSettings,
+  putSettings,
+  postVerifySettings,
+  getTags,
+  getImports,
+} from '@/shared/api/endpoints';
 import type { SettingsResponse } from '@/shared/api/dto';
 import { queryKeys } from '@/shared/lib/keys';
 import { DATE_FORMATS } from '@/shared/lib/dates';
+import { moneyParts, NUMBER_FORMATS, type NumberFormat } from '@/shared/lib/money';
+import { setNumberFormat, useNumberFormat } from '@/shared/lib/numberFormat';
+import { MoneyText } from '@/shared/ui/MoneyText';
 import { Button } from '@/shared/ui/button';
 import { Card, CardHeader, CardContent, CardFooter } from '@/shared/ui/card';
 import { Input } from '@/shared/ui/input';
@@ -20,6 +29,9 @@ const LANGUAGES = [
   { value: 'fr', label: 'Français' },
 ] as const;
 
+/** 1,234,567.89: shows the grouping of every group size, including Indian lakh/crore. */
+const SAMPLE_CENTS = 123_456_789;
+
 type SaveSource = 'connection' | 'creation' | 'import';
 
 export function SettingsPage() {
@@ -27,6 +39,14 @@ export function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const qc = useQueryClient();
   const current = i18n.resolvedLanguage ?? i18n.language;
+  const numberFormat = useNumberFormat();
+  // Cache only (no fetch): the preview uses the latest batch's currency when the dashboard loaded it.
+  const imports = useQuery({ queryKey: queryKeys.imports, queryFn: getImports, enabled: false });
+  const previewCurrency = imports.data?.[0]?.currency ?? 'EUR';
+  const sampleNumber = (f: NumberFormat) => {
+    const p = moneyParts(SAMPLE_CENTS, previewCurrency, current, f);
+    return p.integer + p.fraction;
+  };
 
   // --- Connection state ---
   const settings = useQuery({ queryKey: queryKeys.settings, queryFn: getSettings });
@@ -237,27 +257,57 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* ── Language ──────────────────────────────── */}
+      {/* ── Language and format ───────────────────── */}
       <Card>
-        <CardHeader>{t('settings.language')}</CardHeader>
+        <CardHeader>{t('settings.languageAndFormat')}</CardHeader>
         <CardContent>
-          <Select
-            value={current}
-            onValueChange={(v) => {
-              void i18n.changeLanguage(v);
-            }}
-          >
-            <SelectTrigger className="w-[180px]" aria-label={t('settings.language')}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent position="popper">
-              {LANGUAGES.map((l) => (
-                <SelectItem key={l.value} value={l.value}>
-                  {l.label}
+          <div className="space-y-1">
+            <span className="text-sm font-medium">{t('settings.language')}</span>
+            <Select
+              value={current}
+              onValueChange={(v) => {
+                void i18n.changeLanguage(v);
+              }}
+            >
+              <SelectTrigger className="w-[220px]" aria-label={t('settings.language')}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                {LANGUAGES.map((l) => (
+                  <SelectItem key={l.value} value={l.value}>
+                    {l.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <span className="text-sm font-medium">{t('settings.numberFormat')}</span>
+            <Select value={numberFormat} onValueChange={(v) => setNumberFormat(v as NumberFormat)}>
+              <SelectTrigger
+                className="w-[220px] tabular-money"
+                aria-label={t('settings.numberFormat')}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                <SelectItem value="auto">
+                  {t('settings.numberFormatAuto', { example: sampleNumber('auto') })}
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                {(Object.keys(NUMBER_FORMATS) as NumberFormat[]).map((f) => (
+                  <SelectItem key={f} value={f} className="tabular-money">
+                    {sampleNumber(f)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-text-2">
+              {t('settings.numberFormatPreview')}{' '}
+              <output data-testid="number-format-preview">
+                <MoneyText cents={-SAMPLE_CENTS} currency={previewCurrency} />
+              </output>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
