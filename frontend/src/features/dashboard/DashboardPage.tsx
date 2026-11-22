@@ -28,13 +28,26 @@ export function DashboardPage() {
       <HealthCard />
       {imports.isPending ? (
         <Skeleton className="h-40 w-full rounded-xl" />
-      ) : batches.length === 0 ? (
-        !imports.isError && (
+      ) : imports.isError && batches.length === 0 ? (
+        <div role="alert">
           <EmptyState
-            title={t('dashboard.firstRun')}
-            action={<Button onClick={() => openWizard()}>{t('common.newImport')}</Button>}
+            title={t('common.error')}
+            action={
+              <Button
+                variant="outline"
+                disabled={imports.isFetching}
+                onClick={() => void imports.refetch()}
+              >
+                {t('common.retry')}
+              </Button>
+            }
           />
-        )
+        </div>
+      ) : batches.length === 0 ? (
+        <EmptyState
+          title={t('dashboard.firstRun')}
+          action={<Button onClick={() => openWizard()}>{t('common.newImport')}</Button>}
+        />
       ) : (
         <>
           <NeedsYou batches={batches} />

@@ -1,7 +1,11 @@
 export function formatMoney(cents: number, currency: string, locale: string): string {
-  const parts = new Intl.NumberFormat(locale, { style: 'currency', currency }).formatToParts(
-    cents / 100,
-  );
+  // Amounts are always cents: CLDR's 0 decimals for COP etc. would round them away.
+  const parts = new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).formatToParts(cents / 100);
   const unit = parts.find((p) => p.type === 'currency')?.value ?? currency;
   const amount = parts
     .filter((p) => p.type !== 'currency' && p.type !== 'literal')

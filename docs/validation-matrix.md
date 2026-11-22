@@ -3,19 +3,28 @@
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
 > **Docs @** PRD `f29667b` · TRD `f29667b` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
-
+>
 > **Legend**
+>
+>
 > - **Domain** → `backend/domain/tests/*.rs` (pure logic, no DB)
+>
 > - **App** → `backend/application/tests/*.rs` (use cases with fake repos)
 > - **Infra** → `backend/infrastructure/tests/*.rs` (Diesel repos, Firefly client)
+>
 > - **Pres** → `backend/presentation/tests/*.rs` (axum HTTP handlers)
 > - **FE** → `frontend/tests/specs/**/*.spec.ts` (Playwright, `page.route` mocks — Vitest/MSW purged 2026-09-09; see `docs/superpowers/plans/2026-09-09-purge-vitest-only-playwright.md` for gaps)
-
+>
 > **Status** reflects the real implementation state against the *current* spec (including amendments), not just test existence:
+>
+>
 > - `implemented` — matches the current spec
+>
 > - `partial (spec v0.X)` — base works; the listed amendment deltas are pending
 > - `pending (spec v0.X)` — the amended functionality is not implemented
+>
 > - `not tested` — no dedicated tests yet (NFR table only)
+>
 >
 > Spec versions are declared in the `Version` field of each requirement doc (`docs/specs/requirements/`): `v0.X (integrates ...)` for amended requirements, `Original (2026-08-14) — unamended` otherwise.
 
@@ -74,6 +83,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Pres** | `import_endpoints.rs::put_mapping_with_date_format_persists_and_unknown_is_400` | `PUT /mapping` persists format by signature; unknown → 400 |
 | **FE** | `import-wizard.spec.ts` W2, W16 | Manual mapping flow: probe → map → re-upload with columns |
 | **FE** | `import-wizard.spec.ts` W22 | Resume: mapping step lists the persisted CSV columns |
+| **FE** | `import-wizard-refresh.spec.ts` N8 (windows-1252, UTF-16, UTF-8 guard) | Mapping-step samples decode like the backend (BOM → strict UTF-8 → windows-1252), no U+FFFD; encoding is decided on the first 8 KB only (shortcut). Beyond the RF-02 criteria (they do not mention encodings) |
 | **FE** | `import-wizard-date-format.spec.ts` DF1–DF5 | Preview per format + `mm/dd` vs `dd/mm` readings, ambiguity warning, PUT body + multipart field, signature reapply skips mapping, settings pre-fill |
 
 ---
@@ -113,6 +123,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 **Status:** implemented · **Last verified:** 2026-10-18 · **Spec @** `570f43e`
 
 > v0.10 amendment: fetch window = statement dates ± tolerance by default (was ±7), manual override editable on the reconcile step (Edit/Auto). Engine fetch semantics unchanged (arbitrary window in body).
+>
 > 2026-10-18 bugfix (TRD §4): a split transaction is now aggregated per transaction group (sum of the splits touching the queried account, group id as identity, `group_title` or joined descriptions) instead of reading only the first split — a statement movement matched against a split FF3 transaction never paired before. A single-day window, which FF3 rejects with 422, is queried one day wider and clamped back.
 
 | Layer | Test | What it validates |
@@ -138,7 +149,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 **Status:** implemented · **Last verified:** 2026-10-27 · **Spec @** `5e9ba4b`
 
 > v0.10 amendment: the search window is no longer an independent ±7 parameter — it defaults to the tolerance (`[min − T, max + T]`, manual override editable). The engine itself is unchanged; tolerance semantics (±0..±3) are unchanged.
-
+>
 > TRD v0.9 delta (2026-10-27): a split FF3 transaction unmatched by its total falls back to split-by-split matching against the still-missing movements; matched splits are cached per split (`ff3_journal_id`), unmatched splits stay `extra`.
 
 | Layer | Test | What it validates |
@@ -162,10 +173,10 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-07  Results in 3 groups (matched / missing / extras) with visual gap highlighting
 
-**Status:** implemented · **Last verified:** 2026-11-19 · **Spec @** `570f43e`
+**Status:** implemented · **Last verified:** 2026-11-22 · **Spec @** `570f43e`
 
 > UX refresh (2026-11-19, no spec change): summary card with per-group counts, Missing/Extra/Matched tabs with count badges (Missing default when work remains), bulk bar, Ignored as a collapsible section under every tab.
-
+>
 > v0.10 amendment: extras dated outside the statement `min..max` carry an `Outside period` badge and are excluded from the displayed extras count (persisted run snapshot count unchanged).
 
 | Layer | Test | What it validates |
@@ -176,6 +187,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Infra** | `reconciliation_repo.rs` | `ReconciliationRepository` saves run with snapshot |
 | **Pres** | `reconcile_endpoints.rs` | `GET /api/imports/{id}/results` returns grouped DTOs |
 | **FE** | `results-extra-period.spec.ts::X1` | Out-of-period extras badged and excluded from the displayed count |
+| **FE** | `dashboard-needs-you.spec.ts` D1b | Dashboard Needs-you extras count excludes extras outside the statement period, same as Results (criterion: out-of-period extras excluded from the displayed count) |
 | **FE** | `results-queue.spec.ts` Q1–Q3 | Summary headline + per-group counts; tab counts, default tab; empty state "All reconciled" |
 | **FE** | `results-queue.spec.ts` Q5, Q8 | Status column keeps per-row apply outcome (failed pill + reason); matched row flags a differing FF3 date |
 | **FE** | `results-queue.spec.ts` Q7, Q9 · `responsive-overflow.spec.ts` | Loading skeleton; no overflow / reachable actions at 390 and 1440 px (all tabs) |
@@ -187,8 +199,10 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 **Status:** implemented (spec v0.9) · **Last verified:** 2026-11-22 · **Spec @** `8e4b287`
 
+> **2026-11-22 follow-ups (no spec change)**: currency/decimals, late default tag, Undo with the sheet open, sheet reset. Gate e2e 176/176. Backend distinguishes absent `tags` (→ default creation tag) from explicit `[]` (→ no tags), so a cleared selection replaces the default end to end (criterion "the user's selection replaces it"); R4 covers the request payload, the two backend tests below cover the outcome.
+>
 > **v0.9 amendment delta (2026-11-22, wording only)**: "inline editing" / "bulk panel" → one edit sheet (single mode with Previous/Next, bulk mode with fill-only semantics). Re-verified against v0.9 criteria; gate green (e2e 159/159): E1 asserts the tags picker pre-filled with the default creation tag, E8 asserts bulk leaves each row's own category untouched.
-
+>
 > UX refresh (2026-11-19): edit sheet (right side ≥ 900 px, bottom sheet below); Personalize / Create live in a selection bar. Bulk counterparty picker lists by direction: one direction → that side's accounts, mixed selection → none.
 
 | Layer | Test | What it validates |
@@ -216,6 +230,11 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **FE** | `results-edit-sheet.spec.ts` E5–E7, E9, E10 | Dirty guard (Cancel / Next / Escape), focus return, sheet does not outlive the route, bottom sheet at 390 px |
 | **FE** | `results-edit-sheet.spec.ts` E11 (×2) | Create clears only the personalizations it consumed: unselected and failed rows keep theirs for a retry |
 | **FE** | `results-queue.spec.ts` Q5b | Confirmation dialog amounts use the batch currency |
+| **App** | `apply_missing.rs::absent_tags_use_default_creation_tag`, `explicit_empty_tags_do_not_add_default_tag` | Absent `tags` → default creation tag sent to FF3; `Some([])` → no tags |
+| **Pres** | `apply_delete_endpoints.rs::apply_endpoint_absent_tags_use_default_explicit_empty_does_not` | `POST /apply`: movement without `tags` gets the default tag, one with `"tags": []` does not |
+| **FE** | `results-queue.spec.ts` Q5c, Q5d | Currency and decimals: COP keeps centavos in rows and summary (1.234.567,89 in es); confirm dialog close button translated |
+| **FE** | `results-sheet-settings-race.spec.ts` R3, R4 | R3: default tag arriving after the sheet opened still applies when tags are untouched. R4: a tag cleared before settings arrived is not re-added **in the request** (`tags: []`); the outcome is covered by the backend tests above |
+| **FE** | `results-ignore-undo.spec.ts` U2b, U2c | Undo clicked while the edit sheet is open keeps the sheet and restores the row; a sheet closed because its row vanished does not reopen when the row returns (single edit only; bulk branch untested) |
 | **FE** | `results-ignore-undo.spec.ts` U13 | Create sends a row un-ignored while the results refetch keeps failing (dialog list = request) |
 | **FE** | `results-edit-sheet.spec.ts` E8, E8b, E8c | Bulk personalize: fill-only apply, no prev/next; counterparty listed by direction (same direction → that side, mixed → none) |
 | **FE** | `results-counterparty.spec.ts` | Single edit: deposit → revenue accounts, withdrawal → expense accounts |
@@ -290,6 +309,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **FE** | `import-wizard.spec.ts` W7 | Mismatch (EUR account vs USD batch) → blocking warning + reconcile disabled |
 
 > **Amendment v0.4**: Currency no longer manually selected at import; derived from FF3 account.
+>
 > **Amendment v0.5** (2026-09-13): account locked at reconcile (RF-04 v0.8); API mismatch rule unchanged.
 
 ---
@@ -394,7 +414,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-19  App settings: configure FF3 connection (URL + token), verify connectivity, save; replaces env vars
 
-**Status:** implemented · **Last verified:** 2026-09-09 · **Spec @** `2d7604a`
+**Status:** implemented · **Last verified:** 2026-11-22 · **Spec @** `2d7604a`
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -420,6 +440,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **Pres** | `settings_endpoints.rs::verify_bad_url_returns_400` | Invalid URL → 400 |
 | **Pres** | `settings_endpoints.rs::verify_unreachable_returns_502` | Unreachable → 502 |
 | **Pres** | `settings_endpoints.rs::get_settings_empty_when_no_row` | Empty state (no row, no env token) |
+| **FE** | `settings-load-race.spec.ts` R2, R2b | Save is disabled until `GET /settings` loads, and stays disabled when it fails, so defaults cannot overwrite stored values (beyond the RF-19 criteria; no Retry UI) |
 | **FE** | `pending (Playwright gap)` → `tests/specs/settings-*.spec.ts` (gaps `settings-appearance`, `settings-language`, `settings-connection-verify`, `settings-creation-defaults`) | FF3 connection, verify, creation defaults — pending |
 | **App** | `apply_missing.rs::origin_tag_appended_when_user_tags_empty` | `default_creation_tag` from settings pre-fills tags when user tags empty |
 | **App** | `apply_missing.rs::apply_creates_with_origin_tag_and_confirms_matched` | Origin tag applied even with default tag configured |
@@ -451,13 +472,15 @@ Per-requirement tracking for `docs/specs/requirements/nfr-*.md`.
 | 05 | Idempotency: no double creation / duplicate upload | implemented | 2026-09-03 | `95378a6` |
 | 06 | Amount integrity: signed cents, no floats | implemented | 2026-09-03 | `95378a6` |
 | 07 | Observability | not tested | — | `95378a6` |
-| 08 | Internationalization (en/fr/es) | not tested | — | `95378a6` |
+| 08 | Internationalization (en/fr/es) | partial (spec original) | 2026-11-22 | `95378a6` |
 | 09 | Error handling | not tested | — | `95378a6` |
 | 10 | Data retention | not tested | — | `95378a6` |
 | 11 | Accessibility | partial (spec original) | 2026-11-19 | `95378a6` |
 | 12 | Responsive layout | partial (spec original) | 2026-11-19 | `95378a6` |
 | 13 | Browser support | not tested | — | `95378a6` |
 
+> NFR-08 partial: asserted only the sheet/dialog Close button in en/fr/es (`results-edit-sheet` E8e, `results-queue` Q5d), one bulk description (E8d) and COP formatting in es (Q5c); no per-key coverage test or `Accept-Language` detection test yet. Zero-decimal currencies (JPY/KRW) now show `,00` (F11, known).
+>
 > NFR-11 partial: keyboard/focus flows asserted (`results-ignore-undo` U9–U10, `results-edit-sheet` E5–E7, `sidebar-toggle` SB1) and reduced motion (U5, SB3); no axe audit yet. NFR-12 partial: `responsive-overflow.spec.ts` asserts no horizontal overflow at 390 and 1440 px only; 768 / 1024 / 1920 px (spec thresholds) are not asserted.
 
 ---
@@ -486,7 +509,7 @@ If the output differs from the pinned `Spec @`, re-verify the requirement agains
 
 Commits that touch requirement specs or their implementation carry:
 
-```
+```text
 Refs: RF-08, NFR-06      # requirement IDs this commit affects
 Spec: v0.8               # only when a spec version bumps
 ```
@@ -545,7 +568,7 @@ All RFs are backend-implemented; FE now solo Playwright. `⏳` = pending Playwri
 | 18 | — | ✅ | — | — | ✅ | implemented (FE ✅ `import-wizard` W12–W22, `import-wizard-refresh` N4, `dashboard-needs-you` D3) |
 | 19 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `settings-*`) |
 
-**✅ = covered; ⏳ = pending Playwright gap; — = not applicable**
+✅ = covered; ⏳ = pending Playwright gap; — = not applicable
 
 ---
 

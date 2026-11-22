@@ -8,7 +8,7 @@ import { ImportWizardPage } from '../pages/ImportWizardPage';
 import { fixtures } from '../fixtures/fixtures';
 
 // M4: wizard refresh (file card, sample values, preview, invalid rows, tolerance, 390).
-function csvPath(name: string, content: string): string {
+function csvPath(name: string, content: string | Buffer): string {
   const p = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ffm-e2e-')), name);
   fs.writeFileSync(p, content);
   return p;
@@ -74,7 +74,7 @@ async function mockUpload(page: Page, body: typeof autoMapped) {
   await page.route('**/api/imports/*/results', (r) => r.fulfill({ json: fixtures.results }));
 }
 
-async function stage(page: Page, name: string, content: string) {
+async function stage(page: Page, name: string, content: string | Buffer) {
   const wizard = new ImportWizardPage(page);
   await page.goto('/imports');
   await wizard.openWizard();
@@ -138,6 +138,27 @@ test.describe('Import > Wizard refresh', () => {
     await expect(lists.nth(1).getByRole('listitem').first()).toHaveText('-10');
     await expect(lists.nth(2).getByRole('listitem').first()).toHaveText('Coffee');
   });
+
+  // F7: mapping samples decode like the backend (UTF-16 BOM, strict UTF-8, windows-1252 fallback).
+  const ROW_ES = ['Fecha,Valor,Desc', '2026-08-01,-10,Descripción', ''].join('\n');
+  for (const [name, bytes] of [
+    ['windows-1252', Buffer.from(ROW_ES, 'latin1')],
+    [
+      'UTF-16LE with BOM',
+      Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(ROW_ES, 'utf16le')]),
+    ],
+    ['UTF-8', Buffer.from(ROW_ES, 'utf8')],
+  ] as const) {
+    test(`N8 mapping samples decode ${name}`, async ({ page }) => {
+      await mockUpload(page, unmapped);
+      const wizard = await stage(page, 'unknown.csv', bytes);
+      await wizard.confirmUpload();
+      await expect(wizard.mappingDateSelect).toBeVisible({ timeout: 5000 });
+      await wizard.selectMapping({ date: 'Fecha', amount: 'Valor', desc: 'Desc' });
+      const desc = page.locator('ul[aria-label^="Sample values"]').nth(2);
+      await expect(desc.getByRole('listitem').first()).toHaveText('Descripción');
+    });
+  }
 
   // Amount samples are the raw cell (no client-side parsing); quoted fields come out unquoted.
   for (const [a, b, expA, expB] of [

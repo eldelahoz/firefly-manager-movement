@@ -28,6 +28,21 @@ async function setup(page: Page, imports: (typeof RECONCILED)[], health = {}, re
   await mockImports(page, { imports });
   // Registered after mockImports: the last matching route wins.
   if (results) await page.route('**/api/imports/1/results', (r) => r.fulfill({ json: results }));
+  // The card also reads the statement period from the batch detail (extras outside it are not counted).
+  await page.route('**/api/imports/1', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    await route.fulfill({
+      json: {
+        batch: RECONCILED,
+        movements: [
+          { line_no: 2, date: '2026-08-01', amount_cents: -4200, description: 'Coffee' },
+          { line_no: 4, date: '2026-08-05', amount_cents: 250000, description: 'Salary' },
+        ],
+        headers: ['date', 'amount', 'desc'],
+        detected_delimiter: ',',
+      },
+    });
+  });
   await page.route('**/api/imports/2', async (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
     await route.fulfill({
@@ -65,6 +80,22 @@ test.describe('Dashboard > Needs you', () => {
     ]) {
       await expect(card.locator(`li[data-group="${group}"]`)).toHaveText(text);
     }
+  });
+
+  test('D1b extras dated outside the statement period are not counted (same as Results)', async ({
+    page,
+  }) => {
+    const outside = { ...fixtures.results.extra[0], id: 9, ff3_id: 44, date: '2026-07-25' };
+    await setup(
+      page,
+      [RECONCILED],
+      {},
+      {
+        ...fixtures.results,
+        extra: [...fixtures.results.extra, outside],
+      },
+    );
+    await expect(needsYou(page).locator('li[data-group="extra"]')).toHaveText('1 extra');
   });
 
   test('D2 nothing missing reads All reconciled', async ({ page }) => {
@@ -181,5 +212,35 @@ test.describe('Dashboard > Needs you', () => {
         expect(box.x + box.width).toBeLessThanOrEqual(390);
       }
     });
+  });
+
+  test('D11 failed imports query shows an inline error with Retry that recovers', async ({
+    page,
+  }) => {
+    await mockHealth(page);
+    await mockAccounts(page);
+    let fail = true;
+    await page.route('**/api/imports', async (route) => {
+      if (route.request().method() !== 'GET') return route.fallback();
+      if (fail) return route.fulfill({ status: 500, json: { error: 'boom' } });
+      await route.fulfill({ json: [RECONCILED] });
+    });
+    await page.route('**/api/imports/1', (r) =>
+      r.fulfill({
+        json: { batch: RECONCILED, movements: [], headers: [], detected_delimiter: ',' },
+      }),
+    );
+    await page.route('**/api/imports/1/results', (r) => r.fulfill({ json: fixtures.results }));
+    await page.goto('/');
+    // The global error toast also has an alert-like role: pick the alert that holds Retry.
+    const alert = page
+      .getByRole('alert')
+      .filter({ has: page.getByRole('button', { name: 'Retry' }) });
+    await expect(alert).toBeVisible();
+    await expect(needsYou(page)).toHaveCount(0);
+    fail = false;
+    await alert.getByRole('button', { name: 'Retry' }).click();
+    await expect(needsYou(page)).toBeVisible();
+    await expect(alert).toHaveCount(0);
   });
 });

@@ -54,6 +54,19 @@ function splitCsvLine(line: string, delim: string): string[] {
   return out;
 }
 
+/** Same order as the backend decoder (infrastructure/src/csv/decoder.rs): UTF-16 BOM, then
+ *  strict UTF-8, else windows-1252. `stream` keeps a character cut at the 8 KB edge from
+ *  counting as invalid UTF-8. */
+function decodeSample(bytes: Uint8Array) {
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder('utf-16le').decode(bytes);
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder('utf-16be').decode(bytes);
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes, { stream: true });
+  } catch {
+    return new TextDecoder('windows-1252').decode(bytes);
+  }
+}
+
 export function ImportWizard({
   open,
   onClose,
@@ -142,8 +155,9 @@ export function ImportWizard({
     let cancelled = false;
     void state.file
       .slice(0, 8192)
-      .text()
-      .then((text) => {
+      .arrayBuffer()
+      .then((buf) => {
+        const text = decodeSample(new Uint8Array(buf));
         if (cancelled) return;
         const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '');
         const delim = state.probe!.detected_delimiter;

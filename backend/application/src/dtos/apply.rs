@@ -19,7 +19,8 @@ pub struct MovementApply {
     pub description: Option<String>,
     pub category: Option<String>,
     pub budget: Option<String>,
-    pub tags: Vec<String>,
+    /// `None` = default creation tag (RF-19); `Some(v)` = exactly `v`, even empty (RF-08).
+    pub tags: Option<Vec<String>>,
     pub notes: Option<String>,
     pub attachment: Option<AttachmentPayload>,
 }

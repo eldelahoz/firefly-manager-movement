@@ -2,12 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { BatchSummary } from '@/shared/api/dto';
-import { getResults } from '@/shared/api/endpoints';
+import { getImport, getResults } from '@/shared/api/endpoints';
 import { queryKeys } from '@/shared/lib/keys';
 import { useImportWizard } from '@/app/importWizardContext';
 import { Button } from '@/shared/ui/button';
 import { Skeleton } from '@/shared/ui/Skeleton';
-import { SummaryBreakdown } from '@/features/results/ResultsSummary';
+import { outsideStatementPeriod, SummaryBreakdown } from '@/features/results/ResultsSummary';
 
 const ROW = 'flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3';
 
@@ -23,12 +23,20 @@ export function NeedsYou({ batches }: { batches: BatchSummary[] }) {
     queryFn: () => getResults(latest!.id),
     enabled: !!latest,
   });
-  const counts = results.data && {
-    matched: results.data.matched.length,
-    missing: results.data.missing.length,
-    extra: results.data.extra.length,
-    ignored: results.data.ignored.length,
-  };
+  // Same cache entry as the Results page; its movements give the statement period (RF-07 v0.10).
+  const detail = useQuery({
+    queryKey: queryKeys.import(latest?.id ?? -1),
+    queryFn: () => getImport(latest!.id),
+    enabled: !!latest,
+  });
+  const isOutsidePeriod = detail.data && outsideStatementPeriod(detail.data.movements);
+  const counts = results.data &&
+    isOutsidePeriod && {
+      matched: results.data.matched.length,
+      missing: results.data.missing.length,
+      extra: results.data.extra.filter((t) => !isOutsidePeriod(t.date)).length,
+      ignored: results.data.ignored.length,
+    };
   return (
     <section
       aria-label={t('dashboard.needsYou')}
@@ -62,7 +70,9 @@ export function NeedsYou({ batches }: { batches: BatchSummary[] }) {
             {counts ? (
               <SummaryBreakdown counts={counts} />
             ) : (
-              results.isPending && <Skeleton className="h-2 w-full rounded-full" />
+              (results.isPending || detail.isPending) && (
+                <Skeleton className="h-2 w-full rounded-full" />
+              )
             )}
           </li>
         )}
