@@ -46,6 +46,8 @@ struct FakeFirefly {
     deleted: Mutex<Vec<i64>>,
     fail_amounts: Vec<i64>,
     next_id: Mutex<i64>,
+    /// Holds each creation open so concurrent applies can overlap.
+    create_delay: Mutex<std::time::Duration>,
 }
 
 #[async_trait]
@@ -88,11 +90,20 @@ impl FireflyClient for FakeFirefly {
         if self.fail_amounts.contains(&creation.amount.as_i64()) {
             return Err(ApplicationError::FireflyClient("FF3 500".into()));
         }
+        let delay = *self.create_delay.lock().unwrap();
+        tokio::time::sleep(delay).await;
         let mut id = self.next_id.lock().unwrap();
         *id += 1;
         let ff3_id = 800 + *id;
         self.created.lock().unwrap().push(creation);
         Ok(ff3_id.into())
+    }
+    async fn transactions_by_external_id_prefix(
+        &self,
+        _account_ff3_id: i64,
+        _prefix: &str,
+    ) -> Result<Vec<ffm_application::dtos::ExternalIdHit>, ApplicationError> {
+        Ok(vec![])
     }
     async fn delete_transaction(&self, ff3_id: i64) -> Result<(), ApplicationError> {
         self.deleted.lock().unwrap().push(ff3_id);
@@ -321,6 +332,7 @@ async fn test_app(fail_amounts: Vec<i64>) -> TestApp {
         deleted: Mutex::new(vec![]),
         fail_amounts,
         next_id: Mutex::new(0),
+        create_delay: Mutex::new(std::time::Duration::ZERO),
     });
     let movements = Arc::new(FakeMovementRepo {
         rows: Mutex::new(vec![
@@ -386,6 +398,7 @@ async fn test_app(fail_amounts: Vec<i64>) -> TestApp {
         app_settings: Arc::new(common::FakeAppSettingsRepository::default()),
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
+        apply_lock: Arc::new(tokio::sync::Mutex::new(())),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -523,6 +536,34 @@ async fn apply_retry_endpoint_is_idempotent() {
     assert_eq!(json["already_created_count"], 2);
     // NFR-05: no double creations.
     assert_eq!(t.firefly.created.lock().unwrap().len(), 2);
+}
+
+/// NFR-05: two applies at once are serialized, so the second one finds the
+/// first one's creation instead of creating the line again.
+#[tokio::test]
+async fn concurrent_applies_create_the_line_once() {
+    let t = test_app(vec![]).await;
+    *t.firefly.create_delay.lock().unwrap() = std::time::Duration::from_millis(200);
+    let body = json!({ "movements": [ { "movement_id": 1, "counterparty_ff3_id": 42 } ] });
+
+    let (a, b) = tokio::join!(
+        t.app()
+            .oneshot(post_json("/api/imports/1/apply", body.clone())),
+        t.app().oneshot(post_json("/api/imports/1/apply", body)),
+    );
+    let (a, b) = (a.expect("first"), b.expect("second"));
+    assert_eq!(a.status(), StatusCode::OK);
+    assert_eq!(b.status(), StatusCode::OK);
+    let mut counts = [read_json(a).await, read_json(b).await].map(|j| {
+        (
+            j["created_count"].clone(),
+            j["already_created_count"].clone(),
+        )
+    });
+    counts.sort_by_key(|c| c.0.as_u64());
+
+    assert_eq!(t.firefly.created.lock().unwrap().len(), 1, "one POST");
+    assert_eq!(counts, [(json!(0), json!(1)), (json!(1), json!(0))]);
 }
 
 #[tokio::test]

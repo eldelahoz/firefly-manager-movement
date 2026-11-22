@@ -4,9 +4,9 @@ use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 
 use ffm_application::dtos::{
-    About, ApplyMissingInput, AttachmentPayload, Ff3AccountDto, Ff3TransactionDto, MovementApply,
-    NewCreation, NewFf3Account, NewFf3TransactionCreation, NewMatch, NewReconciliation,
-    ReconciliationRun,
+    About, ApplyMissingInput, AttachmentPayload, ExternalIdHit, Ff3AccountDto, Ff3TransactionDto,
+    MovementApply, NewCreation, NewFf3Account, NewFf3TransactionCreation, NewMatch,
+    NewReconciliation, ReconciliationRun,
 };
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::{
@@ -46,6 +46,10 @@ struct FakeFirefly {
     fail_amounts: Vec<i64>,
     attachments: Mutex<Vec<(i64, String, String)>>,
     fail_attachments: Mutex<bool>,
+    /// `(account ff3_id, hit)` stored in Firefly III, searchable by prefix.
+    stored: Mutex<Vec<(i64, ExternalIdHit)>>,
+    search_fails: Mutex<bool>,
+    searches: Mutex<Vec<(i64, String)>>,
 }
 
 impl FakeFirefly {
@@ -87,6 +91,9 @@ impl FireflyClient for FakeFirefly {
         }
         let mut id = self.next_id.lock().unwrap();
         *id += 1;
+        if let Some(ext) = &creation.external_id {
+            self.stored.lock().unwrap().push((7, hit(ext, 500 + *id)));
+        }
         self.created.lock().unwrap().push(creation);
         Ok(ffm_application::dtos::CreatedFf3Transaction {
             ff3_id: 500 + *id,
@@ -98,6 +105,27 @@ impl FireflyClient for FakeFirefly {
     }
     async fn delete_transaction(&self, _ff3_id: i64) -> Result<(), ApplicationError> {
         unimplemented!("F5.3")
+    }
+    async fn transactions_by_external_id_prefix(
+        &self,
+        account_ff3_id: i64,
+        prefix: &str,
+    ) -> Result<Vec<ExternalIdHit>, ApplicationError> {
+        self.searches
+            .lock()
+            .unwrap()
+            .push((account_ff3_id, prefix.to_string()));
+        if *self.search_fails.lock().unwrap() {
+            return Err(ApplicationError::FireflyClient("FF3 unreachable".into()));
+        }
+        Ok(self
+            .stored
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(acc, h)| *acc == account_ff3_id && h.external_id.starts_with(prefix))
+            .map(|(_, h)| h.clone())
+            .collect())
     }
     async fn attach_to_transaction(
         &self,
@@ -211,11 +239,15 @@ impl MovementRepository for FakeMovementRepo {
 struct FakeCreationRepo {
     rows: Mutex<Vec<Creation>>,
     next_id: Mutex<i64>,
+    fail_inserts: Mutex<bool>,
 }
 
 #[async_trait]
 impl CreationRepository for FakeCreationRepo {
     async fn insert(&self, creation: NewCreation) -> Result<CreationId, ApplicationError> {
+        if *self.fail_inserts.lock().unwrap() {
+            return Err(ApplicationError::Database("disk I/O error".into()));
+        }
         let mut id = self.next_id.lock().unwrap();
         *id += 1;
         self.rows.lock().unwrap().push(Creation {
@@ -338,6 +370,16 @@ impl ReconciliationRepository for FakeRunStore {
             .cloned())
     }
     async fn save_run(&self, run: ReconciliationRun) -> Result<ReconciliationId, ApplicationError> {
+        // Mirror the DB: UNIQUE(reconciliation_id, movement_id) and
+        // UNIQUE(reconciliation_id, ff3_transaction_id).
+        let movements: std::collections::HashSet<_> =
+            run.matches.iter().map(|m| m.movement_id).collect();
+        let ff3_ids: std::collections::HashSet<_> = run.matches.iter().map(|m| m.ff3_id).collect();
+        if movements.len() != run.matches.len() || ff3_ids.len() != run.matches.len() {
+            return Err(ApplicationError::Database(
+                "UNIQUE constraint failed: matches".into(),
+            ));
+        }
         let recon_id = ReconciliationId::new(20 + self.saved_runs.lock().unwrap().len() as i64);
 
         let mut ff3_local = std::collections::HashMap::new();
@@ -465,6 +507,18 @@ impl MatchRepository for FakeRunStore {
 
 // ── Fixture ─────────────────────────────────────────────────────────────
 
+fn hit(external_id: &str, ff3_id: i64) -> ExternalIdHit {
+    ExternalIdHit {
+        external_id: external_id.into(),
+        ff3_id,
+        counterparty_name: Some("Shop".into()),
+        counterparty_type: Some("Expense account".into()),
+    }
+}
+
+const HASH: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const PREFIX: &str = "ffm-0123456789abcdef-";
+
 fn movement(id: i64, cents: i64, status: MovementStatus) -> Movement {
     Movement {
         id: MovementId::new(id),
@@ -506,6 +560,9 @@ fn fx(fail_amounts: Vec<i64>) -> Fx {
             fail_amounts,
             attachments: Mutex::new(vec![]),
             fail_attachments: Mutex::new(false),
+            stored: Mutex::new(vec![]),
+            search_fails: Mutex::new(false),
+            searches: Mutex::new(vec![]),
         }),
         movements: movements.clone(),
         creations: Arc::new(FakeCreationRepo::default()),
@@ -514,7 +571,7 @@ fn fx(fail_amounts: Vec<i64>) -> Fx {
             batches: vec![Batch {
                 id: BatchId::new(1),
                 filename: "stmt.csv".into(),
-                file_hash: "h".into(),
+                file_hash: HASH.into(),
                 format: "csv".into(),
                 currency: "EUR".into(),
                 account_id: Some(Ff3AccountId::new(1)),
@@ -1260,4 +1317,371 @@ async fn confirmation_run_stores_counterparty_from_firefly_response() {
     // Money in: the batch account is the destination, so the counterparty is the source.
     assert_eq!(row(3000).counterparty_name.as_deref(), Some("S"));
     assert_eq!(row(3000).counterparty_type.as_deref(), Some("Loan"));
+}
+
+// ── NFR-05: external_id recovery ────────────────────────────────────────
+
+#[tokio::test]
+async fn each_creation_carries_a_content_based_external_id() {
+    let f = fx(vec![]);
+    f.uc()
+        .execute(f.input(vec![ma(1, 42), ma(2, 42)]))
+        .await
+        .expect("apply ok");
+
+    let ids: Vec<_> = f
+        .firefly
+        .calls()
+        .into_iter()
+        .map(|c| c.external_id)
+        .collect();
+    assert_eq!(
+        ids,
+        vec![Some(format!("{PREFIX}1")), Some(format!("{PREFIX}2"))]
+    );
+    assert_eq!(
+        *f.firefly.searches.lock().unwrap(),
+        vec![(7, PREFIX.to_string())]
+    );
+}
+
+#[tokio::test]
+async fn retry_after_record_failure_does_not_post_again() {
+    let f = fx(vec![]);
+    *f.creations.fail_inserts.lock().unwrap() = true;
+    let first = f
+        .uc()
+        .execute(f.input(vec![ma(1, 42), ma(2, 42)]))
+        .await
+        .expect("a record failure must not abort the batch");
+    assert_eq!(first.failed_count, 2);
+    assert_eq!(f.firefly.calls().len(), 2, "both reached Firefly III");
+    let reason = first.reports[0].reason.as_deref().unwrap();
+    assert!(reason.contains("not recorded"), "{reason}");
+    assert_eq!(f.movements.status_of(1), MovementStatus::Missing);
+
+    *f.creations.fail_inserts.lock().unwrap() = false;
+    let retry = f
+        .uc()
+        .execute(f.input(vec![ma(1, 42), ma(2, 42)]))
+        .await
+        .expect("retry ok");
+    assert_eq!(f.firefly.calls().len(), 2, "no second POST");
+    assert_eq!(retry.already_created_count, 2);
+    assert_eq!(retry.created_count, 0);
+    let ff3_ids: Vec<_> = f
+        .creations
+        .rows
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|c| (c.movement_id.as_i64(), c.ff3_id))
+        .collect();
+    assert_eq!(ff3_ids, vec![(1, 501), (2, 502)]);
+    assert_eq!(f.movements.status_of(1), MovementStatus::Matched);
+}
+
+#[tokio::test]
+async fn line_already_in_firefly_is_recorded_without_post() {
+    let f = fx(vec![]);
+    f.firefly.stored.lock().unwrap().extend([
+        (7, hit(&format!("{PREFIX}2"), 777)),
+        (7, hit("ffm-other-1", 9)),
+    ]);
+
+    let result = f
+        .uc()
+        .execute(f.input(vec![ma(1, 42), ma(2, 42)]))
+        .await
+        .expect("apply ok");
+
+    let calls = f.firefly.calls();
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].external_id, Some(format!("{PREFIX}1")));
+    let m2 = result
+        .reports
+        .iter()
+        .find(|r| r.movement_id.as_i64() == 2)
+        .unwrap();
+    assert_eq!(m2.outcome, ApplyOutcome::AlreadyCreated);
+    assert_eq!(m2.ff3_id, Some(777));
+    assert_eq!(
+        f.creations
+            .rows
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|c| c.movement_id.as_i64() == 2)
+            .map(|c| c.ff3_id),
+        Some(777)
+    );
+    assert_eq!(f.movements.status_of(2), MovementStatus::Matched);
+    let run = &f.runs.saved_runs()[0];
+    assert!(run
+        .matches
+        .iter()
+        .any(|m| m.movement_id.as_i64() == 2 && m.ff3_id == 777));
+}
+
+#[tokio::test]
+async fn search_failure_creates_nothing() {
+    let f = fx(vec![]);
+    *f.firefly.search_fails.lock().unwrap() = true;
+
+    let err = f
+        .uc()
+        .execute(f.input(vec![ma(1, 42), ma(2, 42)]))
+        .await
+        .expect_err("search failure must stop the apply");
+    assert!(matches!(err, ApplicationError::FireflyClient(_)), "{err:?}");
+    assert!(f.firefly.calls().is_empty());
+    assert!(f.creations.rows.lock().unwrap().is_empty());
+    assert!(f.runs.saved_runs().is_empty());
+}
+
+#[tokio::test]
+async fn recovery_with_match_already_in_previous_run_does_not_duplicate_it() {
+    // Live case: the previous confirmation run already pairs m1 with tx 777,
+    // but the creations row is gone and m1 is back to missing.
+    let f = fx(vec![]);
+    {
+        let mut recs = f.runs.reconciliations.lock().unwrap();
+        recs[0].matched_count = 2;
+        recs[0].missing_count = 1;
+    }
+    f.runs.tx_rows.lock().unwrap().push(Ff3Transaction {
+        ff3_journal_id: 0,
+        id: Ff3TransactionId::new(32),
+        reconciliation_id: ReconciliationId::new(10),
+        ff3_id: 777,
+        date: d(2026, 1, 1),
+        amount_cents: AmountCents::new(-5000),
+        description: "m1".into(),
+        is_duplicate: false,
+        created_at: epoch(),
+        counterparty_name: Some("Shop".into()),
+        counterparty_type: Some("Expense account".into()),
+    });
+    f.runs.match_rows.lock().unwrap().push(Match {
+        id: MatchId::new(2),
+        reconciliation_id: ReconciliationId::new(10),
+        movement_id: MovementId::new(1),
+        ff3_transaction_id: Ff3TransactionId::new(32),
+        matched_at: epoch(),
+    });
+    f.firefly
+        .stored
+        .lock()
+        .unwrap()
+        .push((7, hit(&format!("{PREFIX}1"), 777)));
+
+    let result = f
+        .uc()
+        .execute(f.input(vec![ma(1, 42)]))
+        .await
+        .expect("an existing match must not abort the apply");
+
+    assert!(f.firefly.calls().is_empty(), "no POST");
+    assert_eq!(result.already_created_count, 1);
+    assert_eq!(result.failed_count, 0);
+    assert_eq!(f.movements.status_of(1), MovementStatus::Matched);
+    let run = &f.runs.saved_runs()[0];
+    let pairs: Vec<_> = run
+        .matches
+        .iter()
+        .map(|m| (m.movement_id.as_i64(), m.ff3_id))
+        .collect();
+    assert_eq!(
+        pairs.iter().filter(|p| **p == (1, 777)).count(),
+        1,
+        "{pairs:?}"
+    );
+    assert!(pairs.contains(&(3, 300)), "{pairs:?}");
+    assert_eq!(run.reconciliation.matched_count, 2);
+    assert_eq!(run.reconciliation.missing_count, 1);
+    let cached: Vec<_> = run
+        .ff3_transactions
+        .iter()
+        .filter(|t| t.ff3_id == 777)
+        .collect();
+    assert_eq!(cached.len(), 1);
+    assert_eq!(cached[0].counterparty_name.as_deref(), Some("Shop"));
+}
+
+fn store(f: &Fx, account: i64, line: i32, ff3_id: i64) {
+    f.firefly
+        .stored
+        .lock()
+        .unwrap()
+        .push((account, hit(&format!("{PREFIX}{line}"), ff3_id)));
+}
+
+#[tokio::test]
+async fn line_stored_on_another_account_is_not_recovered() {
+    let f = fx(vec![]);
+    store(&f, 99, 1, 777);
+
+    let result = f
+        .uc()
+        .execute(f.input(vec![ma(1, 42)]))
+        .await
+        .expect("apply ok");
+
+    assert_eq!(
+        *f.firefly.searches.lock().unwrap(),
+        vec![(7, PREFIX.to_string())]
+    );
+    assert_eq!(result.created_count, 1);
+    assert_eq!(result.already_created_count, 0);
+    assert_eq!(f.firefly.calls().len(), 1, "created on the batch account");
+}
+
+#[tokio::test]
+async fn recovered_tx_matched_to_another_movement_fails_without_recording() {
+    let f = fx(vec![]);
+    store(&f, 7, 1, 300); // tx 300 is paired with m3 in the previous run
+
+    let result = f
+        .uc()
+        .execute(f.input(vec![ma(1, 42)]))
+        .await
+        .expect("apply ok");
+
+    assert!(f.firefly.calls().is_empty(), "no POST");
+    assert_eq!(result.failed_count, 1);
+    assert_eq!(
+        result.reports[0].reason.as_deref(),
+        Some("Firefly III tx 300 already matched to movement 3; re-run reconciliation")
+    );
+    assert!(f.creations.rows.lock().unwrap().is_empty());
+    assert_eq!(f.movements.status_of(1), MovementStatus::Missing);
+    assert!(f.runs.saved_runs().is_empty());
+}
+
+#[tokio::test]
+async fn movement_already_paired_with_another_tx_fails_before_post() {
+    let f = fx(vec![]);
+    f.runs.match_rows.lock().unwrap().push(Match {
+        id: MatchId::new(2),
+        reconciliation_id: ReconciliationId::new(10),
+        movement_id: MovementId::new(1),
+        ff3_transaction_id: Ff3TransactionId::new(31), // tx 310
+        matched_at: epoch(),
+    });
+
+    let result = f
+        .uc()
+        .execute(f.input(vec![ma(1, 42)]))
+        .await
+        .expect("apply ok");
+
+    assert!(f.firefly.calls().is_empty(), "no POST");
+    assert_eq!(
+        result.reports[0].reason.as_deref(),
+        Some("movement 1 already matched to Firefly III tx 310; re-run reconciliation")
+    );
+    assert!(f.runs.saved_runs().is_empty());
+}
+
+#[tokio::test]
+async fn recovery_record_failure_is_failed_without_post() {
+    let f = fx(vec![]);
+    store(&f, 7, 1, 777);
+    *f.creations.fail_inserts.lock().unwrap() = true;
+
+    let result = f
+        .uc()
+        .execute(f.input(vec![ma(1, 42), ma(2, 42)]))
+        .await
+        .expect("a record failure must not abort the batch");
+
+    let m1 = &result.reports[0];
+    assert_eq!(m1.outcome, ApplyOutcome::Failed);
+    assert_eq!(m1.ff3_id, Some(777));
+    assert!(m1.reason.as_deref().unwrap().contains("not recorded"));
+    assert_eq!(f.firefly.calls().len(), 1, "only m2 is posted");
+    assert_eq!(f.movements.status_of(1), MovementStatus::Missing);
+}
+
+#[tokio::test]
+async fn no_search_when_every_movement_is_already_created() {
+    let f = fx(vec![]);
+    let input = f.input(vec![ma(1, 42), ma(2, 42)]);
+    f.uc().execute(input.clone()).await.expect("first apply");
+    f.firefly.searches.lock().unwrap().clear();
+    *f.firefly.search_fails.lock().unwrap() = true;
+
+    let retry = f.uc().execute(input).await.expect("no Firefly III needed");
+    assert_eq!(retry.already_created_count, 2);
+    assert!(f.firefly.searches.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn recovery_reports_that_edits_and_attachment_were_not_applied() {
+    let f = fx(vec![]);
+    store(&f, 7, 1, 777);
+    store(&f, 7, 2, 778);
+    let mut edited = ma(1, 42);
+    edited.notes = Some("note".into());
+    edited.attachment = Some(AttachmentPayload {
+        filename: "r.pdf".into(),
+        content_base64: "AA==".into(),
+    });
+
+    let result = f
+        .uc()
+        .execute(f.input(vec![edited, ma(2, 42)]))
+        .await
+        .expect("apply ok");
+
+    assert_eq!(result.already_created_count, 2);
+    let reason = result.reports[0].reason.as_deref().unwrap_or("");
+    assert!(reason.contains("not applied"), "{reason}");
+    assert_eq!(result.reports[1].reason, None, "nothing was sent for m2");
+    assert!(f.firefly.attachments.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn recovering_a_previous_extra_lowers_extra_count_and_keeps_its_counterparty() {
+    let f = fx(vec![]);
+    store(&f, 7, 1, 310); // tx 310 is the previous run's unmatched extra
+
+    let result = f
+        .uc()
+        .execute(f.input(vec![ma(1, 42)]))
+        .await
+        .expect("apply ok");
+
+    assert_eq!(result.already_created_count, 1);
+    let run = &f.runs.saved_runs()[0];
+    assert_eq!(run.reconciliation.matched_count, 2);
+    assert_eq!(run.reconciliation.missing_count, 1);
+    assert_eq!(run.reconciliation.extra_count, 0);
+    let tx: Vec<_> = run
+        .ff3_transactions
+        .iter()
+        .filter(|t| t.ff3_id == 310)
+        .collect();
+    assert_eq!(tx.len(), 1);
+    assert_eq!(tx[0].counterparty_name.as_deref(), Some("Shop"));
+}
+
+#[tokio::test]
+async fn recovered_tx_not_in_cache_gets_counterparty_from_the_search() {
+    let f = fx(vec![]);
+    store(&f, 7, 1, 777);
+
+    f.uc()
+        .execute(f.input(vec![ma(1, 42)]))
+        .await
+        .expect("apply ok");
+
+    let run = &f.runs.saved_runs()[0];
+    let tx = run
+        .ff3_transactions
+        .iter()
+        .find(|t| t.ff3_id == 777)
+        .expect("cached");
+    assert_eq!(tx.counterparty_name.as_deref(), Some("Shop"));
+    assert_eq!(tx.counterparty_type.as_deref(), Some("Expense account"));
 }

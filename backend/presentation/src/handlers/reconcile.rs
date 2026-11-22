@@ -334,6 +334,7 @@ pub async fn apply(
     Path(id): Path<i64>,
     Json(body): Json<ApplyRequest>,
 ) -> Result<Json<ApplyResponse>, ApiError> {
+    let _guard = state.apply_lock.lock().await;
     let uc = ApplyMissing::new(
         state.firefly.clone(),
         state.ff3_accounts.clone(),

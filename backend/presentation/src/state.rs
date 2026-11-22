@@ -27,4 +27,7 @@ pub struct AppState {
     pub firefly_factory: Arc<dyn FireflyClientFactory>,
     pub env_defaults: EnvDefaults,
     pub settings_lock: Arc<tokio::sync::Mutex<()>>,
+    /// One apply at a time: two concurrent applies would both miss the
+    /// external_id search and create the same line twice (NFR-05).
+    pub apply_lock: Arc<tokio::sync::Mutex<()>>,
 }

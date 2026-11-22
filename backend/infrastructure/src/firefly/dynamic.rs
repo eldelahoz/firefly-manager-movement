@@ -7,7 +7,8 @@ use async_trait::async_trait;
 
 use chrono::NaiveDate;
 use ffm_application::dtos::{
-    About, CreatedFf3Transaction, Ff3AccountDto, Ff3TransactionDto, NewFf3TransactionCreation,
+    About, CreatedFf3Transaction, ExternalIdHit, Ff3AccountDto, Ff3TransactionDto,
+    NewFf3TransactionCreation,
 };
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::{FireflyClient, FireflyClientFactory, FireflyConnectionManager};
@@ -81,6 +82,16 @@ impl FireflyClient for DynamicFireflyClient {
 
     async fn delete_transaction(&self, ff3_id: i64) -> Result<(), ApplicationError> {
         self.current().delete_transaction(ff3_id).await
+    }
+
+    async fn transactions_by_external_id_prefix(
+        &self,
+        account_ff3_id: i64,
+        prefix: &str,
+    ) -> Result<Vec<ExternalIdHit>, ApplicationError> {
+        self.current()
+            .transactions_by_external_id_prefix(account_ff3_id, prefix)
+            .await
     }
 
     async fn tags(&self) -> Result<Vec<String>, ApplicationError> {

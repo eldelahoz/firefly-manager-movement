@@ -62,6 +62,13 @@ impl FireflyClient for FakeFireflyClient {
     ) -> Result<ffm_application::dtos::CreatedFf3Transaction, ApplicationError> {
         Err(ApplicationError::InvalidState("not used in F4".into()))
     }
+    async fn transactions_by_external_id_prefix(
+        &self,
+        _account_ff3_id: i64,
+        _prefix: &str,
+    ) -> Result<Vec<ffm_application::dtos::ExternalIdHit>, ApplicationError> {
+        Ok(vec![])
+    }
     async fn delete_transaction(&self, _ff3_id: i64) -> Result<(), ApplicationError> {
         Err(ApplicationError::InvalidState("not used in F4".into()))
     }

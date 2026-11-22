@@ -1,6 +1,6 @@
 use crate::dtos::{
-    ApplyMissingInput, NewCreation, NewFf3TransactionCreation, ReconciliationRun,
-    RunFf3Transaction, RunMatch,
+    ApplyMissingInput, ExternalIdHit, MovementApply, NewCreation, NewFf3TransactionCreation,
+    ReconciliationRun, RunFf3Transaction, RunMatch,
 };
 use crate::error::ApplicationError;
 use crate::ports::{
@@ -20,6 +20,23 @@ pub enum ApplyOutcome {
     Created,
     AlreadyCreated,
     Failed,
+}
+
+fn not_recorded(ff3_id: i64, e: &ApplicationError) -> String {
+    format!("created in Firefly III (id {ff3_id}) but not recorded: {e}; retry will reconcile it")
+}
+
+fn edits_not_applied(cust: &MovementApply) -> Option<String> {
+    let edited = cust.attachment.is_some()
+        || cust.description.is_some()
+        || cust.category.is_some()
+        || cust.budget.is_some()
+        || cust.tags.is_some()
+        || cust.notes.is_some();
+    edited.then(|| {
+        "already in Firefly III; the edits and attachment sent with this apply were not applied"
+            .into()
+    })
 }
 
 /// Per-movement report.
@@ -98,6 +115,21 @@ where
     T: Ff3TransactionRepository,
     Settings: AppSettingsRepository,
 {
+    /// The movement turns `matched` in `save_run`, atomically with its pair.
+    async fn record_creation(
+        &self,
+        movement_id: MovementId,
+        ff3_id: i64,
+    ) -> Result<(), ApplicationError> {
+        self.creations
+            .insert(NewCreation {
+                movement_id,
+                ff3_id,
+            })
+            .await
+            .map(|_| ())
+    }
+
     pub async fn execute(&self, input: ApplyMissingInput) -> Result<ApplyOutput, ApplicationError> {
         // ── Load batch ────────────────────────────────────────────
         let batch = self.batches.get(input.batch_id).await?;
@@ -132,6 +164,7 @@ where
         let batch_movements = self.movements.by_batch(input.batch_id).await?;
 
         // ── Validate every requested movement up-front ────────────
+        let mut needs_firefly = false;
         for cust in &input.movements {
             let m = batch_movements
                 .iter()
@@ -150,6 +183,31 @@ where
                     m.id.as_i64(),
                     m.status
                 )));
+            }
+            needs_firefly |= !already;
+        }
+
+        // ── Lines of this file already in Firefly III (NFR-05) ────
+        // A creation whose `creations` row was lost is found by its
+        // external_id; if the search fails, nothing is created.
+        let external_prefix = format!(
+            "ffm-{}-",
+            batch.file_hash.get(..16).unwrap_or(&batch.file_hash)
+        );
+        let mut existing_by_line: HashMap<i32, ExternalIdHit> = HashMap::new();
+        if needs_firefly {
+            for hit in self
+                .firefly
+                .transactions_by_external_id_prefix(account_ff3_id, &external_prefix)
+                .await?
+            {
+                if let Some(line) = hit
+                    .external_id
+                    .strip_prefix(&external_prefix)
+                    .and_then(|l| l.parse().ok())
+                {
+                    existing_by_line.entry(line).or_insert(hit);
+                }
             }
         }
 
@@ -170,6 +228,25 @@ where
             .matches
             .by_reconciliation(previous_run.id)
             .await?;
+        let prev_tx_rows = self
+            .run_ports
+            .ff3_transactions
+            .by_reconciliation(previous_run.id)
+            .await?;
+        // Match rows reference the local cache row id (Ff3TransactionId);
+        // RunMatch keys on the external ff3_id — remap via the cached rows.
+        let local_to_ff3: HashMap<Ff3TransactionId, (i64, i64)> = prev_tx_rows
+            .iter()
+            .map(|t| (t.id, (t.ff3_id, t.ff3_journal_id)))
+            .collect();
+        let paired: Vec<(MovementId, i64)> = previous_matches
+            .iter()
+            .filter_map(|m| {
+                local_to_ff3
+                    .get(&m.ff3_transaction_id)
+                    .map(|&(ff3_id, _)| (m.movement_id, ff3_id))
+            })
+            .collect();
 
         let mut reports = Vec::new();
         let mut created_ff3_ids: Vec<i64> = Vec::new();
@@ -189,6 +266,64 @@ where
                     outcome: ApplyOutcome::AlreadyCreated,
                     ff3_id: Some(existing.ff3_id),
                     reason: None,
+                    transaction_type: None,
+                });
+                continue;
+            }
+
+            // ── Pairs are UNIQUE per run on both sides ────────────
+            let recovered = existing_by_line.get(&m.line_no);
+            let recovered_id = recovered.map(|h| h.ff3_id);
+            let conflict = match paired
+                .iter()
+                .find(|&&(pm, t)| pm == m.id && Some(t) != recovered_id)
+            {
+                Some(&(_, t)) => Some(format!(
+                    "movement {} already matched to Firefly III tx {t}; re-run reconciliation",
+                    m.id.as_i64()
+                )),
+                None => recovered_id.and_then(|id| {
+                    paired
+                        .iter()
+                        .copied()
+                        .chain(successful_movement_ids.iter().copied().zip(created_ff3_ids.iter().copied()))
+                        .find(|&(owner, t)| t == id && owner != m.id)
+                        .map(|(owner, t)| {
+                            format!(
+                                "Firefly III tx {t} already matched to movement {}; re-run reconciliation",
+                                owner.as_i64()
+                            )
+                        })
+                }),
+            };
+            if let Some(reason) = conflict {
+                reports.push(ApplyMovementReport {
+                    movement_id: m.id,
+                    outcome: ApplyOutcome::Failed,
+                    ff3_id: recovered_id,
+                    reason: Some(reason),
+                    transaction_type: None,
+                });
+                continue;
+            }
+
+            // ── Created by an earlier run but never recorded ──────
+            if let Some(hit) = recovered {
+                let (outcome, reason) = match self.record_creation(m.id, hit.ff3_id).await {
+                    Ok(()) => {
+                        created_ff3_ids.push(hit.ff3_id);
+                        created_counterparties
+                            .push((hit.counterparty_name.clone(), hit.counterparty_type.clone()));
+                        successful_movement_ids.push(m.id);
+                        (ApplyOutcome::AlreadyCreated, edits_not_applied(&cust))
+                    }
+                    Err(e) => (ApplyOutcome::Failed, Some(not_recorded(hit.ff3_id, &e))),
+                };
+                reports.push(ApplyMovementReport {
+                    movement_id: m.id,
+                    outcome,
+                    ff3_id: Some(hit.ff3_id),
+                    reason,
                     transaction_type: None,
                 });
                 continue;
@@ -299,25 +434,27 @@ where
                 budget: cust.budget.clone().filter(|b| !b.trim().is_empty()),
                 notes: if notes.is_empty() { None } else { Some(notes) },
                 tags,
+                external_id: Some(format!("{external_prefix}{}", m.line_no)),
             };
 
             match self.firefly.create_transaction(creation).await {
                 Ok(created) => {
                     let ff3_id = created.ff3_id;
+                    if let Err(e) = self.record_creation(m.id, ff3_id).await {
+                        reports.push(ApplyMovementReport {
+                            movement_id: m.id,
+                            outcome: ApplyOutcome::Failed,
+                            ff3_id: Some(ff3_id),
+                            reason: Some(not_recorded(ff3_id, &e)),
+                            transaction_type: None,
+                        });
+                        continue;
+                    }
                     // The counterparty is the side opposite to the batch account.
                     created_counterparties.push(match batch_side {
                         BatchSide::Source => (created.destination_name, created.destination_type),
                         BatchSide::Destination => (created.source_name, created.source_type),
                     });
-                    self.creations
-                        .insert(NewCreation {
-                            movement_id: m.id,
-                            ff3_id,
-                        })
-                        .await?;
-                    self.movements
-                        .update_status(m.id, MovementStatus::Matched)
-                        .await?;
                     created_ff3_ids.push(ff3_id);
                     successful_movement_ids.push(m.id);
 
@@ -355,11 +492,6 @@ where
 
         // ── Incremental confirmation run (D7) ─────────────────────
         let recon_id = if !successful_movement_ids.is_empty() {
-            let prev_tx_rows = self
-                .run_ports
-                .ff3_transactions
-                .by_reconciliation(previous_run.id)
-                .await?;
             let all_cached_txs: Vec<RunFf3Transaction> = prev_tx_rows
                 .iter()
                 .map(|t| RunFf3Transaction {
@@ -421,12 +553,6 @@ where
             // Carry over the previous run's match pairs. Their FF3 transactions
             // are re-cached below; without the carry-over, get_results derives
             // groups from match rows and would demote every old pair to `extra`.
-            // Match rows reference the local cache row id (Ff3TransactionId);
-            // RunMatch keys on the external ff3_id — remap via the cached rows.
-            let local_to_ff3: HashMap<Ff3TransactionId, (i64, i64)> = prev_tx_rows
-                .iter()
-                .map(|t| (t.id, (t.ff3_id, t.ff3_journal_id)))
-                .collect();
             let mut all_match_dtos: Vec<RunMatch> = previous_matches
                 .iter()
                 .filter_map(|m| {
@@ -439,14 +565,34 @@ where
                         })
                 })
                 .collect();
+            // A recovered line may already hold this exact pair in the previous
+            // run; one-sided conflicts were rejected per movement above.
+            let carried = all_match_dtos.len();
+            all_match_dtos.retain(|c| {
+                !new_match_dtos
+                    .iter()
+                    .any(|n| n.movement_id == c.movement_id && n.ff3_id == c.ff3_id)
+            });
+            let newly_matched = new_match_dtos.len() - (carried - all_match_dtos.len());
             all_match_dtos.extend(new_match_dtos.iter().cloned());
+            // Recovered txs the previous run listed as unmatched extras.
+            let recovered_extras = created_ff3_ids
+                .iter()
+                .filter(|&&id| {
+                    prev_tx_rows
+                        .iter()
+                        .any(|t| t.ff3_id == id && !t.is_duplicate)
+                        && !paired.iter().any(|&(_, t)| t == id)
+                })
+                .count();
 
             let prev_matched = previous_run.matched_count as usize;
             let prev_missing = previous_run.missing_count as usize;
             let prev_extra = previous_run.extra_count as usize;
 
-            let matched = prev_matched + new_match_dtos.len();
-            let missing = prev_missing.saturating_sub(new_match_dtos.len());
+            let matched = prev_matched + newly_matched;
+            let missing = prev_missing.saturating_sub(newly_matched);
+            let extra = prev_extra.saturating_sub(recovered_extras);
 
             let run = ReconciliationRun {
                 reconciliation: crate::dtos::NewReconciliation {
@@ -456,7 +602,7 @@ where
                     window_end: previous_run.window_end,
                     matched_count: matched as i32,
                     missing_count: missing as i32,
-                    extra_count: prev_extra as i32,
+                    extra_count: extra as i32,
                 },
                 ff3_transactions: new_cached,
                 matches: all_match_dtos,

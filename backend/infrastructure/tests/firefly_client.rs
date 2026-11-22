@@ -820,6 +820,7 @@ async fn create_transaction_ok() {
         budget: None,
         notes: None,
         tags: vec![],
+        external_id: None,
     };
     let id = client.create_transaction(creation).await.unwrap().ff3_id;
     assert_eq!(id, 77);
@@ -852,6 +853,7 @@ async fn create_transaction_wraps_in_transactions_array() {
         budget: None,
         notes: Some("monthly".into()),
         tags: vec!["tag1".into()],
+        external_id: Some("ffm-0123456789abcdef-3".into()),
     };
     let id = client.create_transaction(creation).await.unwrap().ff3_id;
     assert_eq!(id, 1);
@@ -873,6 +875,7 @@ async fn create_transaction_wraps_in_transactions_array() {
     assert_eq!(tx["category_name"], "Income");
     assert_eq!(tx["notes"], "monthly");
     assert_eq!(tx["tags"], serde_json::json!(["tag1"]));
+    assert_eq!(tx["external_id"], "ffm-0123456789abcdef-3");
     // Date must be UTC noon: FF3 renders/stores in the user's timezone, so
     // midnight UTC shifts the visible day back for any UTC+x zone. Noon keeps
     // the same calendar day for offsets -12..+11 (midnight would not).
@@ -909,6 +912,7 @@ async fn create_transaction_sends_absolute_amount() {
         budget: None,
         notes: None,
         tags: vec![],
+        external_id: None,
     };
     client.create_transaction(creation).await.unwrap();
 
@@ -947,6 +951,7 @@ async fn create_transaction_omits_absent_account_side() {
         budget: None,
         notes: None,
         tags: vec![],
+        external_id: None,
     };
     client.create_transaction(creation).await.unwrap();
 
@@ -986,6 +991,7 @@ async fn create_transaction_sends_transfer_and_counterparty_name() {
         budget: None,
         notes: None,
         tags: vec![],
+        external_id: None,
     };
     client.create_transaction(base.clone()).await.unwrap();
     client
@@ -1103,6 +1109,7 @@ async fn create_transaction_returns_both_account_sides() {
             budget: None,
             notes: None,
             tags: vec![],
+            external_id: None,
         })
         .await
         .unwrap();
@@ -1111,4 +1118,135 @@ async fn create_transaction_returns_both_account_sides() {
     assert_eq!(created.source_type.as_deref(), Some("Asset account"));
     assert_eq!(created.destination_name.as_deref(), Some("Prestamo Moto"));
     assert_eq!(created.destination_type.as_deref(), Some("Loan"));
+}
+
+#[tokio::test]
+async fn search_by_external_id_prefix_paginates_with_encoded_query() {
+    let server = MockServer::start().await;
+    let query = "account_id:7 external_id_starts:\"ffm-0123456789abcdef-\"";
+    let split = |ext: Option<&str>, src: &str, dst: &str| {
+        serde_json::json!({
+            "external_id": ext,
+            "source_id": src, "source_name": format!("acc {src}"), "source_type": format!("type {src}"),
+            "destination_id": dst, "destination_name": format!("acc {dst}"), "destination_type": format!("type {dst}")
+        })
+    };
+    let group = |id: &str, split: serde_json::Value| serde_json::json!({ "id": id, "attributes": { "transactions": [split] } });
+    let page = |n: u32, data: serde_json::Value| {
+        serde_json::json!({
+            "data": data,
+            "meta": { "pagination": { "current_page": n, "total_pages": 2 } }
+        })
+    };
+    Mock::given(method("GET"))
+        .and(path("/api/v1/search/transactions"))
+        .and(query_param("query", query))
+        .and(query_param("page", "1"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(page(
+            1,
+            serde_json::json!([
+                group("11", split(Some("ffm-0123456789abcdef-1"), "7", "20")),
+                group("12", split(None, "7", "20")),
+                // Firefly III's prefix match is not trusted: other ids are dropped.
+                group("14", split(Some("ffm-otro-1"), "7", "20")),
+                // Same file on another account is not this batch's line.
+                group("15", split(Some("ffm-0123456789abcdef-5"), "99", "20")),
+            ]),
+        )))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/search/transactions"))
+        .and(query_param("query", query))
+        .and(query_param("page", "2"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(page(
+            2,
+            serde_json::json!([group(
+                "13",
+                split(Some("ffm-0123456789abcdef-12"), "30", "7")
+            )]),
+        )))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let hits = make_client(&server)
+        .transactions_by_external_id_prefix(7, "ffm-0123456789abcdef-")
+        .await
+        .unwrap();
+    let hit = |ext: &str, ff3_id: i64, cp: &str| ffm_application::dtos::ExternalIdHit {
+        external_id: ext.into(),
+        ff3_id,
+        counterparty_name: Some(format!("acc {cp}")),
+        counterparty_type: Some(format!("type {cp}")),
+    };
+    assert_eq!(
+        hits,
+        vec![
+            hit("ffm-0123456789abcdef-1", 11, "20"),
+            hit("ffm-0123456789abcdef-12", 13, "30"),
+        ]
+    );
+    let raw = server.received_requests().await.unwrap()[0]
+        .url
+        .query()
+        .unwrap()
+        .to_string();
+    assert!(
+        raw.contains("query=account_id%3A7+external_id_starts%3A%22ffm-0123456789abcdef-%22"),
+        "query must be URL-encoded: {raw}"
+    );
+}
+
+#[tokio::test]
+async fn create_transaction_timeout_warns_it_may_exist() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/api/v1/transactions"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_delay(std::time::Duration::from_secs(35))
+                .set_body_json(serde_json::json!({ "data": { "id": "1" } })),
+        )
+        .mount(&server)
+        .await;
+    let err = make_client(&server)
+        .create_transaction(ffm_application::dtos::NewFf3TransactionCreation {
+            transaction_type: "withdrawal".into(),
+            amount: AmountCents::new(-100),
+            date: NaiveDate::from_ymd_opt(2026, 3, 15).unwrap(),
+            description: "slow".into(),
+            source_ff3_id: Some(1),
+            destination_ff3_id: None,
+            source_name: None,
+            destination_name: None,
+            category: None,
+            budget: None,
+            notes: None,
+            tags: vec![],
+            external_id: Some("ffm-x-1".into()),
+        })
+        .await
+        .unwrap_err();
+    assert!(
+        err.to_string()
+            .contains("it may have been created in Firefly III; wait a moment before retrying"),
+        "{err}"
+    );
+}
+
+#[tokio::test]
+async fn search_by_external_id_prefix_propagates_errors() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/v1/search/transactions"))
+        .respond_with(ResponseTemplate::new(500))
+        .mount(&server)
+        .await;
+    let err = make_client(&server)
+        .transactions_by_external_id_prefix(7, "ffm-x-")
+        .await
+        .unwrap_err();
+    assert!(matches!(err, ApplicationError::FireflyClient(_)), "{err:?}");
 }
