@@ -583,3 +583,43 @@ async fn apply_endpoint_creates_without_counterparty() {
     assert_eq!(credit.source_ff3_id, None);
     assert_eq!(credit.destination_ff3_id, Some(7));
 }
+
+#[tokio::test]
+async fn apply_endpoint_absent_tags_use_default_explicit_empty_does_not() {
+    let mut t = test_app(vec![]).await;
+    t.state.app_settings = Arc::new(common::FakeAppSettingsRepository::with_settings(
+        ffm_domain::entities::AppSettings {
+            ff3_url: "http://example.com".into(),
+            ff3_token: "token".into(),
+            default_creation_tag: Some("ffm-import".into()),
+            enable_origin_trace: true,
+            default_date_format: None,
+            updated_at: epoch(),
+        },
+    ));
+    let body = json!({
+        "movements": [
+            { "movement_id": 1, "counterparty_ff3_id": 42 },
+            { "movement_id": 2, "counterparty_ff3_id": 42, "tags": [] }
+        ]
+    });
+
+    let response = t
+        .app()
+        .oneshot(post_json("/api/imports/1/apply", body))
+        .await
+        .expect("request");
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let calls = t.firefly.created.lock().unwrap().clone();
+    let tags_of = |amount: i64| {
+        calls
+            .iter()
+            .find(|c| c.amount.as_i64() == amount)
+            .expect("call")
+            .tags
+            .clone()
+    };
+    assert_eq!(tags_of(-5000), vec!["ffm-import".to_string()]); // absent → default
+    assert_eq!(tags_of(3000), Vec::<String>::new()); // [] → exactly []
+}

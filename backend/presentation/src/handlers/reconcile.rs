@@ -264,8 +264,10 @@ pub struct ApplyMovementBody {
     pub category: Option<String>,
     #[serde(default)]
     pub budget: Option<String>,
+    /// Absent/`null` = the default creation tag (RF-19) is applied; a list,
+    /// even `[]`, is sent to Firefly III as-is and replaces the default (RF-08).
     #[serde(default)]
-    pub tags: Vec<String>,
+    pub tags: Option<Vec<String>>,
     #[serde(default)]
     pub notes: Option<String>,
     #[serde(default)]

@@ -598,7 +598,7 @@ fn ma_opt(movement_id: i64, counterparty_ff3_id: Option<i64>) -> MovementApply {
         description: None,
         category: None,
         budget: None,
-        tags: vec![],
+        tags: None,
         notes: None,
         attachment: None,
     }
@@ -616,7 +616,7 @@ async fn applies_per_movement_customization() {
             description: Some("Custom debit".into()),
             category: Some("Rent".into()),
             budget: Some("Housing".into()),
-            tags: vec!["tag-a".into()],
+            tags: Some(vec!["tag-a".into()]),
             notes: Some("note-1".into()),
             attachment: None,
         },
@@ -626,7 +626,7 @@ async fn applies_per_movement_customization() {
             description: None, // falls back to statement description
             category: Some("Income".into()),
             budget: None,
-            tags: vec![],
+            tags: None,
             notes: None,
             attachment: None,
         },
@@ -675,7 +675,7 @@ async fn origin_tag_appended_in_addition_to_user_tags() {
         description: None,
         category: None,
         budget: None,
-        tags: vec!["user-tag".into()],
+        tags: Some(vec!["user-tag".into()]),
         notes: None,
         attachment: None,
     }]);
@@ -709,7 +709,7 @@ async fn origin_trace_appended_below_user_notes() {
         description: None,
         category: None,
         budget: None,
-        tags: vec![],
+        tags: None,
         notes: Some("User note here".into()),
         attachment: None,
     }]);
@@ -734,7 +734,7 @@ async fn zero_amount_movement_fails_without_ff3_call() {
         description: None,
         category: None,
         budget: None,
-        tags: vec![],
+        tags: None,
         notes: None,
         attachment: None,
     }]);
@@ -760,7 +760,7 @@ async fn attachment_uploaded_after_creation() {
         description: None,
         category: None,
         budget: None,
-        tags: vec![],
+        tags: None,
         notes: None,
         attachment: Some(AttachmentPayload {
             filename: "receipt.pdf".into(),
@@ -792,7 +792,7 @@ async fn attachment_failure_does_not_fail_creation() {
         description: None,
         category: None,
         budget: None,
-        tags: vec![],
+        tags: None,
         notes: None,
         attachment: Some(AttachmentPayload {
             filename: "receipt.pdf".into(),
@@ -915,7 +915,7 @@ async fn apply_unknown_batch_or_movement_is_not_found() {
             description: None,
             category: None,
             budget: None,
-            tags: vec![],
+            tags: None,
             notes: None,
             attachment: None,
         }]))
@@ -960,4 +960,35 @@ async fn applies_without_counterparty_leaves_side_unset() {
     assert_eq!(credit.transaction_type, "deposit");
     assert_eq!(credit.source_ff3_id, None);
     assert_eq!(credit.destination_ff3_id, Some(7));
+}
+
+fn with_default_tag(f: &Fx, tag: &str) {
+    f.settings
+        .0
+        .lock()
+        .unwrap()
+        .as_mut()
+        .unwrap()
+        .default_creation_tag = Some(tag.into());
+}
+
+#[tokio::test]
+async fn absent_tags_use_default_creation_tag() {
+    let f = fx(vec![]);
+    with_default_tag(&f, "ffm-import");
+    f.uc()
+        .execute(f.input(vec![ma(1, 42)]))
+        .await
+        .expect("apply ok");
+    assert_eq!(f.firefly.calls()[0].tags, vec!["ffm-import".to_string()]);
+}
+
+#[tokio::test]
+async fn explicit_empty_tags_do_not_add_default_tag() {
+    let f = fx(vec![]);
+    with_default_tag(&f, "ffm-import");
+    let mut m = ma(1, 42);
+    m.tags = Some(vec![]);
+    f.uc().execute(f.input(vec![m])).await.expect("apply ok");
+    assert_eq!(f.firefly.calls()[0].tags, Vec::<String>::new());
 }

@@ -216,12 +216,11 @@ where
                 .map(str::to_string)
                 .unwrap_or_else(|| m.description.clone());
 
-            // ── Tags: default tag > user tags ─────────────────────────
-            let tags = if cust.tags.is_empty() {
-                default_tag.clone().into_iter().collect()
-            } else {
-                cust.tags.clone()
-            };
+            // ── Tags: user selection (even empty) > default tag ───────
+            let tags = cust
+                .tags
+                .clone()
+                .unwrap_or_else(|| default_tag.clone().into_iter().collect());
 
             // ── Notes: user note + origin trace (RF-11, configurable) ─────
             let origin_note = if enable_origin_trace {
