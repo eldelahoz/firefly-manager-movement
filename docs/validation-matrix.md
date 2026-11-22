@@ -164,7 +164,7 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 **Status:** implemented · **Last verified:** 2026-11-19 · **Spec @** `570f43e`
 
-> UX refresh (2026-11-19, no spec change): summary card with per-group counts, Missing/Extra/Matched tabs with count badges (Missing default when work remains), bulk bar, Ignored as a collapsible section on the Missing tab.
+> UX refresh (2026-11-19, no spec change): summary card with per-group counts, Missing/Extra/Matched tabs with count badges (Missing default when work remains), bulk bar, Ignored as a collapsible section under every tab.
 
 > v0.10 amendment: extras dated outside the statement `min..max` carry an `Outside period` badge and are excluded from the displayed extras count (persisted run snapshot count unchanged).
 
@@ -185,9 +185,11 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-08  Batch-create missing; edit description/category/budget/tags/attachment/notes
 
-**Status:** implemented · **Last verified:** 2026-11-19 · **Spec @** `ae8790d`
+**Status:** implemented (spec v0.9) · **Last verified:** 2026-11-22 · **Spec @** `8e4b287`
 
-> UX refresh (2026-11-19, no spec change): inline editor and bulk dialog replaced by one edit sheet (right side ≥ 900 px, bottom sheet below); Personalize / Create live in a selection bar. Bulk counterparty picker lists by direction: one direction → that side's accounts, mixed selection → none. Spec wording ("inline edit", "bulk panel") flagged for a possible clarification.
+> **v0.9 amendment delta (2026-11-22, wording only)**: "inline editing" / "bulk panel" → one edit sheet (single mode with Previous/Next, bulk mode with fill-only semantics). Re-verified against v0.9 criteria; gate green (e2e 159/159): E1 asserts the tags picker pre-filled with the default creation tag, E8 asserts bulk leaves each row's own category untouched.
+
+> UX refresh (2026-11-19): edit sheet (right side ≥ 900 px, bottom sheet below); Personalize / Create live in a selection bar. Bulk counterparty picker lists by direction: one direction → that side's accounts, mixed selection → none.
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -212,9 +214,12 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **FE** | `results-queue.spec.ts` Q4, Q5 | Selection bar only while rows are selected; Create → confirmation dialog → per-row outcomes, partial failure counted |
 | **FE** | `results-edit-sheet.spec.ts` E1–E4 | Edit sheet: prefilled from the statement, Save keeps fields locally until Create, unchanged description not stored, prev/next |
 | **FE** | `results-edit-sheet.spec.ts` E5–E7, E9, E10 | Dirty guard (Cancel / Next / Escape), focus return, sheet does not outlive the route, bottom sheet at 390 px |
+| **FE** | `results-edit-sheet.spec.ts` E11 (×2) | Create clears only the personalizations it consumed: unselected and failed rows keep theirs for a retry |
+| **FE** | `results-queue.spec.ts` Q5b | Confirmation dialog amounts use the batch currency |
+| **FE** | `results-ignore-undo.spec.ts` U13 | Create sends a row un-ignored while the results refetch keeps failing (dialog list = request) |
 | **FE** | `results-edit-sheet.spec.ts` E8, E8b, E8c | Bulk personalize: fill-only apply, no prev/next; counterparty listed by direction (same direction → that side, mixed → none) |
 | **FE** | `results-counterparty.spec.ts` | Single edit: deposit → revenue accounts, withdrawal → expense accounts |
-| **FE** | `settings-creation-defaults.spec.ts` S2 | Default creation tag setting saved (pre-fill of the tags picker in the sheet is not asserted) |
+| **FE** | `settings-creation-defaults.spec.ts` S2 | Default creation tag setting saved |
 | **FE** | `results-ignore-undo.spec.ts` U6 | Create shows no Undo (explicit confirmation kept, no optimistic create) |
 
 ---
@@ -235,9 +240,9 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-10  Manual ignore / un-ignore; dedicated table below the results
 
-**Status:** implemented · **Last verified:** 2026-11-19 · **Spec @** `d734652`
+**Status:** implemented · **Last verified:** 2026-11-22 · **Spec @** `d734652`
 
-> UX refresh (2026-11-19, no spec change): ignore is optimistic with an Undo toast; the Ignored table is a collapsible section (closed by default), shown on the Missing tab only. Spec wording "table below the results" is still met on the Missing tab; flagged for a possible clarification.
+> UX refresh (2026-11-19, no spec change): ignore is optimistic with an Undo toast; the Ignored table is a collapsible section (closed by default), shown under every tab.
 
 | Layer | Test | What it validates |
 | --- | --- | --- |
@@ -253,7 +258,9 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **FE** | `results-ignore-undo.spec.ts` U1, U2 | Ignore moves the row to the Ignored table before the server answers; Undo restores it and sends un-ignore |
 | **FE** | `results-ignore-undo.spec.ts` U3–U5, U8, U11 | Undo window (8 s); server error rolls back with no Undo; reduced motion; ordered ignore/un-ignore requests; failed refetch keeps state |
 | **FE** | `results-ignore-undo.spec.ts` U9, U10, U12 | Focus after ignore / Undo; ignoring every row keeps the Missing tab and the Ignored section |
-| **FE** | `results-queue.spec.ts` Q6 | Ignored is a collapsible section (closed by default, state remembered), shown on the Missing tab only |
+| **FE** | `results-queue.spec.ts` Q6 | Ignored is a collapsible section (closed by default, state remembered), shown under every tab |
+| **FE** | `results-queue.spec.ts` Q6b | Nothing missing: opens on Matched and the Ignored section is still there |
+| **FE** | `results-ignore-undo.spec.ts` U13 | Create sends a row un-ignored while the results refetch keeps failing |
 
 ---
 
@@ -524,8 +531,8 @@ All RFs are backend-implemented; FE now solo Playwright. `⏳` = pending Playwri
 | 04 | — | ✅ | ✅ | ✅ | ⏳/✅ | implemented (FE BrowseWidget ✅, resto pending) |
 | 05 | — | ✅ | ✅ | ✅ | — | implemented |
 | 06 | ✅ | ✅ | — | — | — | implemented |
-| 07 | ✅ | ✅ | ✅ | ✅ | ✅ | implemented (FE ✅ `results-queue`; `virtual-list` still pending) |
-| 08 | — | ✅ | ✅ | ✅ | ✅ | implemented (FE ✅ `results-edit-sheet`, `results-queue`) |
+| 07 | ✅ | ✅ | ✅ | ✅ | ⏳/✅ | implemented (FE ✅ `results-queue`; `virtual-list` still pending) |
+| 08 | — | ✅ | ✅ | ✅ | ✅ | implemented (spec v0.9; FE ✅ `results-edit-sheet`, `results-queue`) |
 | 09 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `imports-resume-delete`) |
 | 10 | — | ✅ | ✅ | ✅ | ✅ | implemented (FE ✅ `results-ignore-undo`, `results-queue` Q6) |
 | 11 | — | ✅ | — | — | ⏳ | implemented (FE pending `results-apply-personalize`) |
