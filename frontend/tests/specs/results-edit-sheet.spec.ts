@@ -31,14 +31,34 @@ const results = {
 
 type ApplyBody = { movements: Record<string, unknown>[] };
 
-async function setup(page: Page, missing = results.missing) {
+type Outcome = 'created' | 'failed';
+
+/** `outcomes` maps a movement id to its apply outcome; unlisted ids produce no report. */
+async function setup(
+  page: Page,
+  missing = results.missing,
+  outcomes: Record<number, Outcome> = {},
+) {
   await page.route('**/api/imports/1', (r) => r.fulfill({ json: detail }));
   await page.route('**/api/imports/1/results', (r) => r.fulfill({ json: { ...results, missing } }));
   const applied: ApplyBody[] = [];
   await page.route('**/api/imports/1/apply', async (r) => {
-    applied.push(r.request().postDataJSON() as ApplyBody);
+    const body = r.request().postDataJSON() as ApplyBody;
+    applied.push(body);
+    const reports = body.movements.flatMap((m) => {
+      const outcome = outcomes[m.movement_id as number];
+      return outcome
+        ? [{ movement_id: m.movement_id, outcome, ...(outcome === 'failed' && { reason: 'boom' }) }]
+        : [];
+    });
+    const count = (o: Outcome) => reports.filter((x) => x.outcome === o).length;
     await r.fulfill({
-      json: { reports: [], created_count: 0, already_created_count: 0, failed_count: 0 },
+      json: {
+        reports,
+        created_count: count('created'),
+        already_created_count: 0,
+        failed_count: count('failed'),
+      },
     });
   });
   await page.goto('/results/1');
@@ -92,9 +112,16 @@ test.describe('Results > edit sheet', () => {
     await expect(sheet(page).getByRole('textbox', { name: 'Description' })).toHaveValue('Book');
     await expect(sheet(page).getByRole('button', { name: 'Previous movement' })).toBeDisabled();
     await expect(sheet(page).getByRole('button', { name: 'Next movement' })).toBeEnabled();
+    // RF-08: the tags picker is pre-filled with the default creation tag
+    await expect(
+      sheet(page).getByRole('button', { name: 'ffm-import', pressed: true }),
+    ).toBeVisible();
+    await expect(
+      sheet(page).getByRole('button', { name: 'vacation', pressed: false }),
+    ).toBeVisible();
   });
 
-  test('E2 Save keeps the fields locally; they ride on the next Create', async ({ page }) => {
+  test('E2Save keeps the fields locally; they ride on the next Create', async ({ page }) => {
     const applied = await setup(page);
     await openBook(page);
     await sheet(page).getByRole('textbox', { name: 'Description' }).fill('Books');
@@ -189,6 +216,12 @@ test.describe('Results > edit sheet', () => {
     page,
   }) => {
     const applied = await setup(page);
+    // RF-08 "empty fields leave per-movement values untouched": Book already has its own category
+    await openBook(page);
+    await sheet(page).getByRole('combobox', { name: 'Category' }).click();
+    await page.getByRole('option', { name: 'Groceries' }).click();
+    await sheet(page).getByRole('button', { name: 'Save' }).click();
+    await expect(sheet(page)).toHaveCount(0);
     await page.getByRole('checkbox', { name: 'Select all' }).check();
     await page
       .getByRole('toolbar', { name: 'Selection' })
@@ -206,7 +239,43 @@ test.describe('Results > edit sheet', () => {
     expect(applied[0].movements).toHaveLength(2);
     for (const m of applied[0].movements) expect(m).toMatchObject({ notes: 'bulk' });
     for (const m of applied[0].movements) expect(m).not.toHaveProperty('description');
+    const byId = (id: number) => applied[0].movements.find((m) => m.movement_id === id);
+    expect(byId(12), 'Book keeps its own category').toMatchObject({ category: 'Groceries' });
+    expect(byId(13), 'Salary had none').not.toHaveProperty('category');
   });
+
+  // Create must clear only the personalizations it consumed (reviewer #3).
+  for (const [name, outcome] of [
+    ['a row that was not selected', undefined],
+    ['a row that failed', 'failed'],
+  ] as const) {
+    test(`E11 Create keeps the personalization of ${name}`, async ({ page }) => {
+      const applied = await setup(
+        page,
+        results.missing,
+        outcome ? { 13: outcome } : { 12: 'created' },
+      );
+      for (const [row, note] of [
+        ['Book', 'nb'],
+        ['Salary', 'ns'],
+      ]) {
+        await editBtn(page, row).click();
+        await sheet(page).getByRole('textbox', { name: 'Notes' }).fill(note);
+        await sheet(page).getByRole('button', { name: 'Save' }).click();
+        await expect(sheet(page)).toHaveCount(0);
+      }
+      // 1st Create: Book only, or Salary only when it is the one that fails
+      await createSelected(page, outcome ? 'Salary' : 'Book');
+      await expect.poll(() => applied.length).toBe(1);
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+
+      // 2nd Create: Salary was not created, so it carries its notes again
+      await createSelected(page, 'Salary');
+      await expect.poll(() => applied.length).toBe(2);
+      expect(applied[1].movements).toHaveLength(1);
+      expect(applied[1].movements[0]).toMatchObject({ movement_id: 13, notes: 'ns' });
+    });
+  }
 
   for (const [name, rows, expected, hidden] of [
     [

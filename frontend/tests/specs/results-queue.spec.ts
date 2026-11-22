@@ -165,7 +165,24 @@ test.describe('Results > review queue', () => {
     await expect(summary(page).locator('[data-group="failed"]')).toHaveText('1 failed');
   });
 
-  test('Q6 Ignored is a collapsible, closed by default, remembered, Missing tab only', async ({
+  test('Q5b the confirm dialog shows amounts in the batch currency, not a fixed EUR', async ({
+    page,
+  }) => {
+    await mockResults(page);
+    // registered after mockResults, so it wins: same batch, statement currency COP
+    await page.route('**/api/imports/1', (r) =>
+      r.fulfill({ json: { ...detail, batch: { ...detail.batch, currency: 'COP' } } }),
+    );
+    await page.goto('/results/1');
+    await page.getByRole('row').filter({ hasText: 'Book' }).getByRole('checkbox').check();
+    await page.getByRole('button', { name: 'Create in Firefly III (1)' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('Book');
+    await expect(dialog).toContainText(/99(?:[.,]00)?\s*COP/);
+    await expect(dialog).not.toContainText(/EUR|€/);
+  });
+
+  test('Q6 Ignored is a collapsible, closed by default, remembered, shown under every tab', async ({
     page,
   }) => {
     await mockResults(page);
@@ -181,8 +198,31 @@ test.describe('Results > review queue', () => {
     await expect(
       page.getByRole('table', { name: 'Ignored' }).getByText('Internal transfer'),
     ).toBeVisible();
-    await page.getByRole('tab', { name: /Extra/ }).click();
-    await expect(ignoredSection(page)).toHaveCount(0);
+    for (const tab of [/Extra/, /Matched/, /Missing/]) {
+      await page.getByRole('tab', { name: tab }).click();
+      await expect(ignoredSection(page).locator('summary')).toHaveText('Ignored (1)');
+      await expect(
+        page.getByRole('table', { name: 'Ignored' }).getByText('Internal transfer'),
+      ).toBeVisible();
+    }
+  });
+
+  test('Q6b nothing missing: opens on Matched and the Ignored section is still there', async ({
+    page,
+  }) => {
+    await mockResults(page, { ...results, missing: [] });
+    await page.goto('/results/1');
+    await expect(page.getByRole('tab', { name: /Matched/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(ignoredSection(page).locator('summary')).toHaveText('Ignored (1)');
+    await ignoredSection(page).locator('summary').click();
+    await expect(
+      page.getByRole('table', { name: 'Ignored' }).getByText('Internal transfer'),
+    ).toBeVisible();
+    // the tab's own rows stay scoped to the tabpanel, apart from the Ignored table
+    await expect(page.getByRole('tabpanel').getByText('Internal transfer')).toHaveCount(0);
   });
 
   test('Q7 skeleton while results load', async ({ page }) => {

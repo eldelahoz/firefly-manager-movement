@@ -31,19 +31,30 @@ const DUP = {
   created_at: '2026-08-03T00:00:00Z',
 };
 
-type Opts = { ignoreStatus?: number; ignoreDelayMs?: number; failResultsAfterIgnore?: boolean };
+type Opts = {
+  ignoreStatus?: number;
+  ignoreDelayMs?: number;
+  failResultsAfterIgnore?: boolean;
+  /** Book starts in Ignored instead of Missing. */
+  bookIgnored?: boolean;
+};
 
 /** Stateful results mock: POST ignore moves a movement between missing/ignored like the backend. */
 async function mockResults(page: Page, opts: Opts = {}) {
-  const state = { missing: [BOOK, SALARY], ignored: [] as (typeof BOOK)[], extra: [DUP] };
+  const state = opts.bookIgnored
+    ? { missing: [SALARY], ignored: [{ ...BOOK, status: 'ignored' }], extra: [DUP] }
+    : { missing: [BOOK, SALARY], ignored: [] as (typeof BOOK)[], extra: [DUP] };
   const posts: { id: number; ignored: boolean }[] = [];
+  const failedGets = { count: 0 };
   await page.route('**/api/imports/1', (r) => r.fulfill({ json: detail }));
   let ignoreSeen = false;
-  await page.route('**/api/imports/1/results', (r) =>
-    opts.failResultsAfterIgnore && ignoreSeen
-      ? r.fulfill({ status: 500, json: { error: 'boom' } })
-      : r.fulfill({ json: { ...fixtures.results, matched: [], ...state } }),
-  );
+  await page.route('**/api/imports/1/results', (r) => {
+    if (opts.failResultsAfterIgnore && ignoreSeen) {
+      failedGets.count++;
+      return r.fulfill({ status: 500, json: { error: 'boom' } });
+    }
+    return r.fulfill({ json: { ...fixtures.results, matched: [], ...state } });
+  });
   await page.route('**/api/imports/1/movements/*/ignore', async (route) => {
     const id = Number(
       route
@@ -65,7 +76,7 @@ async function mockResults(page: Page, opts: Opts = {}) {
     to.push({ ...m, status: ignored ? 'ignored' : 'missing' });
     await route.fulfill({ json: { id, status: ignored ? 'ignored' : 'missing' } });
   });
-  return { state, posts };
+  return { state, posts, failedGets };
 }
 
 // Scoped to the open tab: the Ignored section below also lists the row once it moves.
@@ -238,6 +249,45 @@ test.describe('Results > optimistic ignore + Undo', () => {
     await expect(
       (await openIgnored(page)).getByRole('row').filter({ hasText: 'Book' }),
     ).toBeVisible();
+  });
+
+  test('U13 Create sends a row un-ignored while the results refetch keeps failing', async ({
+    page,
+  }) => {
+    const { failedGets } = await mockResults(page, {
+      bookIgnored: true,
+      failResultsAfterIgnore: true,
+    });
+    const applied: { movements: { movement_id: number }[] }[] = [];
+    await page.route('**/api/imports/1/apply', async (r) => {
+      applied.push(r.request().postDataJSON());
+      await r.fulfill({
+        json: {
+          reports: [{ movement_id: 12, outcome: 'created', ff3_id: 99 }],
+          created_count: 1,
+          already_created_count: 0,
+          failed_count: 0,
+        },
+      });
+    });
+    await page.goto('/results/1');
+    await page.getByRole('tab', { name: /Missing/ }).click();
+    await (
+      await openIgnored(page)
+    )
+      .getByRole('row')
+      .filter({ hasText: 'Book' })
+      .getByRole('button', { name: 'Un-ignore' })
+      .click();
+    await expect(row(page, 'Book')).toBeVisible();
+    await expect.poll(() => failedGets.count, { message: 'the refetch failed' }).toBeGreaterThan(0);
+    await row(page, 'Book').getByRole('checkbox').check();
+    await page.getByRole('button', { name: /Create in Firefly III \(1\)/ }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('Book');
+    await dialog.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect.poll(() => applied.length).toBe(1);
+    expect(applied[0].movements.map((m) => m.movement_id)).toEqual([12]);
   });
 
   test('U12 ignoring every missing row keeps the Missing tab selected and the Ignored section', async ({
