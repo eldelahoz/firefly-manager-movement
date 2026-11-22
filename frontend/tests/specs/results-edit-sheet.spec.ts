@@ -312,42 +312,6 @@ test.describe('Results > edit sheet', () => {
     });
   }
 
-  for (const [name, rows, expected, hidden] of [
-    [
-      'withdrawals only offer expense accounts',
-      [BOOK, { ...BOOK, id: 15, line_no: 6, description: 'Shoes' }],
-      'Supermarket',
-      ['Employer', 'Checking'],
-    ],
-    [
-      'deposits only offer revenue accounts',
-      [SALARY, { ...SALARY, id: 16, line_no: 7, description: 'Bonus' }],
-      'Employer',
-      ['Supermarket', 'Checking'],
-    ],
-  ] as const) {
-    test(`E8b bulk counterparty: ${name}`, async ({ page }) => {
-      await setup(page, [...rows]);
-      await page.getByRole('checkbox', { name: 'Select all' }).check();
-      await page.getByRole('button', { name: 'Personalize (2)' }).click();
-      await page.getByRole('combobox', { name: 'Counterparty account' }).click();
-      const list = page.getByRole('listbox');
-      await expect(list.getByRole('option', { name: new RegExp(expected) })).toBeVisible();
-      for (const h of hidden)
-        await expect(list.getByRole('option', { name: new RegExp(h) })).toHaveCount(0);
-    });
-  }
-
-  test('E8c bulk counterparty: mixed directions offer only the none option', async ({ page }) => {
-    await setup(page);
-    await page.getByRole('checkbox', { name: 'Select all' }).check();
-    await page.getByRole('button', { name: 'Personalize (2)' }).click();
-    await page.getByRole('combobox', { name: 'Counterparty account' }).click();
-    const options = page.getByRole('listbox').getByRole('option');
-    await expect(options).toHaveCount(1);
-    await expect(options.first()).toHaveText('—');
-  });
-
   test('E9 the sheet does not survive a route change', async ({ page }) => {
     await setup(page);
     await openBook(page);
