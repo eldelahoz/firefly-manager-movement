@@ -123,28 +123,26 @@ export function ResultsPage() {
   const defaultTag = settings.data?.default_creation_tag ?? null;
 
   const apply = useMutation({
-    mutationFn: async () => {
-      const missing = results.data?.missing ?? [];
+    // Ids are exactly the rows the confirm dialog lists; the backend rejects any that is no longer missing.
+    mutationFn: async (ids: number[]) => {
       const movements = await Promise.all(
-        selected
-          .filter((sid) => missing.some((m) => m.id === sid))
-          .map(async (sid) => {
-            const c = customizations[sid] ?? {};
-            const payload: ApplyMovementRequest = { movement_id: sid };
-            if (c.counterpartyId != null) payload.counterparty_ff3_id = c.counterpartyId;
-            if (c.description) payload.description = c.description;
-            if (c.category) payload.category = c.category;
-            if (c.budget) payload.budget = c.budget;
-            if (c.tags) payload.tags = c.tags;
-            if (c.notes) payload.notes = c.notes;
-            if (c.attachment) {
-              payload.attachment = {
-                filename: c.attachment.filename,
-                content_base64: await fileToBase64(c.attachment.file),
-              };
-            }
-            return payload;
-          }),
+        ids.map(async (sid) => {
+          const c = customizations[sid] ?? {};
+          const payload: ApplyMovementRequest = { movement_id: sid };
+          if (c.counterpartyId != null) payload.counterparty_ff3_id = c.counterpartyId;
+          if (c.description) payload.description = c.description;
+          if (c.category) payload.category = c.category;
+          if (c.budget) payload.budget = c.budget;
+          if (c.tags) payload.tags = c.tags;
+          if (c.notes) payload.notes = c.notes;
+          if (c.attachment) {
+            payload.attachment = {
+              filename: c.attachment.filename,
+              content_base64: await fileToBase64(c.attachment.file),
+            };
+          }
+          return payload;
+        }),
       );
       return postApply(id, { movements });
     },
@@ -165,7 +163,12 @@ export function ResultsPage() {
       void qc.invalidateQueries({ queryKey: queryKeys.imports });
       setReports({ batchId: id, items: res.reports });
       setSelected([]);
-      setCustomizations({});
+      // Keep edits of failed rows so a retry sends them again; unselected rows were never in reports.
+      setCustomizations((prev) => {
+        const next = { ...prev };
+        for (const r of res.reports) if (r.outcome !== 'failed') delete next[r.movement_id];
+        return next;
+      });
       setConfirmOpen(false);
     },
     onError: (e) => toast.error(e.message),
@@ -530,40 +533,38 @@ export function ResultsPage() {
           )}
         </TabsContent>
       </Tabs>
-      {activeTab === 'missing' && (
-        <section aria-label={t('results.ignored')}>
-          <details
-            open={ignoredOpen}
-            onToggle={(e) => toggleIgnoredSection(e.currentTarget.open)}
-            className="ffm-disclosure"
-          >
-            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-md px-2 text-sm font-semibold text-text-2 hover:text-text-1">
-              <ChevronRight className="ffm-chevron size-4" aria-hidden="true" />
-              {t('results.ignored')} ({ignoredRows.length})
-            </summary>
-            {/* Rows mount only when open, so closed rows are never focus or view-transition targets. */}
-            {ignoredOpen &&
-              (ignoredRows.length === 0 ? (
-                <p className="px-2 py-3 text-sm text-text-3">{t('results.ignoredEmpty')}</p>
-              ) : (
-                <div role="table" aria-label={t('results.ignored')} className={TABLE_WRAPPER}>
-                  <TableHeader group="ignored" />
-                  {ignoredRows.map((m, i) => (
-                    <IgnoredRow
-                      key={m.id}
-                      movement={m}
-                      currency={currency}
-                      isLast={i === ignoredRows.length - 1}
-                      onUnignore={() =>
-                        toggleIgnore({ mid: m.id, ignored: false, description: m.description })
-                      }
-                    />
-                  ))}
-                </div>
-              ))}
-          </details>
-        </section>
-      )}
+      <section aria-label={t('results.ignored')}>
+        <details
+          open={ignoredOpen}
+          onToggle={(e) => toggleIgnoredSection(e.currentTarget.open)}
+          className="ffm-disclosure"
+        >
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-md px-2 text-sm font-semibold text-text-2 hover:text-text-1">
+            <ChevronRight className="ffm-chevron size-4" aria-hidden="true" />
+            {t('results.ignored')} ({ignoredRows.length})
+          </summary>
+          {/* Rows mount only when open, so closed rows are never focus or view-transition targets. */}
+          {ignoredOpen &&
+            (ignoredRows.length === 0 ? (
+              <p className="px-2 py-3 text-sm text-text-3">{t('results.ignoredEmpty')}</p>
+            ) : (
+              <div role="table" aria-label={t('results.ignored')} className={TABLE_WRAPPER}>
+                <TableHeader group="ignored" />
+                {ignoredRows.map((m, i) => (
+                  <IgnoredRow
+                    key={m.id}
+                    movement={m}
+                    currency={currency}
+                    isLast={i === ignoredRows.length - 1}
+                    onUnignore={() =>
+                      toggleIgnore({ mid: m.id, ignored: false, description: m.description })
+                    }
+                  />
+                ))}
+              </div>
+            ))}
+        </details>
+      </section>
       {editingMovement && (
         <EditSheet
           movement={editingMovement}
@@ -602,8 +603,9 @@ export function ResultsPage() {
           filename={detail.data?.batch.filename ?? ''}
           movements={movementSummaries}
           accounts={allAccounts}
+          currency={currency}
           pending={apply.isPending}
-          onConfirm={() => apply.mutate()}
+          onConfirm={() => apply.mutate(movementSummaries.map((m) => m.id))}
           onClose={() => setConfirmOpen(false)}
         />
       )}

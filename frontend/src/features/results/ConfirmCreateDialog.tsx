@@ -12,6 +12,7 @@ export function ConfirmCreateDialog({
   filename,
   movements,
   accounts,
+  currency,
   pending,
   onConfirm,
   onClose,
@@ -26,6 +27,7 @@ export function ConfirmCreateDialog({
     customization: Customization;
   }[];
   accounts: Ff3Account[];
+  currency: string;
   pending: boolean;
   onConfirm: () => void;
   onClose: () => void;
@@ -56,7 +58,7 @@ export function ConfirmCreateDialog({
             return (
               <div key={m.id} className="border-b border-border-subtle pb-2 text-sm">
                 <p className="truncate font-medium">{m.description}</p>
-                <MoneyText cents={m.amountCents} currency="EUR" />
+                <MoneyText cents={m.amountCents} currency={currency} />
                 {cpName && <p className="text-text-2">→ {cpName}</p>}
                 {c.category && <p className="text-text-3">Category: {c.category}</p>}
                 {c.budget && <p className="text-text-3">Budget: {c.budget}</p>}
