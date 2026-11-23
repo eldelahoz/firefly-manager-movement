@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `f29667b` · TRD `04a32ca` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `b4bb47b` · TRD `04a32ca` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 >
 > **Legend**
 >
@@ -602,28 +602,28 @@ cd ../frontend && pnpm lint && pnpm build && pnpm e2e
 
 ---
 
-## Coverage Summary (as of 2026-11-19; RF-01/07/08/10/18 refreshed, rest 2026-09-09 — purge Vitest, solo Playwright)
+## Coverage Summary (as of 2026-11-22; RF-01/04/05/06/07/08/10/12/14/16/18 refreshed, rest 2026-09-09 — purge Vitest, solo Playwright)
 
 All RFs are backend-implemented; FE now solo Playwright. `⏳` = pending Playwright gap (see plan 2026-09-09).
 
 | RF | Domain | App | Infra | Pres | FE | Status |
 | --- | :---: | :---: | :---: | :---: | :---: | --- |
-| 01 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `imports-upload-mapping-reconcile`) |
+| 01 | — | ✅ | ✅ | ✅ | ✅ | implemented (FE ✅ `import-wizard` W3–W5, W19, W20, `import-wizard-refresh` N1, N6, R1–R5) |
 | 02 | ✅ | ✅ | ✅ | ✅ | ✅ | implemented (spec v0.8 — date format DF1–DF5) |
 | 03 | — | ✅ | ✅ | — | — | implemented |
-| 04 | — | ✅ | ✅ | ✅ | ⏳/✅ | implemented (FE BrowseWidget ✅, resto pending) |
-| 05 | — | ✅ | ✅ | ✅ | — | implemented |
-| 06 | ✅ | ✅ | — | — | — | implemented |
-| 07 | ✅ | ✅ | ✅ | ✅ | ⏳/✅ | implemented (FE ✅ `results-queue`; `virtual-list` still pending) |
+| 04 | — | ✅ | ✅ | ✅ | ✅ | implemented (FE ✅ `import-wizard` W7, W12, W23, `dashboard-browse`) |
+| 05 | — | ✅ | ✅ | ✅ | ✅ | implemented (FE ✅ `import-wizard` W6/W24/W25) |
+| 06 | ✅ | ✅ | — | — | ✅ | implemented (FE ✅ `import-wizard` W6/W24/W25) |
+| 07 | ✅ | ✅ | ✅ | ✅ | ⏳/✅ | implemented (spec v0.11; FE ✅ `results-queue`, `results-counterparty-display` D1–D3; `virtual-list` still pending) |
 | 08 | ✅ | ✅ | ✅ | ✅ | ✅ | implemented (spec v0.11; FE ✅ `results-edit-sheet`, `results-queue`, `results-counterparty-suggestions`) |
 | 09 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `imports-resume-delete`) |
 | 10 | — | ✅ | ✅ | ✅ | ✅ | implemented (FE ✅ `results-ignore-undo`, `results-queue` Q6) |
 | 11 | — | ✅ | — | — | ⏳ | implemented (FE pending `results-apply-personalize`) |
-| 12 | — | ✅ | — | — | ⏳ | implemented (FE pending `imports-upload-mapping-reconcile`) |
+| 12 | — | ✅ | — | — | ✅ | implemented (FE ✅ `import-wizard` W7) |
 | 13 | — | ✅ | — | ✅ | ⏳ | implemented (FE pending `imports-upload-mapping-reconcile`) |
-| 14 | — | ✅ | ✅ | ✅ | ✅ | implemented (FE ✅ `dashboard-browse` 6 tests) |
+| 14 | — | ✅ | ✅ | ✅ | ✅ | implemented (spec v0.2; FE ✅ `dashboard-browse` 6 tests, `results-counterparty-display` D4, D5) |
 | 15 | ✅ | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `browse-delete-duplicate`) |
-| 16 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `imports-upload-mapping-reconcile`) |
+| 16 | — | ✅ | ✅ | ✅ | ✅ | implemented (FE ✅ `import-wizard` W4, `import-wizard-refresh` R2, R3) |
 | 17 | — | ✅ | — | ✅ | ⏳ | implemented (FE pending `imports-resume-delete`) |
 | 18 | — | ✅ | — | — | ✅ | implemented (FE ✅ `import-wizard` W12–W22, `import-wizard-refresh` N4, `dashboard-needs-you` D3) |
 | 19 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `settings-*`) |

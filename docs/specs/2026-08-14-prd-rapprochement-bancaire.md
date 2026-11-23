@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Project | firefly-manager-movement |
-| Version | 0.11 |
+| Version | 0.12 |
 | Created | 2026-08-14 |
 | Last modified | 2026-11-18 |
 | Author | A. Delahoz |
@@ -256,6 +256,8 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 
 > **Amendment (v0.11, 2026-11-18) — SQLite and single image (NFR-01, NFR-03)**: the database moves from MySQL to an embedded **SQLite** file, and the application ships as **one Docker image** (API + UI on one port, data on a volume). Firefly III stays an existing external instance (RF-19). Consequence for RF-16: the case-insensitive filename check folds ASCII letters only (TRD v0.10). No user-visible feature changes otherwise.
 
+> **Amendment (v0.12, 2026-11-22) — idempotency wording (NFR-05)**: the reliability row now matches NFR-05 v0.1: creations are idempotent per movement through a stable `external_id` per file line, a per-account recovery search before creating, and a failure after Firefly III accepted the creation never produces a duplicate. No other requirement changes.
+
 ## 6. Non-functional requirements
 
 Each requirement ID links to its detailed specification under [`requirements/`](./requirements/).
@@ -266,7 +268,7 @@ Each requirement ID links to its detailed specification under [`requirements/`](
 | [NFR-02](./requirements/nfr-02-security.md) | **Security**: the Firefly III connection (URL + API token) is configured in the app settings and stored backend-side only (never exposed to the browser). No banking data is sent to a third-party service. |
 | [NFR-03](./requirements/nfr-03-privacy.md) | **Privacy**: self-hosted only; no telemetry; the only outbound calls go to Firefly III. |
 | [NFR-04](./requirements/nfr-04-performance.md) | **Performance**: reconciliation of a 1,000-movement statement < 5 s (excluding Firefly III API latency). |
-| [NFR-05](./requirements/nfr-05-idempotency.md) | **Reliability**: creations in Firefly III are idempotent per batch+movement (no double creation on retry). |
+| [NFR-05](./requirements/nfr-05-idempotency.md) | **Reliability**: creations in Firefly III are idempotent per movement: stable per-line `external_id`, recovery by account before creating, and a failure after creation never duplicates (v0.1). |
 | [NFR-06](./requirements/nfr-06-amount-integrity.md) | **Amounts**: handled as integers (cents) or exact decimals, never floats. |
 | [NFR-07](./requirements/nfr-07-observability.md) | **Observability**: structured logs of imports, reconciliations and creations. |
 | [NFR-08](./requirements/nfr-08-internationalization.md) | **Internationalization**: UI in French, English and Spanish (default: English); amounts and dates formatted per locale. |

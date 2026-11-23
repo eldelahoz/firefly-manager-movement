@@ -428,12 +428,14 @@ test.describe('Dashboard > BrowseWidget', () => {
 
     // The max of from input should be before end date
     const maxAttr = await dashboard.fromInput.getAttribute('max');
+    expect(maxAttr).not.toBeNull();
     expect(maxAttr).toBeTruthy();
-    expect(maxAttr < today || maxAttr === today).toBeTruthy();
+    expect(maxAttr! <= today).toBe(true);
 
     // The min of to input should be after start date
     const minAttr = await dashboard.toInput.getAttribute('min');
+    expect(minAttr).not.toBeNull();
     expect(minAttr).toBeTruthy();
-    expect(minAttr > fromValue || minAttr === fromValue).toBeTruthy();
+    expect(minAttr! >= fromValue).toBe(true);
   });
 });
