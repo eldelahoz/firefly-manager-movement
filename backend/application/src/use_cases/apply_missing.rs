@@ -1,12 +1,14 @@
 use crate::dtos::{
-    ApplyMissingInput, ExternalIdHit, MovementApply, NewCreation, NewFf3TransactionCreation,
-    ReconciliationRun, RunFf3Transaction, RunMatch,
+    ApplyMissingInput, CounterpartyMemoryEntry, CounterpartyRef, ExternalIdHit, MovementApply,
+    NewCreation, NewFf3TransactionCreation, ReconciliationRun, RunFf3Transaction, RunMatch,
 };
 use crate::error::ApplicationError;
 use crate::ports::{
-    AppSettingsRepository, BatchRepository, CreationRepository, Ff3AccountRepository,
-    Ff3TransactionRepository, MatchRepository, MovementRepository, ReconciliationRepository,
+    AppSettingsRepository, BatchRepository, CounterpartySuggestionRepository, CreationRepository,
+    Ff3AccountRepository, Ff3TransactionRepository, MatchRepository, MovementRepository,
+    ReconciliationRepository,
 };
+use ffm_domain::description_key::description_key;
 use ffm_domain::ids::{Ff3TransactionId, MovementId, ReconciliationId};
 use ffm_domain::transaction_kind::{
     transaction_kind, AccountRef, BatchSide, Counterparty, Direction, TransactionKind,
@@ -68,7 +70,8 @@ pub struct RunPorts<R, M, T> {
 }
 
 /// Use case: batch-create selected missing transactions in Firefly III.
-pub struct ApplyMissing<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings> {
+pub struct ApplyMissing<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings, Memory>
+{
     firefly: Firefly,
     accounts: Accounts,
     batches: Batches,
@@ -76,11 +79,14 @@ pub struct ApplyMissing<Firefly, Accounts, Batches, Movements, Creations, R, M, 
     creations: Creations,
     run_ports: RunPorts<R, M, T>,
     settings: Settings,
+    memory: Memory,
 }
 
-impl<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings>
-    ApplyMissing<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings>
+impl<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings, Memory>
+    ApplyMissing<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings, Memory>
 {
+    // One port per dependency; RunPorts already groups the confirmation-run ones.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         firefly: Firefly,
         accounts: Accounts,
@@ -89,6 +95,7 @@ impl<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings>
         creations: Creations,
         run_ports: RunPorts<R, M, T>,
         settings: Settings,
+        memory: Memory,
     ) -> Self {
         Self {
             firefly,
@@ -98,12 +105,13 @@ impl<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings>
             creations,
             run_ports,
             settings,
+            memory,
         }
     }
 }
 
-impl<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings>
-    ApplyMissing<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings>
+impl<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings, Memory>
+    ApplyMissing<Firefly, Accounts, Batches, Movements, Creations, R, M, T, Settings, Memory>
 where
     Firefly: crate::ports::FireflyClient,
     Accounts: Ff3AccountRepository,
@@ -114,6 +122,7 @@ where
     M: MatchRepository,
     T: Ff3TransactionRepository,
     Settings: AppSettingsRepository,
+    Memory: CounterpartySuggestionRepository,
 {
     /// The movement turns `matched` in `save_run`, atomically with its pair.
     async fn record_creation(
@@ -351,7 +360,12 @@ where
                 (Some(id), None) => self.accounts.by_ff3_id(id).await?,
                 _ => None,
             };
+            let explicit_cash = cust.counterparty_cash;
             let counterparty = match (cust.counterparty_ff3_id, new_name, &cached) {
+                (Some(_), _, _) | (_, Some(_), _) if explicit_cash => Err(
+                    "send counterparty_cash alone, without counterparty_ff3_id or counterparty_name"
+                        .to_string(),
+                ),
                 (Some(_), Some(_), _) => Ok(Counterparty::IdAndName),
                 (Some(id), None, None) => Err(format!(
                     "counterparty {id} is not a known account; reload the account list"
@@ -385,6 +399,23 @@ where
                     });
                     continue;
                 }
+            };
+            // What this creation teaches (RF-08 v0.11); resolved errors were skipped above.
+            // Only an explicit choice teaches; sending nothing is Cash without learning.
+            let mut used = match (&cached, new_name) {
+                (Some(a), _) => Some(CounterpartyRef {
+                    ff3_id: Some(a.ff3_id),
+                    name: Some(a.name.clone()),
+                    cash: false,
+                }),
+                (None, Some(n)) => Some(CounterpartyRef {
+                    name: Some(n.to_string()),
+                    ..Default::default()
+                }),
+                (None, None) => explicit_cash.then(|| CounterpartyRef {
+                    cash: true,
+                    ..Default::default()
+                }),
             };
             let name = new_name.map(str::to_string);
             let (source, destination, source_name, destination_name) = match batch_side {
@@ -451,22 +482,46 @@ where
                         continue;
                     }
                     // The counterparty is the side opposite to the batch account.
-                    created_counterparties.push(match batch_side {
-                        BatchSide::Source => (created.destination_name, created.destination_type),
-                        BatchSide::Destination => (created.source_name, created.source_type),
-                    });
+                    let (cp_id, cp_name, cp_type) = match batch_side {
+                        BatchSide::Source => (
+                            created.destination_id,
+                            created.destination_name,
+                            created.destination_type,
+                        ),
+                        BatchSide::Destination => {
+                            (created.source_id, created.source_name, created.source_type)
+                        }
+                    };
+                    created_counterparties.push((cp_name, cp_type));
                     created_ff3_ids.push(ff3_id);
                     successful_movement_ids.push(m.id);
 
+                    let mut warnings = Vec::new();
+                    // ── Remember the counterparty (non-blocking) ───
+                    let desc_key = description_key(&m.description);
+                    if let Some(mut used) = used.take().filter(|_| !desc_key.is_empty()) {
+                        if used.name.is_some() && used.ff3_id.is_none() {
+                            used.ff3_id = cp_id;
+                        }
+                        let entry = CounterpartyMemoryEntry {
+                            account_ff3_id,
+                            direction: Direction::from_cents(m.amount_cents.as_i64()),
+                            desc_key,
+                            counterparty: used,
+                        };
+                        if let Err(e) = self.memory.remember(entry).await {
+                            warnings.push(format!("counterparty not remembered: {e}"));
+                        }
+                    }
+
                     // ── Attachment (non-blocking on failure) ───────
-                    let mut reason = None;
                     if let Some(att) = &cust.attachment {
                         if let Err(e) = self
                             .firefly
                             .attach_to_transaction(ff3_id, &att.filename, &att.content_base64)
                             .await
                         {
-                            reason = Some(format!("attachment failed: {e}"));
+                            warnings.push(format!("attachment failed: {e}"));
                         }
                     }
 
@@ -474,7 +529,7 @@ where
                         movement_id: m.id,
                         outcome: ApplyOutcome::Created,
                         ff3_id: Some(ff3_id),
-                        reason,
+                        reason: (!warnings.is_empty()).then(|| warnings.join("; ")),
                         transaction_type: Some(kind),
                     });
                 }

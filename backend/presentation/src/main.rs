@@ -8,6 +8,7 @@ use ffm_infrastructure::persistence::migrations::run_migrations;
 use ffm_infrastructure::persistence::pool::create_pool;
 use ffm_infrastructure::persistence::repositories::app_settings::SqliteAppSettingsRepository;
 use ffm_infrastructure::persistence::repositories::batch::SqliteBatchRepository;
+use ffm_infrastructure::persistence::repositories::counterparty_suggestion::SqliteCounterpartySuggestionRepository;
 use ffm_infrastructure::persistence::repositories::creation::SqliteCreationRepository;
 use ffm_infrastructure::persistence::repositories::csv_mapping::SqliteCsvMappingRepository;
 use ffm_infrastructure::persistence::repositories::deleted_audit::SqliteDeletedAuditRepository;
@@ -72,6 +73,8 @@ async fn main() {
     let ff3_transactions = Arc::new(SqliteFf3TransactionRepository::new(pool.clone()));
     let creations = Arc::new(SqliteCreationRepository::new(pool.clone()));
     let deleted_audits = Arc::new(SqliteDeletedAuditRepository::new(pool.clone()));
+    let counterparty_suggestions =
+        Arc::new(SqliteCounterpartySuggestionRepository::new(pool.clone()));
 
     let state = AppState {
         firefly: firefly.clone(),
@@ -85,6 +88,7 @@ async fn main() {
         ff3_transactions,
         creations,
         deleted_audits,
+        counterparty_suggestions,
         ff3_health_probe,
         app_settings,
         firefly_manager,

@@ -297,3 +297,34 @@ impl<T: FireflyClientFactory + ?Sized> FireflyClientFactory for Arc<T> {
         self.as_ref().build(ff3_url, ff3_token)
     }
 }
+
+#[async_trait]
+impl<T: super::CounterpartySuggestionRepository + ?Sized> super::CounterpartySuggestionRepository
+    for Arc<T>
+{
+    async fn remember(
+        &self,
+        entry: crate::dtos::CounterpartyMemoryEntry,
+    ) -> Result<(), ApplicationError> {
+        self.as_ref().remember(entry).await
+    }
+    async fn learned(
+        &self,
+        account_ff3_id: i64,
+    ) -> Result<Vec<crate::dtos::CounterpartyMemoryEntry>, ApplicationError> {
+        self.as_ref().learned(account_ff3_id).await
+    }
+    async fn save_history(
+        &self,
+        batch_id: BatchId,
+        suggestions: Vec<(MovementId, crate::dtos::CounterpartyRef)>,
+    ) -> Result<(), ApplicationError> {
+        self.as_ref().save_history(batch_id, suggestions).await
+    }
+    async fn history_by_batch(
+        &self,
+        batch_id: BatchId,
+    ) -> Result<HashMap<MovementId, crate::dtos::CounterpartyRef>, ApplicationError> {
+        self.as_ref().history_by_batch(batch_id).await
+    }
+}

@@ -1,5 +1,6 @@
 pub mod app_settings;
 pub mod batch;
+pub mod counterparty_suggestion;
 pub mod creation;
 pub mod csv_mapping;
 pub mod deleted_audit;

@@ -10,6 +10,7 @@ mod arc_impls;
 
 mod audit;
 mod clock;
+mod counterparty;
 mod firefly;
 mod imports;
 mod reconciliation;
@@ -17,6 +18,7 @@ mod settings;
 
 pub use audit::DeletedAuditRepository;
 pub use clock::Clock;
+pub use counterparty::{CounterpartySuggestionRepository, InMemoryCounterpartySuggestions};
 pub use firefly::{Ff3AccountRepository, FireflyClient};
 pub use imports::{BatchRepository, CsvDecoder, CsvMappingRepository, MovementRepository};
 pub use reconciliation::{

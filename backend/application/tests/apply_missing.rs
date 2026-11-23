@@ -10,18 +10,21 @@ use ffm_application::dtos::{
 };
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::{
-    BatchRepository, CreationRepository, Ff3AccountRepository, Ff3TransactionRepository,
-    FireflyClient, MatchRepository, MovementRepository, ReconciliationRepository,
+    BatchRepository, CounterpartySuggestionRepository, CreationRepository, Ff3AccountRepository,
+    Ff3TransactionRepository, FireflyClient, InMemoryCounterpartySuggestions, MatchRepository,
+    MovementRepository, ReconciliationRepository,
 };
 use ffm_application::use_cases::app_settings::FakeSettings;
 use ffm_application::use_cases::apply_missing::{ApplyMissing, ApplyOutcome, RunPorts};
 
+use ffm_application::dtos::CounterpartyRef;
 use ffm_domain::entities::{
     Batch, Creation, Ff3Account, Ff3Transaction, Match, Movement, Reconciliation,
 };
 use ffm_domain::ids::{
     BatchId, CreationId, Ff3AccountId, Ff3TransactionId, MatchId, MovementId, ReconciliationId,
 };
+use ffm_domain::transaction_kind::Direction;
 use ffm_domain::value_objects::{AmountCents, BatchStatus, MovementStatus};
 
 // ── Fakes ───────────────────────────────────────────────────────────────
@@ -97,6 +100,8 @@ impl FireflyClient for FakeFirefly {
         self.created.lock().unwrap().push(creation);
         Ok(ffm_application::dtos::CreatedFf3Transaction {
             ff3_id: 500 + *id,
+            source_id: Some(70),
+            destination_id: Some(80),
             source_name: Some("S".into()),
             source_type: Some("Loan".into()),
             destination_name: Some("D".into()),
@@ -540,6 +545,7 @@ struct Fx {
     runs: Arc<FakeRunStore>,
     batches: Arc<FakeBatchRepo>,
     settings: Arc<FakeSettings>,
+    memory: Arc<InMemoryCounterpartySuggestions>,
 }
 
 fn fx(fail_amounts: Vec<i64>) -> Fx {
@@ -553,6 +559,7 @@ fn fx(fail_amounts: Vec<i64>) -> Fx {
         ]),
     });
     Fx {
+        memory: Arc::new(InMemoryCounterpartySuggestions::default()),
         firefly: Arc::new(FakeFirefly {
             accounts: vec![],
             created: Mutex::new(vec![]),
@@ -644,7 +651,7 @@ impl Ff3AccountRepository for StaticAccounts {
     }
 }
 
-type ApplyUc = ApplyMissing<
+type ApplyUc<Mem = Arc<InMemoryCounterpartySuggestions>> = ApplyMissing<
     Arc<dyn FireflyClient>,
     Arc<dyn Ff3AccountRepository>,
     Arc<FakeBatchRepo>,
@@ -654,10 +661,15 @@ type ApplyUc = ApplyMissing<
     Arc<FakeRunStore>,
     Arc<FakeRunStore>,
     Arc<FakeSettings>,
+    Mem,
 >;
 
 impl Fx {
     fn uc(&self) -> ApplyUc {
+        self.uc_with(self.memory.clone())
+    }
+
+    fn uc_with<Mem>(&self, memory: Mem) -> ApplyUc<Mem> {
         ApplyMissing::new(
             self.firefly.clone() as Arc<dyn FireflyClient>,
             Arc::new(StaticAccounts) as Arc<dyn Ff3AccountRepository>,
@@ -670,6 +682,7 @@ impl Fx {
                 ff3_transactions: self.runs.clone(),
             },
             self.settings.clone(),
+            memory,
         )
     }
 
@@ -690,6 +703,7 @@ fn ma_opt(movement_id: i64, counterparty_ff3_id: Option<i64>) -> MovementApply {
         movement_id: MovementId::new(movement_id),
         counterparty_ff3_id,
         counterparty_name: None,
+        counterparty_cash: false,
         description: None,
         category: None,
         budget: None,
@@ -709,6 +723,7 @@ async fn applies_per_movement_customization() {
             movement_id: MovementId::new(1),
             counterparty_ff3_id: Some(10),
             counterparty_name: None,
+            counterparty_cash: false,
             description: Some("Custom debit".into()),
             category: Some("Rent".into()),
             budget: Some("Housing".into()),
@@ -720,6 +735,7 @@ async fn applies_per_movement_customization() {
             movement_id: MovementId::new(2),
             counterparty_ff3_id: Some(20),
             counterparty_name: None,
+            counterparty_cash: false,
             description: None, // falls back to statement description
             category: Some("Income".into()),
             budget: None,
@@ -770,6 +786,7 @@ async fn origin_tag_appended_in_addition_to_user_tags() {
         movement_id: MovementId::new(1),
         counterparty_ff3_id: Some(42),
         counterparty_name: None,
+        counterparty_cash: false,
         description: None,
         category: None,
         budget: None,
@@ -805,6 +822,7 @@ async fn origin_trace_appended_below_user_notes() {
         movement_id: MovementId::new(1),
         counterparty_ff3_id: Some(42),
         counterparty_name: None,
+        counterparty_cash: false,
         description: None,
         category: None,
         budget: None,
@@ -831,6 +849,7 @@ async fn zero_amount_movement_fails_without_ff3_call() {
         movement_id: MovementId::new(4),
         counterparty_ff3_id: Some(42),
         counterparty_name: None,
+        counterparty_cash: false,
         description: None,
         category: None,
         budget: None,
@@ -858,6 +877,7 @@ async fn attachment_uploaded_after_creation() {
         movement_id: MovementId::new(1),
         counterparty_ff3_id: Some(42),
         counterparty_name: None,
+        counterparty_cash: false,
         description: None,
         category: None,
         budget: None,
@@ -891,6 +911,7 @@ async fn attachment_failure_does_not_fail_creation() {
         movement_id: MovementId::new(1),
         counterparty_ff3_id: Some(42),
         counterparty_name: None,
+        counterparty_cash: false,
         description: None,
         category: None,
         budget: None,
@@ -1015,6 +1036,7 @@ async fn apply_unknown_batch_or_movement_is_not_found() {
             movement_id: MovementId::new(777),
             counterparty_ff3_id: Some(42),
             counterparty_name: None,
+            counterparty_cash: false,
             description: None,
             category: None,
             budget: None,
@@ -1157,7 +1179,7 @@ async fn new_name_sends_destination_or_source_name_without_id() {
     let f = fx(vec![]);
     let result = f
         .uc()
-        .execute(f.input(vec![named(1, " Pexto "), named(2, "Employer")]))
+        .execute(f.input(vec![named(1, " Corner Shop "), named(2, "Employer")]))
         .await
         .expect("apply ok");
     assert_eq!(result.created_count, 2);
@@ -1169,7 +1191,7 @@ async fn new_name_sends_destination_or_source_name_without_id() {
     assert_eq!(debit.transaction_type, "withdrawal");
     assert_eq!(debit.source_ff3_id, Some(7));
     assert_eq!(debit.destination_ff3_id, None);
-    assert_eq!(debit.destination_name.as_deref(), Some("Pexto"));
+    assert_eq!(debit.destination_name.as_deref(), Some("Corner Shop"));
     assert_eq!(debit.source_name, None);
     let credit = calls.iter().find(|c| c.amount.as_i64() == 3000).unwrap();
     assert_eq!(credit.transaction_type, "deposit");
@@ -1234,7 +1256,7 @@ async fn rejected_counterparty_fails_that_movement_only_and_retry_creates_it() {
 #[tokio::test]
 async fn invalid_counterparties_are_rejected_before_firefly() {
     let both = MovementApply {
-        counterparty_name: Some("Pexto".into()),
+        counterparty_name: Some("Corner Shop".into()),
         ..ma(1, 10)
     };
     let cases = [
@@ -1684,4 +1706,193 @@ async fn recovered_tx_not_in_cache_gets_counterparty_from_the_search() {
         .expect("cached");
     assert_eq!(tx.counterparty_name.as_deref(), Some("Shop"));
     assert_eq!(tx.counterparty_type.as_deref(), Some("Expense account"));
+}
+
+// ── Counterparty memory (RF-08 v0.11) ───────────────────────────────────
+
+fn learned(f: &Fx) -> Vec<(ffm_application::dtos::CounterpartyMemoryEntry, i64)> {
+    f.memory.learned.lock().unwrap().clone()
+}
+
+fn cp(ff3_id: Option<i64>, name: Option<&str>, cash: bool) -> CounterpartyRef {
+    CounterpartyRef {
+        ff3_id,
+        name: name.map(Into::into),
+        cash,
+    }
+}
+
+#[tokio::test]
+async fn creation_with_an_existing_account_is_remembered_by_id_and_name() {
+    let f = fx(vec![]);
+    f.uc()
+        .execute(f.input(vec![ma(1, 10)]))
+        .await
+        .expect("apply ok");
+    let entries = learned(&f);
+    assert_eq!(entries.len(), 1);
+    let (e, uses) = &entries[0];
+    assert_eq!(e.account_ff3_id, 7);
+    assert_eq!(e.direction, Direction::Out);
+    assert_eq!(e.desc_key, "m1");
+    assert_eq!(e.counterparty, cp(Some(10), Some("acc 10"), false));
+    assert_eq!(*uses, 1);
+}
+
+#[tokio::test]
+async fn creation_by_new_name_is_remembered_with_the_id_firefly_returned() {
+    let f = fx(vec![]);
+    // Money out: Firefly III created the destination (id 80 in the fake).
+    f.uc()
+        .execute(f.input(vec![named(1, " Corner Shop ")]))
+        .await
+        .expect("apply ok");
+    assert_eq!(
+        learned(&f)[0].0.counterparty,
+        cp(Some(80), Some("Corner Shop"), false)
+    );
+}
+
+#[tokio::test]
+async fn creation_with_cash_is_remembered_as_cash_for_money_in() {
+    let f = fx(vec![]);
+    let explicit_cash = MovementApply {
+        counterparty_cash: true,
+        ..ma_opt(2, None)
+    };
+    f.uc()
+        .execute(f.input(vec![explicit_cash]))
+        .await
+        .expect("apply ok");
+    let (e, _) = &learned(&f)[0];
+    assert_eq!(e.direction, Direction::In);
+    assert_eq!(e.counterparty, cp(None, None, true));
+}
+
+#[tokio::test]
+async fn failed_already_created_or_recovered_movements_teach_nothing() {
+    let f = fx(vec![-5000]);
+    // m1 fails in Firefly III.
+    f.uc()
+        .execute(f.input(vec![ma(1, 10)]))
+        .await
+        .expect("apply ok");
+    assert!(learned(&f).is_empty());
+
+    // m2 is created once (learns), then retried (already created: no new use).
+    f.uc()
+        .execute(f.input(vec![ma(2, 20)]))
+        .await
+        .expect("apply ok");
+    f.uc()
+        .execute(f.input(vec![ma(2, 20)]))
+        .await
+        .expect("apply ok");
+    assert_eq!(learned(&f).len(), 1);
+    assert_eq!(learned(&f)[0].1, 1);
+
+    // A line recovered by external_id teaches nothing either.
+    let g = fx(vec![]);
+    g.firefly
+        .stored
+        .lock()
+        .unwrap()
+        .push((7, hit(&format!("{PREFIX}1"), 900)));
+    g.uc()
+        .execute(g.input(vec![ma(1, 10)]))
+        .await
+        .expect("apply ok");
+    assert!(learned(&g).is_empty());
+}
+
+#[tokio::test]
+async fn no_counterparty_is_created_as_cash_but_teaches_nothing() {
+    let f = fx(vec![]);
+    let result = f
+        .uc()
+        .execute(f.input(vec![ma_opt(1, None)]))
+        .await
+        .expect("apply ok");
+    assert_eq!(result.reports[0].outcome, ApplyOutcome::Created);
+    let call = &f.firefly.calls()[0];
+    assert_eq!(call.transaction_type, "withdrawal");
+    assert_eq!(
+        (call.destination_ff3_id, call.destination_name.as_deref()),
+        (None, None)
+    );
+    assert!(learned(&f).is_empty());
+}
+
+#[tokio::test]
+async fn explicit_cash_with_an_id_or_a_name_fails_that_movement() {
+    let f = fx(vec![]);
+    let with_id = MovementApply {
+        counterparty_cash: true,
+        ..ma(1, 10)
+    };
+    let with_name = MovementApply {
+        counterparty_cash: true,
+        ..named(2, "Employer")
+    };
+    let result = f
+        .uc()
+        .execute(f.input(vec![with_id, with_name]))
+        .await
+        .expect("apply ok");
+    assert!(result
+        .reports
+        .iter()
+        .all(|r| r.outcome == ApplyOutcome::Failed
+            && r.reason.as_deref().unwrap().contains("counterparty_cash")));
+    assert!(f.firefly.calls().is_empty());
+    assert!(learned(&f).is_empty());
+}
+
+struct FailingMemory;
+
+#[async_trait]
+impl CounterpartySuggestionRepository for FailingMemory {
+    async fn remember(
+        &self,
+        _entry: ffm_application::dtos::CounterpartyMemoryEntry,
+    ) -> Result<(), ApplicationError> {
+        Err(ApplicationError::Database("disk full".into()))
+    }
+    async fn learned(
+        &self,
+        _account_ff3_id: i64,
+    ) -> Result<Vec<ffm_application::dtos::CounterpartyMemoryEntry>, ApplicationError> {
+        unimplemented!()
+    }
+    async fn save_history(
+        &self,
+        _batch_id: BatchId,
+        _suggestions: Vec<(MovementId, CounterpartyRef)>,
+    ) -> Result<(), ApplicationError> {
+        unimplemented!()
+    }
+    async fn history_by_batch(
+        &self,
+        _batch_id: BatchId,
+    ) -> Result<std::collections::HashMap<MovementId, CounterpartyRef>, ApplicationError> {
+        unimplemented!()
+    }
+}
+
+#[tokio::test]
+async fn a_failing_memory_still_creates_and_reports_the_warning() {
+    let f = fx(vec![]);
+    let result = f
+        .uc_with(FailingMemory)
+        .execute(f.input(vec![ma(1, 10)]))
+        .await
+        .expect("apply ok");
+    let report = &result.reports[0];
+    assert_eq!(report.outcome, ApplyOutcome::Created);
+    assert!(report
+        .reason
+        .as_deref()
+        .unwrap()
+        .contains("counterparty not remembered: "));
+    assert_eq!(result.created_count, 1);
 }

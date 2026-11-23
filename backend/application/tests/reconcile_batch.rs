@@ -4,14 +4,15 @@ use std::sync::{Arc, Mutex};
 use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 
+use ffm_application::dtos::CounterpartyRef;
 use ffm_application::dtos::{
     About, Ff3AccountDto, Ff3SplitDto, Ff3TransactionDto, NewBatch, NewFf3Account,
     NewFf3TransactionCreation, NewMovement, ReconciliationRun,
 };
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::{
-    BatchRepository, Ff3AccountRepository, FireflyClient, MovementRepository,
-    ReconciliationRepository,
+    BatchRepository, CounterpartySuggestionRepository, Ff3AccountRepository, FireflyClient,
+    InMemoryCounterpartySuggestions, MovementRepository, ReconciliationRepository,
 };
 use ffm_application::use_cases::reconcile_batch::{ReconcileBatch, ReconcileBatchInput};
 
@@ -27,9 +28,16 @@ fn epoch() -> NaiveDateTime {
         .naive_utc()
 }
 
+/// `(start, end)` of each `account_transactions` call.
+type Calls = Arc<Mutex<Vec<(Option<NaiveDate>, Option<NaiveDate>)>>>;
+
 struct FakeFireflyClient {
     accounts: Vec<Ff3AccountDto>,
     transactions: Vec<Ff3TransactionDto>,
+    /// Returned for calls starting before the window (the history lookback);
+    /// `None` = that call fails.
+    history: Option<Vec<Ff3TransactionDto>>,
+    calls: Calls,
 }
 
 #[async_trait]
@@ -51,9 +59,16 @@ impl FireflyClient for FakeFireflyClient {
     async fn account_transactions(
         &self,
         _account_ff3_id: i64,
-        _start: Option<NaiveDate>,
-        _end: Option<NaiveDate>,
+        start: Option<NaiveDate>,
+        end: Option<NaiveDate>,
     ) -> Result<Vec<Ff3TransactionDto>, ApplicationError> {
+        self.calls.lock().unwrap().push((start, end));
+        if start < Some(d(2026, 1, 1)) {
+            return self
+                .history
+                .clone()
+                .ok_or_else(|| ApplicationError::FireflyClient("FF3 500".into()));
+        }
         Ok(self.transactions.clone())
     }
     async fn create_transaction(
@@ -391,6 +406,7 @@ fn tx(ff3_id: i64, date: NaiveDate, cents: i64) -> Ff3TransactionDto {
         amount_cents: AmountCents::new(cents),
         description: format!("tx{ff3_id}"),
         splits: vec![],
+        counterparty_ff3_id: None,
         counterparty_name: Some(format!("cp{ff3_id}")),
         counterparty_type: Some("Expense account".into()),
     }
@@ -403,6 +419,9 @@ struct Fixture {
     ff3_accounts: Arc<FakeFf3AccountRepo>,
     reconciliations: Arc<FakeReconciliationRepo>,
     firefly_transactions: Arc<Mutex<Vec<Ff3TransactionDto>>>,
+    firefly_history: Arc<Mutex<Option<Vec<Ff3TransactionDto>>>>,
+    firefly_calls: Calls,
+    suggestions: Arc<InMemoryCounterpartySuggestions>,
 }
 
 type ReconcileUc = ReconcileBatch<
@@ -411,6 +430,7 @@ type ReconcileUc = ReconcileBatch<
     Arc<FakeBatchRepo>,
     Arc<FakeMovementRepo>,
     Arc<FakeReconciliationRepo>,
+    Arc<InMemoryCounterpartySuggestions>,
 >;
 
 impl Fixture {
@@ -421,6 +441,7 @@ impl Fixture {
             self.batches.clone(),
             self.movements.clone(),
             self.reconciliations.clone(),
+            self.suggestions.clone(),
         )
     }
 
@@ -437,6 +458,8 @@ impl Fixture {
                 liability_type: None,
             }],
             transactions: self.firefly_transactions.lock().unwrap().clone(),
+            history: self.firefly_history.lock().unwrap().clone(),
+            calls: self.firefly_calls.clone(),
         })
     }
 
@@ -513,6 +536,9 @@ fn fixture_eur() -> Fixture {
         ff3_accounts,
         reconciliations,
         firefly_transactions,
+        firefly_history: Arc::new(Mutex::new(Some(vec![]))),
+        firefly_calls: Arc::new(Mutex::new(vec![])),
+        suggestions: Arc::new(InMemoryCounterpartySuggestions::default()),
     }
 }
 
@@ -726,6 +752,7 @@ fn split_tx(ff3_id: i64, splits: &[(i64, NaiveDate, i64)]) -> Ff3TransactionDto 
                 description: format!("split{journal_id}"),
             })
             .collect(),
+        counterparty_ff3_id: None,
         counterparty_name: None,
         counterparty_type: None,
     }
@@ -814,4 +841,85 @@ async fn reconcile_matches_split_group_total_first() {
         saved_pairs(&f),
         HashSet::from([(1, 101, 0), (2, 102, 0), (4, 400, 0)])
     );
+}
+
+// ── Firefly III history suggestions (RF-08 v0.11) ───────────────────────
+
+fn past(
+    ff3_id: i64,
+    date: NaiveDate,
+    cents: i64,
+    desc: &str,
+    cp: Option<i64>,
+    cp_type: &str,
+) -> Ff3TransactionDto {
+    Ff3TransactionDto {
+        description: desc.into(),
+        counterparty_ff3_id: cp,
+        counterparty_name: cp.map(|id| format!("acc {id}")),
+        counterparty_type: Some(cp_type.into()),
+        ..tx(ff3_id, date, cents)
+    }
+}
+
+fn by_id(id: i64) -> CounterpartyRef {
+    CounterpartyRef {
+        ff3_id: Some(id),
+        name: Some(format!("acc {id}")),
+        cash: false,
+    }
+}
+
+#[tokio::test]
+async fn reconcile_stores_the_most_used_history_counterparty_of_each_missing_movement() {
+    let f = fixture_eur();
+    // Only m1 matches: m2 (money out, "m2") and m4 (money in, "m4") are missing.
+    *f.firefly_transactions.lock().unwrap() = vec![tx(101, d(2026, 1, 5), 12340)];
+    let e = "Expense account";
+    *f.firefly_history.lock().unwrap() = Some(vec![
+        // m2: Shop (10) twice beats Other (11) once, whatever the reference.
+        past(201, d(2025, 10, 1), -100, "M2 20251001", Some(10), e),
+        past(202, d(2025, 11, 1), -900, "m2.", Some(10), e),
+        past(203, d(2025, 12, 1), -100, "m2", Some(11), e),
+        // Cash, the batch account itself and the other direction never count.
+        past(204, d(2025, 12, 2), -100, "m2", Some(1), "Cash account"),
+        past(205, d(2025, 12, 3), -100, "m2", Some(1), "Cash account"),
+        past(206, d(2025, 12, 4), -100, "m2", Some(7), "Asset account"),
+        past(207, d(2025, 12, 5), -100, "m2", Some(7), "Asset account"),
+        past(208, d(2025, 12, 6), 100, "m2", Some(20), "Revenue account"),
+        past(209, d(2025, 12, 7), 100, "m2", Some(20), "Revenue account"),
+        // m4: a tie goes to the most recent transaction.
+        past(210, d(2025, 9, 1), 100, "m4", Some(30), "Revenue account"),
+        past(211, d(2025, 10, 1), 100, "m4", Some(31), "Revenue account"),
+        // No counterparty on that side: ignored.
+        past(212, d(2025, 10, 2), 100, "m4", None, "Revenue account"),
+    ]);
+
+    f.uc().execute(f.input()).await.expect("reconcile ok");
+
+    let history = f.suggestions.history_by_batch(f.batch_id).await.unwrap();
+    assert_eq!(history.len(), 2, "{history:?}");
+    assert_eq!(history[&MovementId::new(2)], by_id(10));
+    assert_eq!(history[&MovementId::new(4)], by_id(31));
+    // Lookback: [window_end - 180 days, window_end].
+    assert!(f
+        .firefly_calls
+        .lock()
+        .unwrap()
+        .contains(&(Some(d(2025, 8, 4)), Some(d(2026, 1, 31)))));
+}
+
+#[tokio::test]
+async fn failed_history_read_keeps_the_previous_history_suggestions() {
+    let f = fixture_eur();
+    // An earlier reconcile stored a history suggestion for m4.
+    f.suggestions
+        .save_history(f.batch_id, vec![(MovementId::new(4), by_id(31))])
+        .await
+        .unwrap();
+    *f.firefly_history.lock().unwrap() = None;
+    let result = f.uc().execute(f.input()).await.expect("reconcile ok");
+    assert_eq!(result.missing_count, 1);
+    let history = f.suggestions.history_by_batch(f.batch_id).await.unwrap();
+    assert_eq!(history.get(&MovementId::new(4)), Some(&by_id(31)));
 }

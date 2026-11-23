@@ -251,6 +251,7 @@ fn default_txs() -> Vec<Ff3TransactionDto> {
             amount_cents: AmountCents::new(12340),
             description: "tx101".into(),
             splits: vec![],
+            counterparty_ff3_id: None,
             counterparty_name: Some("Employer".into()),
             counterparty_type: Some("Revenue account".into()),
         },
@@ -260,6 +261,7 @@ fn default_txs() -> Vec<Ff3TransactionDto> {
             amount_cents: AmountCents::new(-5000),
             description: "tx102".into(),
             splits: vec![],
+            counterparty_ff3_id: None,
             counterparty_name: None,
             counterparty_type: None,
         },
@@ -269,6 +271,7 @@ fn default_txs() -> Vec<Ff3TransactionDto> {
             amount_cents: AmountCents::new(-5000),
             description: "tx103".into(),
             splits: vec![],
+            counterparty_ff3_id: None,
             counterparty_name: None,
             counterparty_type: None,
         },
@@ -278,6 +281,7 @@ fn default_txs() -> Vec<Ff3TransactionDto> {
             amount_cents: AmountCents::new(9900),
             description: "tx104".into(),
             splits: vec![],
+            counterparty_ff3_id: None,
             counterparty_name: None,
             counterparty_type: None,
         },
@@ -353,6 +357,9 @@ fn test_app(transactions: Vec<Ff3TransactionDto>) -> TestApp {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -441,6 +448,12 @@ async fn reconcile_endpoint_returns_counts_and_results_three_groups() {
     let missing = json["missing"].as_array().expect("missing");
     assert_eq!(missing.len(), 1);
     assert_eq!(missing[0]["id"], 4);
+    // RF-08 v0.11: present and null when there is nothing to suggest.
+    assert!(missing[0]
+        .as_object()
+        .unwrap()
+        .contains_key("suggested_counterparty"));
+    assert!(missing[0]["suggested_counterparty"].is_null());
 
     let extra = json["extra"].as_array().expect("extra");
     assert_eq!(extra.len(), 2);
@@ -473,6 +486,7 @@ async fn reconcile_rerun_updates_results() {
             amount_cents: AmountCents::new(777),
             description: "tx105".into(),
             splits: vec![],
+            counterparty_ff3_id: None,
             counterparty_name: None,
             counterparty_type: None,
         });
@@ -658,4 +672,99 @@ async fn results_include_ignored_movements() {
     // Ignoring never removes the movement from the missing group's source
     // data — the status filter keeps it out of `missing` only.
     assert_eq!(json["missing"].as_array().expect("missing").len(), 0);
+}
+
+// ── Counterparty suggestions (RF-08 v0.11) ──────────────────────────────
+
+async fn results_json(t: &TestApp) -> serde_json::Value {
+    let response = t
+        .app()
+        .oneshot(post_json("/api/imports/1/reconcile", reconcile_body()))
+        .await
+        .expect("request");
+    assert_eq!(response.status(), StatusCode::OK);
+    let response = t
+        .app()
+        .oneshot(
+            Request::get("/api/imports/1/results")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("request");
+    assert_eq!(response.status(), StatusCode::OK);
+    read_json(response).await
+}
+
+#[tokio::test]
+async fn results_suggest_the_learned_counterparty_of_a_missing_movement() {
+    use ffm_application::ports::CounterpartySuggestionRepository;
+    let t = test_app(default_txs());
+    // Movement 4 is money in with description "m4", on Firefly III account 7.
+    t.state
+        .counterparty_suggestions
+        .remember(ffm_application::dtos::CounterpartyMemoryEntry {
+            account_ff3_id: 7,
+            direction: ffm_domain::transaction_kind::Direction::In,
+            desc_key: "m4".into(),
+            counterparty: ffm_application::dtos::CounterpartyRef {
+                cash: true,
+                ..Default::default()
+            },
+        })
+        .await
+        .unwrap();
+
+    let json = results_json(&t).await;
+    assert_eq!(
+        json["missing"][0]["suggested_counterparty"],
+        json!({ "cash": true, "source": "learned" })
+    );
+}
+
+#[tokio::test]
+async fn results_suggest_the_history_counterparty_with_its_id_even_when_not_cached() {
+    let mut txs = default_txs();
+    txs.push(Ff3TransactionDto {
+        ff3_id: 150,
+        date: d(2025, 12, 1),
+        amount_cents: AmountCents::new(500),
+        description: "M4".into(),
+        splits: vec![],
+        counterparty_ff3_id: Some(20),
+        counterparty_name: Some("Refund".into()),
+        counterparty_type: Some("Revenue account".into()),
+    });
+    let t = test_app(txs);
+
+    let json = results_json(&t).await;
+    assert_eq!(
+        json["missing"][0]["suggested_counterparty"],
+        json!({ "ff3_id": 20, "name": "Refund", "cash": false, "source": "history" })
+    );
+}
+
+#[tokio::test]
+async fn openapi_documents_the_suggested_counterparty() {
+    let t = test_app(default_txs());
+    let response = t
+        .app()
+        .oneshot(
+            Request::get("/api-docs/openapi.json")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .expect("request");
+    let doc = read_json(response).await;
+    let schemas = &doc["components"]["schemas"];
+    let suggestion = &schemas["SuggestedCounterpartyResponse"]["properties"];
+    for field in ["ff3_id", "name", "cash", "source"] {
+        assert!(
+            suggestion.get(field).is_some(),
+            "missing {field}: {suggestion}"
+        );
+    }
+    let missing = schemas["MissingMovementResponse"].to_string();
+    assert!(missing.contains("suggested_counterparty"), "{missing}");
 }

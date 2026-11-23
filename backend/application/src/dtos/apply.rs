@@ -16,6 +16,9 @@ pub struct MovementApply {
     pub counterparty_ff3_id: Option<i64>,
     /// New expense (money out) or revenue (money in) account, created by name.
     pub counterparty_name: Option<String>,
+    /// Cash chosen explicitly: booked like no counterparty, but learned
+    /// (RF-08 v0.11). Implicit Cash (nothing sent) teaches nothing.
+    pub counterparty_cash: bool,
     pub description: Option<String>,
     pub category: Option<String>,
     pub budget: Option<String>,

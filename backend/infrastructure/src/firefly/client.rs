@@ -130,6 +130,10 @@ struct CreationAttributes {
 #[derive(Deserialize)]
 struct CreatedSplit {
     #[serde(default)]
+    source_id: Option<String>,
+    #[serde(default)]
+    destination_id: Option<String>,
+    #[serde(default)]
     source_name: Option<String>,
     #[serde(default)]
     source_type: Option<String>,
@@ -203,14 +207,20 @@ struct AttachmentCreateData {
     id: String,
 }
 
+type Counterparty = (Option<i64>, Option<String>, Option<String>);
+
+fn parse_id(id: Option<&str>) -> Option<i64> {
+    id.and_then(|i| i.parse().ok())
+}
+
 /// A transaction group collapsed into a single movement for one account.
 struct SplitAggregate {
     date: NaiveDate,
     signed_cents: i64,
     description: String,
     splits: Vec<Ff3SplitDto>,
-    /// (name, type) of the opposite account; `None` when splits disagree.
-    counterparty: Option<(Option<String>, Option<String>)>,
+    /// (id, name, type) of the opposite account; `None` when splits disagree.
+    counterparty: Option<Counterparty>,
 }
 
 // ── Client ─────────────────────────────────────────────────────────────
@@ -281,7 +291,7 @@ impl ReqwestFireflyClient {
         let mut dates: Vec<NaiveDate> = Vec::with_capacity(splits.len());
         let mut descriptions: Vec<String> = Vec::new();
         let mut kept: Vec<Ff3SplitDto> = Vec::new();
-        let mut counterparties: Vec<(Option<String>, Option<String>)> = Vec::new();
+        let mut counterparties: Vec<Counterparty> = Vec::new();
 
         for split in splits {
             let is_source = split.source_id.as_deref() == Some(account_id_str);
@@ -326,11 +336,16 @@ impl ReqwestFireflyClient {
             // The counterparty is the side opposite to the queried account.
             counterparties.push(match (is_source, is_destination) {
                 (true, _) => (
+                    parse_id(split.destination_id.as_deref()),
                     split.destination_name.clone(),
                     split.destination_type.clone(),
                 ),
-                (false, true) => (split.source_name.clone(), split.source_type.clone()),
-                (false, false) => (None, None),
+                (false, true) => (
+                    parse_id(split.source_id.as_deref()),
+                    split.source_name.clone(),
+                    split.source_type.clone(),
+                ),
+                (false, false) => (None, None, None),
             });
             total_cents += signed;
             dates.push(date);
@@ -517,7 +532,7 @@ impl FireflyClient for ReqwestFireflyClient {
                 let ff3_id = group.id.parse::<i64>().map_err(|e| {
                     ApplicationError::Parse(format!("invalid FF3 transaction id: {e}"))
                 })?;
-                let (counterparty_name, counterparty_type) =
+                let (counterparty_ff3_id, counterparty_name, counterparty_type) =
                     aggregate.counterparty.unwrap_or_default();
                 all.push(Ff3TransactionDto {
                     ff3_id,
@@ -525,6 +540,7 @@ impl FireflyClient for ReqwestFireflyClient {
                     amount_cents: AmountCents::new(aggregate.signed_cents),
                     description: aggregate.description,
                     splits: aggregate.splits,
+                    counterparty_ff3_id,
                     counterparty_name,
                     counterparty_type,
                 });
@@ -632,6 +648,8 @@ impl FireflyClient for ReqwestFireflyClient {
         Ok(match split {
             Some(s) => CreatedFf3Transaction {
                 ff3_id,
+                source_id: parse_id(s.source_id.as_deref()),
+                destination_id: parse_id(s.destination_id.as_deref()),
                 source_name: s.source_name,
                 source_type: s.source_type,
                 destination_name: s.destination_name,

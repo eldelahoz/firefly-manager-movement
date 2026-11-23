@@ -240,7 +240,7 @@ async fn save_run_persists_whole_run_atomically() {
                 amount_cents: AmountCents::new(12340),
                 description: "lunch ff3".into(),
                 is_duplicate: false,
-                counterparty_name: Some("Planautos S A".into()),
+                counterparty_name: Some("Acme Motors".into()),
                 counterparty_type: Some("Expense account".into()),
             },
             RunFf3Transaction {
@@ -289,7 +289,7 @@ async fn save_run_persists_whole_run_atomically() {
     assert_eq!(mts[0].movement_id, lunch.id);
     let lunch_tx = txs.iter().find(|t| t.ff3_id == 101).unwrap();
     assert_eq!(mts[0].ff3_transaction_id, lunch_tx.id);
-    assert_eq!(lunch_tx.counterparty_name.as_deref(), Some("Planautos S A"));
+    assert_eq!(lunch_tx.counterparty_name.as_deref(), Some("Acme Motors"));
     assert_eq!(
         lunch_tx.counterparty_type.as_deref(),
         Some("Expense account")

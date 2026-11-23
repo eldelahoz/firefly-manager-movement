@@ -132,6 +132,9 @@ fn make_state_with_env(
         env_defaults,
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
     }
 }
 

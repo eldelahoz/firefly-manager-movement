@@ -145,6 +145,7 @@ fn live(ff3_id: i64) -> Ff3TransactionDto {
         amount_cents: AmountCents::new(-100),
         description: format!("tx{ff3_id}"),
         splits: vec![],
+        counterparty_ff3_id: None,
         counterparty_name: None,
         counterparty_type: None,
     }

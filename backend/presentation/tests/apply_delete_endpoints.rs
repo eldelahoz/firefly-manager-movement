@@ -399,6 +399,9 @@ async fn test_app(fail_amounts: Vec<i64>) -> TestApp {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -731,4 +734,36 @@ async fn apply_endpoint_absent_tags_use_default_explicit_empty_does_not() {
     };
     assert_eq!(tags_of(-5000), vec!["ffm-import".to_string()]); // absent → default
     assert_eq!(tags_of(3000), Vec::<String>::new()); // [] → exactly []
+}
+
+#[tokio::test]
+async fn apply_endpoint_learns_only_explicit_cash_and_rejects_cash_with_an_id() {
+    use ffm_application::ports::CounterpartySuggestionRepository;
+    let t = test_app(vec![]).await;
+    let body = json!({
+        "movements": [
+            { "movement_id": 1, "counterparty_ff3_id": 42, "counterparty_cash": true },
+            { "movement_id": 2, "counterparty_cash": true }
+        ]
+    });
+    let response = t
+        .app()
+        .oneshot(post_json("/api/imports/1/apply", body))
+        .await
+        .expect("request");
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = read_json(response).await;
+    let reports = json["reports"].as_array().unwrap();
+    let report = |id: i64| reports.iter().find(|r| r["movement_id"] == id).unwrap();
+    assert_eq!(report(1)["outcome"], "failed");
+    assert!(report(1)["reason"]
+        .as_str()
+        .unwrap()
+        .contains("counterparty_cash"));
+    assert_eq!(report(2)["outcome"], "created");
+
+    // Movement 2 (money in, "m2") on account 7 is remembered as Cash.
+    let learned = t.state.counterparty_suggestions.learned(7).await.unwrap();
+    assert_eq!(learned.len(), 1);
+    assert!(learned[0].counterparty.cash);
 }
