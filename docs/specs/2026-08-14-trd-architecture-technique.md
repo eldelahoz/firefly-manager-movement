@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Project | firefly-manager-movement |
-| Version | 0.11 |
+| Version | 0.12 |
 | Created | 2026-08-14 |
 | Last modified | 2026-11-22 |
 | Related PRD | [`2026-08-14-prd-rapprochement-bancaire.md`](./2026-08-14-prd-rapprochement-bancaire.md) |
@@ -32,6 +32,8 @@ flowchart LR
 
 > **Client-only preferences (NFR-08 v0.1)**: the UI language (`localStorage` key `ffm.locale`) and the number format (`ffm.numberFormat`) live in the browser only; no backend, API or database change.
 >
+> **Amendment (v0.12, 2026-11-22) — counterparty suggestions (RF-08 v0.11)**: new table `counterparty_memory` (learned choices); the reconciliation also reads a 180-day history of the batch account and stores a history suggestion per missing movement; `GET /api/imports/{id}/results` gains `missing[].suggested_counterparty`. Two migrations (`up.sql` + `down.sql` each). Details in sections 2, 3, 4 and 6.
+>
 > **Amendment (v0.11, 2026-11-22) — counterparty accounts (RF-08 v0.10, RF-07 v0.11, RF-14 v0.2)**: account DTO gains `role` and `liability_type`; `POST /apply` takes `counterparty_name` and reports `transaction_type`; Firefly III transactions carry `counterparty_name` / `counterparty_type`; migration adds two nullable columns to `ff3_transactions`; `transfer` is now generated (section 4). Details in sections 2, 3 and 4.
 >
 > **Amendment (v0.10, 2026-11-18) — SQLite + single image**: MySQL 8 is replaced by an embedded SQLite file and the 3-service stack (`backend`, `frontend`, `mysql`) by one container. No data migration: the 13 MySQL migrations are replaced by one initial SQLite migration (no existing data to preserve).
@@ -48,6 +50,7 @@ erDiagram
     MOVEMENTS ||--o| MATCHES : "matched 0..1 per run"
     FF3_TRANSACTIONS ||--o| MATCHES : "paired 0..1 per run"
     MOVEMENTS ||--o| CREATIONS : "created 0..1"
+    FF3_ACCOUNTS ||--o{ COUNTERPARTY_MEMORY : "learned for"
 
     FF3_ACCOUNTS {
         bigint id PK
@@ -79,6 +82,9 @@ erDiagram
         json raw_json
         varchar status "imported|matched|missing|created|ignored"
         datetime created_at
+        bigint history_ff3_id "nullable, v0.12 history suggestion"
+        text history_name "nullable, v0.12"
+        boolean history_cash "nullable, v0.12; NULL = no suggestion"
     }
     RECONCILIATIONS {
         bigint id PK
@@ -115,6 +121,17 @@ erDiagram
         bigint ff3_id
         datetime created_at "actual creation date"
     }
+    COUNTERPARTY_MEMORY {
+        bigint id PK
+        bigint account_ff3_id "batch account (FF3 id)"
+        varchar direction "in|out"
+        varchar desc_key "normalized description"
+        bigint counterparty_ff3_id "nullable"
+        varchar counterparty_name "nullable"
+        boolean is_cash
+        int uses
+        datetime updated_at
+    }
     CSV_MAPPINGS {
         bigint id PK
         varchar header_signature UK
@@ -143,6 +160,8 @@ Key constraints:
 - `matches`: `UNIQUE(reconciliation_id, movement_id)` + `UNIQUE(reconciliation_id, ff3_transaction_id)` → 1-to-1 is guaranteed by the schema, not just by convention. Historized per reconciliation run.
 - `creations`: `UNIQUE(movement_id)` → creation idempotency (NFR-05). Holds the actual creation date and the provenance ("created by us").
 - `ff3_transactions`: `UNIQUE(reconciliation_id, ff3_id, ff3_journal_id)` (v0.9; `ff3_journal_id` NOT NULL DEFAULT 0 = the whole group, otherwise one row per split of a group matched split by split). Per-run cache: the `extra` group and the `duplicate` flag live there (solves RF-13 re-reconciliation and RF-15 duplicates). **v0.11**: nullable `counterparty_name` TEXT and `counterparty_type` TEXT (one migration, `up.sql` + `down.sql`), filled at reconcile time from the side opposite to the target account; rows saved before the migration stay NULL (RF-07 v0.11).
+- `counterparty_memory` (v0.12, RF-08 v0.11): `UNIQUE(account_ff3_id, direction, desc_key)`; `direction` is `in` (positive amount) or `out` (negative), `desc_key` the generic normalization of the description (section 6). At most one of `counterparty_ff3_id`, a `counterparty_name` without id, or `is_cash = 1` defines the choice; when `counterparty_ff3_id` is set, `counterparty_name` holds its display name. `uses` starts at 1. Upserted (`ON CONFLICT ... DO UPDATE`: new choice, `uses = uses + 1`, `updated_at`) after every successful creation, with the counterparty actually used: an id for an existing account; for a new name, the name plus the id of the account Firefly III created when the create response carries it; or Cash. One migration with `up.sql` (create table) and `down.sql` (drop table). No foreign key: `account_ff3_id` is a Firefly III id and the memory outlives the `ff3_accounts` cache.
+- `movements.history_ff3_id`, `history_name`, `history_cash` (v0.12): the history suggestion computed at reconcile time (section 6), set on `missing` movements and cleared otherwise. All three are nullable with no default: `history_cash` NULL means "no history suggestion" (so do rows saved before the migration), 1 means Cash. One migration, `up.sql` + `down.sql`.
 - `ff3_accounts`: `UNIQUE(ff3_id)`. Local cache synced on demand (when launching a reconciliation or via a dedicated endpoint); avoids repeated API calls and provides a displayable name.
 - `amount_cents`: signed BIGINT (cents), never floats (NFR-06).
 - `raw_json`: raw file line, for audit and re-parsing.
@@ -165,7 +184,7 @@ Key constraints:
 | GET | `/api/imports` / `/api/imports/{id}` | List / batch detail |
 | PUT | `/api/imports/{id}/mapping` | Save CSV mapping |
 | POST | `/api/imports/{id}/reconcile` | Run the reconciliation |
-| GET | `/api/imports/{id}/results` | Results in 3 groups (+ ignored movements) |
+| GET | `/api/imports/{id}/results` | Results in 3 groups (+ ignored movements); `missing[]` items carry `suggested_counterparty` (v0.12) |
 | POST | `/api/imports/{id}/movements/{mid}/ignore` | Set a movement's ignore state — body `{"ignored": true \| false}`; a pure status change, the movement is never removed from the batch (RF-10, PRD v0.8) |
 | POST | `/api/imports/{id}/apply` | Create the selected missing transactions in Firefly III |
 | DELETE | `/api/imports/{id}` | Delete a batch in `parsed` status (+ its movements) — 409 if the batch is not `parsed`; response `200 {id, status: "deleted"}` |
@@ -186,8 +205,23 @@ Notes:
 - `POST /apply` is idempotent per movement: before each creation, check the existence of a row in `creations` (`UNIQUE(movement_id)`, NFR-05); skip already-created movements.
 - **`POST /apply` recovery by `external_id` (NFR-05 v0.1)**: every created transaction carries `external_id = ffm-<hash16>-<line_no>` (first 16 hex characters of `batches.file_hash`, movement line number). Before any creation, apply runs **one** paginated Firefly III search `external_id_starts:"ffm-<hash16>-"` **limited to the batch account** (`account_id` in the query plus a client-side filter on the splits) and builds the map line → FF3 id; a selected movement without `creations` row whose line is in the map gets its row with that id and is reported `already_created`, with no creation request. A failure after Firefly III created the transaction (row insert, response parsing, timeout) makes that movement `failed` with a reason and leaves it `missing`, without aborting the batch; the next apply recovers it through the search. A recovered transaction matched to another movement (or a movement matched to another transaction) is `failed` with a reason; a recovery that dropped an attachment or edits says so; a timeout warns the transaction may exist. If the search fails, apply creates nothing and returns the error. Applies are serialized by one `apply_lock` in the app state.
 - `POST /apply` body (v0.8): for each selected movement, the **resolved** customization — counterparty account (optional, PRD v0.8), and optionally description, category, budget, tags, notes, attachment. Bulk-panel merging (fill-only) and default-tag pre-fill are resolved client-side; the tags sent are the user's final selection. The backend **appends the origin trace note** (`ffm:<filename>:<batchId>`, RF-11) to the notes field if `enable_origin_trace` is set in app settings (RF-19), with line breaks (`\n\n`) separating it from any user note.
-- **`POST /apply` counterparty (v0.11)**: per movement, `counterparty_ff3_id?` (an existing expense, revenue, liability or own asset account) or `counterparty_name?` (creates an expense account on money out or a revenue account on money in); both absent = explicit Cash; both present = that movement fails. The transaction type is **derived on the backend** from the amount sign and the cached account type (RF-08 v0.10 rules table); the client never sends it. A rejected combination does not fail the batch: its report is `failed` with a `reason`. Each report gains `transaction_type` (`withdrawal` \| `deposit` \| `transfer`; null when failed). `counterparty_ff3_id` keeps working as before (backward compatible).
+- **`POST /apply` counterparty (v0.11)**: per movement, `counterparty_ff3_id?` (an existing expense, revenue, liability or own asset account) or `counterparty_name?` (creates an expense account on money out or a revenue account on money in); **v0.12**: `counterparty_cash?` (boolean) marks explicit Cash and is learned; both ids/name absent and `counterparty_cash` not true = no counterparty chosen: created against Cash, not learned; `counterparty_cash: true` with an id or name, or an id with a name, = that movement fails (v0.11 treated "both absent" as explicit Cash). The transaction type is **derived on the backend** from the amount sign and the cached account type (RF-08 v0.10 rules table); the client never sends it. A rejected combination does not fail the batch: its report is `failed` with a `reason`. Each report gains `transaction_type` (`withdrawal` \| `deposit` \| `transfer`; null when failed). `counterparty_ff3_id` keeps working as before (backward compatible).
 - **Counterparty on Firefly III transactions (v0.11)**: Browse (`QUERY /api/firefly/accounts/{id}/transactions` and its POST fallback) and results (`matched[].ff3`, `extra[]`) return `counterparty_name` (string or null) and `counterparty_type` (`Expense account`, `Revenue account`, `Asset account`, `Cash account`, `Loan`, `Debt`, `Mortgage`, or null) — the opposite side of the queried account, from Firefly III's `source_name`/`destination_name` and `source_type`/`destination_type`. Snapshots saved before the migration return null for both.
+- **`missing[].suggested_counterparty` (v0.12, RF-08 v0.11)**: each `missing` item gains `suggested_counterparty`, an object or `null`. Backward compatible: existing fields and `POST /apply` are unchanged.
+
+  ```json
+  "suggested_counterparty": { "ff3_id": 5, "name": "Acme Store", "cash": false, "source": "learned" }
+  ```
+
+| Field | Meaning |
+| --- | --- |
+| `ff3_id` | Existing account; optional |
+| `name` | Display name of `ff3_id`; when there is no `ff3_id` it means "create by name"; optional |
+| `cash` | `true` = explicit Cash / no counterparty |
+| `source` | `learned` (`counterparty_memory`) or `history` (Firefly III) |
+
+  Exactly one of `ff3_id` (always returned together with its `name`), a `name` without id (a learned new-name choice for which Firefly III returned no id), or `cash: true` defines the choice. Resolution on read, per missing movement: first the `counterparty_memory` row for `(batch account, direction, desc_key)`; if there is none, the stored history suggestion (`movements.history_*`); otherwise `null`. Ids are returned as stored, never downgraded to a name: if the account no longer exists, `POST /apply` rejects that movement with a `reason`. Batches reconciled before v0.12 have no history suggestion, so they return `null` for movements without a learned choice until reconciled again. The suggestion is read-only data: creation goes through the normal `POST /apply` and the client maps it to `counterparty_ff3_id`, `counterparty_name` or `counterparty_cash: true`; a cleared suggestion sends none of them. **Risk**: descriptions that differ only by long numbers (for example transfers to different accounts) share one suggestion; the row and the confirmation dialog show the account before creation.
+
 - Firefly III API errors during a batch `apply`: handled per movement, the batch continues, final report per movement (success/failure/reason).
 - **QUERY method (RFC 9295)**: used only for routes with complex filters in body (reads with search criteria). Simple retrievals by ID or full lists stay in GET. The backend translates `QUERY` → `GET` when calling the Firefly III API (which stays GET). Requires registering the method explicitly in axum (`Route::on("QUERY", handler)` or equivalent macro).
 
@@ -223,6 +257,8 @@ Notes:
 | None (Cash) | `withdrawal`, no counterparty side sent | `deposit`, no counterparty side sent |
 
 Firefly III rejects (422) a `withdrawal` to an asset and a `transfer` with a new name, so the backend validates the combination first. With no counterparty side sent, Firefly III books against its special Cash account. The derivation is a pure domain function (`transaction_kind(direction, counterparty)`), unit-tested against this table.
+
+**Suggestion history (v0.12)**: besides the statement window, reconciliation reads the batch account's transactions over `[window_end − 180 days, window_end]` with the same `account_transactions` call (one exhaustive pagination, no new endpoint); 180 days is the default lookback. Only the counterparty side is used (section 6, step 7).
 
 **Reading side (v0.11)**: the client also keeps the opposite account's name and type of each transaction (`counterparty_name`, `counterparty_type`).
 
@@ -269,6 +305,10 @@ The frontend never talks to Firefly III directly: everything goes through the ba
 4. For each key, pair 1-to-1 chronologically within the date tolerance; Firefly III transactions outnumbering a given bank movement are flagged `is_duplicate = true` (RF-15).
 5. **Split fallback (v0.9)**: for each split group left unmatched by its total, run steps 3-4 again with its splits against the movements still missing. A group with at least one matched split is cached split by split (`ff3_journal_id` = journal id); its unmatched splits stay in the extra group. A group whose total matched is never split.
 6. Produce the 3 groups; persist a `reconciliations` row (snapshot counters) + the examined `ff3_transactions` (with `is_duplicate` flag) + the 1-to-1 `matches`; update the movement statuses (`imported` → `matched`/`missing`).
+
+7. **History suggestion (v0.12)**: read the account's transactions of the lookback period (section 4; one call that may share the window fetch of step 2 when the ranges overlap). For each transaction, compute `desc_key = normalize(description)` and the counterparty from the side opposite to the target account; the direction comes from the sign for the account (`in` / `out`). Skip transactions whose counterparty is the Cash account or the target account, and those with an empty `desc_key`. Per `(direction, desc_key)` keep the counterparty used most often (ties: the most recent transaction). For each movement left `missing`, look up `(direction, normalize(movement.description))` and store the result in `movements.history_*`; movements with no match get NULL. A failure reading the history must not fail the reconciliation and keeps the history suggestions saved by the previous run (nothing is cleared); it is logged.
+
+`normalize` is **one pure domain function** shared by this step and by `counterparty_memory` (no I/O, unit-tested): lowercase; strip accents (Unicode decomposition, combining marks dropped without leaving a space) and fold Latin letters without a decomposition (`ß`→`ss`, `ø`→`o`, `æ`→`ae`, `ł`→`l`); letters of other scripts are kept; replace every character that is not a letter or a digit with a space; drop digit runs of 4 or more characters; collapse whitespace; trim. `PAGO PSE Acme Store S.A. 20261117 REF 99812` → `pago pse acme store s a ref`. Digit runs inside a token with letters count as digit runs (`ref99812` → `ref`).
 
 Target complexity: O(n log n) on the statement; 1,000 movements < 5 s excluding API latency (NFR-04).
 
