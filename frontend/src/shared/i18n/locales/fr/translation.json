@@ -255,6 +255,16 @@
     "line": "Ligne {{line}}",
     "attachFile": "Joindre un fichier",
     "removeAttachment": "Retirer la pièce jointe",
+    "suggest": {
+      "learned": "Suggérée (apprise)",
+      "history": "Suggérée (historique Firefly III)",
+      "row": "Suggérée : {{name}}",
+      "rowSource": {
+        "learned": "apprise",
+        "history": "historique Firefly III"
+      },
+      "clear": "Retirer la suggestion"
+    },
     "cp": {
       "destination": "Compte de destination",
       "source": "Compte source",

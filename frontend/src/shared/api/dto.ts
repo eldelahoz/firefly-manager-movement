@@ -10,6 +10,16 @@ export interface MovementDTO {
   amount_cents: number;
   description: string;
   status: 'imported' | 'matched' | 'missing' | 'created' | 'ignored';
+  /** RF-08 v0.11: only on `missing[]` of the results; null or absent = no suggestion. */
+  suggested_counterparty?: SuggestedCounterparty | null;
+}
+
+/** Exactly one of `ff3_id`, a `name` without id (create by name) or `cash: true` defines the choice. */
+export interface SuggestedCounterparty {
+  ff3_id?: number;
+  name?: string;
+  cash?: boolean;
+  source: 'learned' | 'history';
 }
 
 export interface UploadResponse {
@@ -129,6 +139,9 @@ export interface ApplyMovementRequest {
   counterparty_ff3_id?: number;
   /** Creates an expense (money out) or revenue (money in) account by name. */
   counterparty_name?: string;
+  /** RF-08 v0.11: the user chose Cash explicitly (or accepted a Cash suggestion), so it is learned.
+   *  Absent with no id or name = nothing chosen: still created as Cash, but not learned. */
+  counterparty_cash?: boolean;
   description?: string;
   category?: string;
   budget?: string;

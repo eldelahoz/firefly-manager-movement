@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Paperclip, X } from 'lucide-react';
-import type { Ff3Account } from '@/shared/api/dto';
+import type { Ff3Account, SuggestedCounterparty } from '@/shared/api/dto';
 import type { Counterparty, Customization, Direction } from './customization';
-import { transactionType } from './customization';
+import { suggestedChoice, transactionType } from './customization';
 import { TagsPicker } from './TagsPicker';
 import { TransactionTypeIcon } from './TransactionTypeIcon';
 import { Button } from '@/shared/ui/button';
@@ -11,9 +11,10 @@ import { Combobox, type ComboboxOption } from '@/shared/ui/combobox';
 import { Input } from '@/shared/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
 
-// Picker values: '' = bulk, leave unchanged; 'cash'; 'id:<ff3 id>'; 'new:<name>'.
-function encode(c: Counterparty | undefined, bulk: boolean): string {
-  if (c === undefined) return bulk ? '' : 'cash';
+// Picker values: '' = bulk, leave unchanged (single: a cleared suggestion, nothing chosen);
+// 'cash'; 'id:<ff3 id>'; 'new:<name>'.
+function encode(c: Counterparty | undefined, bulk: boolean, cleared = false): string {
+  if (c === undefined) return bulk || cleared ? '' : 'cash';
   if (c === null) return 'cash';
   return 'id' in c ? `id:${c.id}` : `new:${c.name}`;
 }
@@ -28,6 +29,7 @@ function decode(v: string): Counterparty | undefined {
 export function PersonalizeEditor({
   mode,
   initial,
+  suggestion,
   statementDescription = '',
   defaultTag,
   direction,
@@ -44,6 +46,8 @@ export function PersonalizeEditor({
 }: {
   mode: 'single' | 'bulk';
   initial: Customization;
+  /** Single mode: marks the choice while it is still the suggested one. */
+  suggestion?: SuggestedCounterparty | null;
   statementDescription?: string;
   defaultTag: string | null;
   /** RF-08: counterparties listed by direction; undefined (bulk with mixed directions) lists none. */
@@ -63,7 +67,13 @@ export function PersonalizeEditor({
 }) {
   const { t } = useTranslation();
   const bulk = mode === 'bulk';
-  const [counterparty, setCounterparty] = useState(() => encode(initial.counterparty, bulk));
+  // A saved row whose suggestion was cleared keeps an empty picker, not Cash (RF-08 v0.11).
+  const [counterparty, setCounterparty] = useState(() =>
+    encode(initial.counterparty, bulk, 'counterparty' in initial),
+  );
+  const pickerRef = useRef<HTMLDivElement>(null);
+  // The picker shows Cash when nothing is chosen; only a real pick makes it an explicit choice.
+  const [pickerTouched, setPickerTouched] = useState(false);
   const [description, setDescription] = useState(
     initial.description ?? (bulk ? '' : statementDescription),
   );
@@ -130,6 +140,9 @@ export function PersonalizeEditor({
     ];
   };
   const chosen = decode(counterparty);
+  const suggested = bulk ? undefined : suggestedChoice(suggestion);
+  const markSuggested =
+    suggestion && suggested !== undefined && counterparty === encode(suggested, false);
   const chosenType =
     direction && chosen !== undefined ? transactionType(direction, chosen, accounts) : undefined;
   const chosenAccount =
@@ -142,12 +155,16 @@ export function PersonalizeEditor({
         : 'id' in chosen
           ? chosenAccount
             ? accountLabel(chosenAccount)
-            : `#${chosen.id}`
+            : // An account not in the loaded lists: the suggestion still knows its name.
+              ((suggestion?.ff3_id === chosen.id ? suggestion.name : undefined) ?? `#${chosen.id}`)
           : t(out ? 'results.cp.newExpense' : 'results.cp.newRevenue', { name: chosen.name });
 
   function handleSave() {
     onSave({
-      counterparty: chosen,
+      counterparty:
+        chosen === null && initial.counterparty === undefined && !pickerTouched
+          ? undefined
+          : chosen,
       // The prefilled statement text is the default: store a description only when it differs.
       description: description && description !== statementDescription ? description : undefined,
       category: category === 'none' ? undefined : category,
@@ -192,26 +209,53 @@ export function PersonalizeEditor({
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4">
         {direction ? (
-          <Combobox
-            label={t(out ? 'results.cp.destination' : 'results.cp.source')}
-            value={counterparty}
-            displayValue={displayValue}
-            placeholder={bulk ? t('results.cp.keep') : undefined}
-            groups={groups}
-            footer={footer}
-            onChange={(v) => {
-              setCounterparty(v);
-              touch();
-            }}
-            description={
-              chosenType && (
-                <span className="inline-flex items-center gap-1">
-                  <TransactionTypeIcon type={chosenType} />
-                  {t(`results.cp.willCreate.${chosenType}`)}
-                </span>
-              )
-            }
-          />
+          <div ref={pickerRef}>
+            <Combobox
+              label={t(out ? 'results.cp.destination' : 'results.cp.source')}
+              value={counterparty}
+              displayValue={displayValue}
+              placeholder={bulk ? t('results.cp.keep') : undefined}
+              groups={groups}
+              footer={footer}
+              onChange={(v) => {
+                setCounterparty(v);
+                setPickerTouched(true);
+                touch();
+              }}
+              description={
+                (chosenType || markSuggested) && (
+                  <>
+                    {chosenType && (
+                      <span className="inline-flex items-center gap-1">
+                        <TransactionTypeIcon type={chosenType} />
+                        {t(`results.cp.willCreate.${chosenType}`)}
+                      </span>
+                    )}
+                    {markSuggested && (
+                      <span className="block font-medium text-text-1">
+                        {t(`results.suggest.${suggestion.source}`)}
+                      </span>
+                    )}
+                  </>
+                )
+              }
+            />
+            {markSuggested && (
+              <Button
+                variant="link"
+                size="sm"
+                className="h-8 px-0 text-xs text-accent underline-offset-2 max-sm:h-11"
+                onClick={() => {
+                  // Nothing chosen, unlike the explicit Cash option; the button leaves, so focus the picker.
+                  setCounterparty('');
+                  touch();
+                  pickerRef.current?.querySelector('input')?.focus();
+                }}
+              >
+                {t('results.suggest.clear')}
+              </Button>
+            )}
+          </div>
         ) : (
           <p className="text-sm text-text-2">{t('results.cp.mixed')}</p>
         )}

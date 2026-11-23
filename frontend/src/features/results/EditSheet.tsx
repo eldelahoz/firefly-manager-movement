@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { toast, type ToastT } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import type { Ff3Account, MovementDTO } from '@/shared/api/dto';
+import type { Ff3Account, MovementDTO, SuggestedCounterparty } from '@/shared/api/dto';
 import { formatDate } from '@/shared/lib/dates';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { Button } from '@/shared/ui/button';
@@ -42,6 +42,8 @@ export function EditSheet({
   /** Bulk only: the selection's shared direction, undefined when mixed. */
   bulkDirection?: 'withdrawal' | 'deposit';
   initial: Customization;
+  /** Single mode: the backend suggestion behind `initial`, for the mark and "Clear suggestion". */
+  suggestion?: SuggestedCounterparty | null;
   currency: string;
   defaultTag: string | null;
   accounts: Ff3Account[];

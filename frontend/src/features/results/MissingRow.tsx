@@ -7,6 +7,8 @@ import { Button } from '@/shared/ui/button';
 import { Checkbox } from '@/shared/ui/checkbox';
 import { StatusPill } from '@/shared/ui/StatusPill';
 import { CELL, GRID_COLS, GROUP_ACCENT } from './tableLayout';
+import type { Customization } from './customization';
+import { isSuggested } from './customization';
 
 export function MissingRow({
   movement,
@@ -15,6 +17,7 @@ export function MissingRow({
   isLast = false,
   onToggle,
   report,
+  customization = {},
   onEdit,
   onIgnore,
 }: {
@@ -24,10 +27,16 @@ export function MissingRow({
   isLast?: boolean;
   onToggle?: (id: number) => void;
   report?: { outcome: 'created' | 'already_created' | 'failed'; reason?: string };
+  /** The row's current choice: the suggestion hint shows only while it is still the suggested one. */
+  customization?: Customization;
   onEdit?: () => void;
   onIgnore?: (id: number) => void;
 }) {
   const { t, i18n } = useTranslation();
+  const suggestion = movement.suggested_counterparty;
+  const suggestedName = suggestion?.cash
+    ? t('results.cp.cash')
+    : (suggestion?.name ?? `#${suggestion?.ff3_id}`);
   return (
     <div
       role="row"
@@ -48,6 +57,15 @@ export function MissingRow({
       </span>
       <span role="cell" className={`min-w-0 ${CELL.missing.desc}`} title={movement.description}>
         <span className="block truncate">{movement.description}</span>
+        {suggestion && isSuggested(customization, suggestion) && (
+          <span className="block truncate text-xs text-text-2">
+            {t('results.suggest.row', { name: suggestedName })}
+            <span className="text-text-3">
+              {' '}
+              · {t(`results.suggest.rowSource.${suggestion.source}`)}
+            </span>
+          </span>
+        )}
         {report?.outcome === 'failed' && report.reason ? (
           <span className="block text-xs text-danger">{report.reason}</span>
         ) : null}
