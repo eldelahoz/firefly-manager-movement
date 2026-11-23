@@ -46,7 +46,7 @@ const unmapped = {
   invalid: [],
 };
 
-async function mockUpload(page: Page, body: typeof autoMapped) {
+async function mockUpload(page: Page, body: typeof autoMapped | typeof unmapped) {
   await page.route('**/api/imports', async (route: Route) => {
     if (route.request().method() === 'POST') await route.fulfill({ json: body });
     else await route.fallback();

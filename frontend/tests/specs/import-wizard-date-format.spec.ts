@@ -87,7 +87,7 @@ test.describe('Import > Wizard date format (RF-02 v0.8)', () => {
     page,
   }) => {
     const wizard = new ImportWizardPage(page);
-    let putBody: { date_format?: string } | null = null;
+    let putBody = null as { date_format?: string } | null;
     let multipart = '';
     let mapped = false;
     await page.route('**/api/imports/*/mapping', async (route) => {
