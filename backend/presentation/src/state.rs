@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use ffm_application::ports::{
-    AppSettingsRepository, BatchRepository, CreationRepository, CsvDecoder, CsvMappingRepository,
-    DeletedAuditRepository, Ff3AccountRepository, Ff3TransactionRepository, FireflyClient,
-    FireflyClientFactory, FireflyConnectionManager, MatchRepository, MovementRepository,
-    ReconciliationRepository,
+    AppSettingsRepository, BatchRepository, CounterpartySuggestionRepository, CreationRepository,
+    CsvDecoder, CsvMappingRepository, DeletedAuditRepository, Ff3AccountRepository,
+    Ff3TransactionRepository, FireflyClient, FireflyClientFactory, FireflyConnectionManager,
+    MatchRepository, MovementRepository, ReconciliationRepository,
 };
 use ffm_application::use_cases::app_settings::EnvDefaults;
 
@@ -21,6 +21,8 @@ pub struct AppState {
     pub ff3_transactions: Arc<dyn Ff3TransactionRepository>,
     pub creations: Arc<dyn CreationRepository>,
     pub deleted_audits: Arc<dyn DeletedAuditRepository>,
+    /// Learned counterparties and history suggestions (RF-08 v0.11).
+    pub counterparty_suggestions: Arc<dyn CounterpartySuggestionRepository>,
     pub ff3_health_probe: bool,
     pub app_settings: Arc<dyn AppSettingsRepository>,
     pub firefly_manager: Arc<dyn FireflyConnectionManager>,

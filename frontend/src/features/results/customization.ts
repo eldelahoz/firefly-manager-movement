@@ -1,4 +1,4 @@
-import type { Ff3Account } from '@/shared/api/dto';
+import type { Ff3Account, SuggestedCounterparty } from '@/shared/api/dto';
 
 /** RF-08 v0.10: an existing account, a new expense/revenue account by name, or null/undefined = Cash.
  *  One field, so a bulk fill replaces the whole choice (null = explicit Cash over each row). */
@@ -37,6 +37,36 @@ export function applyBulkFillOnly(
     next[id] = applied;
   }
   return next;
+}
+
+/** RF-08 v0.11: the backend suggestion as a counterparty choice; undefined = no suggestion. */
+export function suggestedChoice(
+  s: SuggestedCounterparty | null | undefined,
+): Counterparty | undefined {
+  if (!s) return undefined;
+  if (s.cash) return null;
+  if (s.ff3_id != null) return { id: s.ff3_id };
+  return s.name ? { name: s.name } : undefined;
+}
+
+// undefined = nothing chosen (a cleared suggestion), which is not the explicit Cash choice.
+const choiceKey = (c: Counterparty | undefined) =>
+  c === undefined ? 'none' : c === null ? 'cash' : 'id' in c ? `id:${c.id}` : `new:${c.name}`;
+
+/** True while the row's choice is still the suggested one. */
+export function isSuggested(c: Customization, s: SuggestedCounterparty | null | undefined) {
+  const suggested = suggestedChoice(s);
+  return suggested !== undefined && choiceKey(c.counterparty) === choiceKey(suggested);
+}
+
+/** An untouched row starts from the suggestion, so Create uses it without opening the sheet. */
+export function withSuggestion(
+  c: Customization | undefined,
+  s: SuggestedCounterparty | null | undefined,
+): Customization {
+  if (c) return c;
+  const suggested = suggestedChoice(s);
+  return suggested === undefined ? {} : { counterparty: suggested };
 }
 
 export type Direction = 'withdrawal' | 'deposit';

@@ -28,6 +28,20 @@ diesel::table! {
 }
 
 diesel::table! {
+    counterparty_memory (id) {
+        id -> Bigint,
+        account_ff3_id -> Bigint,
+        direction -> Text,
+        desc_key -> Text,
+        counterparty_ff3_id -> Nullable<Bigint>,
+        counterparty_name -> Nullable<Text>,
+        is_cash -> Bool,
+        uses -> Bigint,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     creations (id) {
         id -> Bigint,
         movement_id -> Bigint,
@@ -105,6 +119,9 @@ diesel::table! {
         raw_json -> Json,
         status -> Text,
         created_at -> Timestamp,
+        history_ff3_id -> Nullable<Bigint>,
+        history_name -> Nullable<Text>,
+        history_cash -> Nullable<Bool>,
     }
 }
 
@@ -134,6 +151,7 @@ diesel::joinable!(reconciliations -> batches (batch_id));
 diesel::allow_tables_to_appear_in_same_query!(
     app_settings,
     batches,
+    counterparty_memory,
     creations,
     csv_mappings,
     deleted_audit,

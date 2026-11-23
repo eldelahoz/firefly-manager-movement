@@ -130,7 +130,7 @@ async fn accounts_by_type_maps_role_and_liability_type() {
                 {
                     "id": "7",
                     "attributes": {
-                        "name": "Prestamo Moto",
+                        "name": "Car Loan",
                         "type": "liabilities",
                         "currency_code": "COP",
                         "account_role": null,
@@ -1043,10 +1043,10 @@ async fn account_transactions_counterparty_is_the_opposite_side() {
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
             "data": [
                 { "id": "1", "attributes": { "transactions": [
-                    split("1", "Bank", "Asset account", "5", "Planautos S A", "Expense account")
+                    split("1", "Bank", "Asset account", "5", "Acme Motors", "Expense account")
                 ] } },
                 { "id": "2", "attributes": { "transactions": [
-                    split("7", "Prestamo Moto", "Loan", "1", "Bank", "Asset account")
+                    split("7", "Car Loan", "Loan", "1", "Bank", "Asset account")
                 ] } },
                 { "id": "3", "attributes": { "transactions": [{
                     "date": "2026-01-05T00:00:00+00:00", "amount": "1.00",
@@ -1067,15 +1067,18 @@ async fn account_transactions_counterparty_is_the_opposite_side() {
         .await
         .unwrap();
     let by_id = |id: i64| txs.iter().find(|t| t.ff3_id == id).unwrap();
-    assert_eq!(by_id(1).counterparty_name.as_deref(), Some("Planautos S A"));
+    assert_eq!(by_id(1).counterparty_name.as_deref(), Some("Acme Motors"));
     assert_eq!(
         by_id(1).counterparty_type.as_deref(),
         Some("Expense account")
     );
-    assert_eq!(by_id(2).counterparty_name.as_deref(), Some("Prestamo Moto"));
+    assert_eq!(by_id(2).counterparty_name.as_deref(), Some("Car Loan"));
     assert_eq!(by_id(2).counterparty_type.as_deref(), Some("Loan"));
     assert_eq!(by_id(3).counterparty_name, None);
     assert_eq!(by_id(3).counterparty_type, None);
+    assert_eq!(by_id(1).counterparty_ff3_id, Some(5));
+    assert_eq!(by_id(2).counterparty_ff3_id, Some(7));
+    assert_eq!(by_id(3).counterparty_ff3_id, Some(9));
 }
 
 #[tokio::test]
@@ -1087,8 +1090,8 @@ async fn create_transaction_returns_both_account_sides() {
             "data": {
                 "id": "88",
                 "attributes": { "transactions": [{
-                    "source_id": "1", "source_name": "Bancolombia Ahorros", "source_type": "Asset account",
-                    "destination_id": "7", "destination_name": "Prestamo Moto", "destination_type": "Loan"
+                    "source_id": "1", "source_name": "Savings", "source_type": "Asset account",
+                    "destination_id": "7", "destination_name": "Car Loan", "destination_type": "Loan"
                 }] }
             }
         })))
@@ -1114,10 +1117,12 @@ async fn create_transaction_returns_both_account_sides() {
         .await
         .unwrap();
     assert_eq!(created.ff3_id, 88);
-    assert_eq!(created.source_name.as_deref(), Some("Bancolombia Ahorros"));
+    assert_eq!(created.source_name.as_deref(), Some("Savings"));
     assert_eq!(created.source_type.as_deref(), Some("Asset account"));
-    assert_eq!(created.destination_name.as_deref(), Some("Prestamo Moto"));
+    assert_eq!(created.destination_name.as_deref(), Some("Car Loan"));
     assert_eq!(created.destination_type.as_deref(), Some("Loan"));
+    assert_eq!(created.source_id, Some(1));
+    assert_eq!(created.destination_id, Some(7));
 }
 
 #[tokio::test]

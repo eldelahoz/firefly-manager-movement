@@ -208,6 +208,7 @@ test.describe('Results > counterparty picker', () => {
       const m = await pickAndCreate(page, applied, 'Book', /Supermarket/);
       expect(m).toMatchObject({ movement_id: 12, counterparty_ff3_id: 51 });
       expect(m).not.toHaveProperty('counterparty_name');
+      expect(m).not.toHaveProperty('counterparty_cash');
     });
 
     test('C7 «Create X» sends counterparty_name and no id (out and in)', async ({ page }) => {
@@ -218,6 +219,7 @@ test.describe('Results > counterparty picker', () => {
       const out = await pickAndCreate(page, applied, 'Book', /Create .*Bookshop/, 'Bookshop');
       expect(out).toMatchObject({ movement_id: 12, counterparty_name: 'Bookshop' });
       expect(out).not.toHaveProperty('counterparty_ff3_id');
+      expect(out).not.toHaveProperty('counterparty_cash');
     });
 
     test('C7b «Create X» on money in names a revenue account', async ({ page }) => {
@@ -255,7 +257,8 @@ test.describe('Results > counterparty picker', () => {
       });
       await page.goto('/results/1');
       const m = await pickAndCreate(page, applied, 'Book', /Cash/);
-      expect(m).toMatchObject({ movement_id: 12 });
+      // RF-08 v0.11: the explicit Cash option is sent as counterparty_cash, never with an account
+      expect(m).toMatchObject({ movement_id: 12, counterparty_cash: true });
       expect(m).not.toHaveProperty('counterparty_ff3_id');
       expect(m).not.toHaveProperty('counterparty_name');
     });
@@ -274,6 +277,7 @@ test.describe('Results > counterparty picker', () => {
       await page.getByRole('button', { name: 'Create in Firefly III (1)' }).click();
       await page.getByRole('dialog').getByRole('button', { name: 'Create', exact: true }).click();
       await expect.poll(() => applied.length).toBe(1);
+      expect(applied[0].movements[0]).toMatchObject({ counterparty_cash: true });
       expect(applied[0].movements[0]).not.toHaveProperty('counterparty_ff3_id');
       expect(applied[0].movements[0]).not.toHaveProperty('counterparty_name');
     });
@@ -398,6 +402,7 @@ test.describe('Results > counterparty picker', () => {
       await page.getByRole('dialog').getByRole('button', { name: 'Create', exact: true }).click();
       await expect.poll(() => applied.length).toBe(1);
       for (const m of applied[0].movements) {
+        expect(m).toMatchObject({ counterparty_cash: true });
         expect(m).not.toHaveProperty('counterparty_ff3_id');
         expect(m).not.toHaveProperty('counterparty_name');
       }

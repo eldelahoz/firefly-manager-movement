@@ -7,6 +7,7 @@
 
 mod app_settings;
 mod batch;
+mod counterparty_memory;
 mod creation;
 mod csv_mapping;
 mod deleted_audit;
@@ -18,6 +19,7 @@ mod reconciliation;
 
 pub use app_settings::{AppSettingsModel, NewAppSettingsModel};
 pub use batch::{BatchModel, NewBatchModel};
+pub use counterparty_memory::{CounterpartyMemoryModel, NewCounterpartyMemoryModel};
 pub use creation::{CreationModel, NewCreationModel};
 pub use csv_mapping::{CsvMappingModel, NewCsvMappingModel};
 pub use deleted_audit::{DeletedAuditModel, NewDeletedAuditModel};

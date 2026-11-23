@@ -6,6 +6,7 @@
 
 mod apply;
 mod audit;
+mod counterparty;
 mod firefly;
 mod imports;
 mod reconciliation;
@@ -13,6 +14,9 @@ mod settings;
 
 pub use apply::{ApplyMissingInput, AttachmentPayload, MovementApply};
 pub use audit::NewDeletedAudit;
+pub use counterparty::{
+    CounterpartyMemoryEntry, CounterpartyRef, SuggestedCounterparty, SuggestionSource,
+};
 pub use firefly::{
     About, BrowseTxDto, CreatedFf3Transaction, ExternalIdHit, Ff3AccountDto, Ff3SplitDto,
     Ff3TransactionDto, Ff3TxStatus, NewFf3Account, NewFf3TransactionCreation,

@@ -60,6 +60,9 @@ async fn get_firefly_accounts_returns_accounts_and_syncs() {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -121,6 +124,9 @@ async fn get_firefly_accounts_by_type_returns_expense_accounts() {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -166,6 +172,9 @@ async fn get_firefly_tags_categories_and_budgets_return_names() {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -210,6 +219,9 @@ async fn get_firefly_accounts_ff3_error_returns_502() {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -238,6 +250,7 @@ async fn post_account_transactions_ok() {
         amount_cents: AmountCents::from_str("-123.45").unwrap(),
         description: "lunch".into(),
         splits: vec![],
+        counterparty_ff3_id: None,
         counterparty_name: Some("Restaurant".into()),
         counterparty_type: Some("Expense account".into()),
     }];
@@ -258,6 +271,9 @@ async fn post_account_transactions_ok() {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -298,6 +314,7 @@ async fn query_account_transactions_ok() {
         amount_cents: AmountCents::from_str("500.00").unwrap(),
         description: "deposit".into(),
         splits: vec![],
+        counterparty_ff3_id: None,
         counterparty_name: None,
         counterparty_type: None,
     }];
@@ -318,6 +335,9 @@ async fn query_account_transactions_ok() {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -355,6 +375,7 @@ async fn post_account_transactions_enriches_status_from_cache() {
             amount_cents: AmountCents::new(-100),
             description: format!("tx{ff3_id}"),
             splits: vec![],
+            counterparty_ff3_id: None,
             counterparty_name: None,
             counterparty_type: None,
         }
@@ -419,6 +440,9 @@ async fn post_account_transactions_enriches_status_from_cache() {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -476,6 +500,9 @@ async fn get_on_transactions_returns_405() {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -516,6 +543,9 @@ async fn transactions_start_after_end_returns_400() {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),
@@ -557,6 +587,9 @@ fn accounts_state(accounts: Vec<Ff3AccountDto>) -> AppState {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
         firefly_manager: Arc::new(common::FakeFireflyConnectionManager::default()),
         firefly_factory: Arc::new(common::FakeFireflyClientFactory::new(
             common::FakeFireflyClient::ok(),

@@ -36,7 +36,8 @@ pub struct Ff3TransactionDto {
     /// more; empty otherwise. `amount_cents` is their total.
     pub splits: Vec<Ff3SplitDto>,
     /// Account on the opposite side of the queried account (RF-14 v0.2):
-    /// its name and Firefly III type (`Expense account`, `Loan`, …).
+    /// its id (RF-08 v0.11), name and Firefly III type (`Expense account`, `Loan`, …).
+    pub counterparty_ff3_id: Option<i64>,
     pub counterparty_name: Option<String>,
     pub counterparty_type: Option<String>,
 }
@@ -89,6 +90,8 @@ pub struct BrowseTxDto {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CreatedFf3Transaction {
     pub ff3_id: i64,
+    pub source_id: Option<i64>,
+    pub destination_id: Option<i64>,
     pub source_name: Option<String>,
     pub source_type: Option<String>,
     pub destination_name: Option<String>,

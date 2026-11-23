@@ -33,6 +33,9 @@ async fn health_returns_ok_json() {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
     };
     let router = app(state);
 
@@ -73,6 +76,9 @@ async fn health_with_probe_ok() {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
     };
     let router = app(state);
 
@@ -115,6 +121,9 @@ async fn health_with_probe_degraded() {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
     };
     let router = app(state);
 
@@ -156,6 +165,9 @@ async fn openapi_json_is_served() {
         env_defaults: ffm_application::use_cases::app_settings::EnvDefaults::default(),
         settings_lock: Arc::new(tokio::sync::Mutex::new(())),
         apply_lock: Arc::new(tokio::sync::Mutex::new(())),
+        counterparty_suggestions: Arc::new(
+            ffm_application::ports::InMemoryCounterpartySuggestions::default(),
+        ),
     };
     let router = app(state);
 

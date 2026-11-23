@@ -256,6 +256,16 @@
     "line": "Line {{line}}",
     "attachFile": "Attach file",
     "removeAttachment": "Remove attachment",
+    "suggest": {
+      "learned": "Suggested (learned)",
+      "history": "Suggested (Firefly III history)",
+      "row": "Suggested: {{name}}",
+      "rowSource": {
+        "learned": "learned",
+        "history": "Firefly III history"
+      },
+      "clear": "Clear suggestion"
+    },
     "cp": {
       "destination": "Destination account",
       "source": "Source account",

@@ -6,9 +6,11 @@ use chrono::{NaiveDate, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use ffm_application::dtos::{ApplyMissingInput, AttachmentPayload, MovementApply};
+use ffm_application::dtos::{
+    ApplyMissingInput, AttachmentPayload, MovementApply, SuggestedCounterparty,
+};
 use ffm_application::use_cases::apply_missing::{ApplyMissing, ApplyOutcome, RunPorts};
-use ffm_application::use_cases::get_results::GetResults;
+use ffm_application::use_cases::get_results::{GetResults, SuggestionPorts};
 use ffm_application::use_cases::ignore_movement::IgnoreMovement;
 use ffm_application::use_cases::reconcile_batch::{ReconcileBatch, ReconcileBatchInput};
 
@@ -52,7 +54,7 @@ pub struct Ff3TransactionResponse {
     pub is_duplicate: bool,
     pub created_at: NaiveDateTime,
     /// Opposite-side account name; null for snapshots saved before RF-07 v0.11.
-    #[schema(example = "Planautos S A")]
+    #[schema(example = "Acme Motors")]
     pub counterparty_name: Option<String>,
     /// Firefly III type of that account (`Expense account`, `Loan`, …).
     #[schema(example = "Expense account")]
@@ -75,11 +77,52 @@ pub struct MovementResponse {
     pub status: String,
 }
 
+/// Suggested counterparty of a missing movement (RF-08 v0.11). Exactly one of
+/// `ff3_id` (existing account, with `name` = its name as stored), a `name`
+/// without id (a learned new name whose id Firefly III did not return) or
+/// `cash: true` defines the choice. Ids are returned as stored: if that
+/// account no longer exists, apply rejects it.
+#[derive(Serialize, ToSchema)]
+pub struct SuggestedCounterpartyResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(example = 5)]
+    pub ff3_id: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(example = "Acme Motors")]
+    pub name: Option<String>,
+    pub cash: bool,
+    /// `learned` (chosen before in this app) or `history` (Firefly III history).
+    #[schema(example = "learned")]
+    pub source: String,
+}
+
+impl From<SuggestedCounterparty> for SuggestedCounterpartyResponse {
+    fn from(s: SuggestedCounterparty) -> Self {
+        Self {
+            ff3_id: s.counterparty.ff3_id,
+            name: s.counterparty.name,
+            cash: s.counterparty.cash,
+            source: s.source.as_str().to_string(),
+        }
+    }
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct MissingMovementResponse {
+    #[serde(flatten)]
+    pub movement: MovementResponse,
+    /// Null when there is nothing to suggest. Learned choices are resolved
+    /// when the results are read; history suggestions are stored at reconcile
+    /// time, so batches reconciled before RF-08 v0.11 have none until they are
+    /// reconciled again.
+    pub suggested_counterparty: Option<SuggestedCounterpartyResponse>,
+}
+
 #[derive(Serialize, ToSchema)]
 pub struct GetResultsResponse {
     pub reconciliation_id: i64,
     pub matched: Vec<MatchedPairResponse>,
-    pub missing: Vec<MovementResponse>,
+    pub missing: Vec<MissingMovementResponse>,
     /// Movements manually marked ignored (RF-10).
     pub ignored: Vec<MovementResponse>,
     /// Unmatched FF3 transactions; duplicates carry `is_duplicate = true`.
@@ -145,6 +188,7 @@ pub async fn reconcile(
         state.batches.clone(),
         state.movements.clone(),
         state.reconciliations.clone(),
+        state.counterparty_suggestions.clone(),
     );
     let result = uc
         .execute(ReconcileBatchInput {
@@ -190,8 +234,14 @@ pub async fn get_results(
         state.ff3_transactions.clone(),
         state.movements.clone(),
         state.deleted_audits.clone(),
+        SuggestionPorts {
+            batches: state.batches.clone(),
+            accounts: state.ff3_accounts.clone(),
+            suggestions: state.counterparty_suggestions.clone(),
+        },
     );
     let result = uc.execute(BatchId::new(id)).await.map_err(ApiError)?;
+    let mut suggestions = result.suggestions;
 
     Ok(Json(GetResultsResponse {
         reconciliation_id: result.reconciliation_id.as_i64(),
@@ -203,7 +253,14 @@ pub async fn get_results(
                 ff3: p.ff3.into(),
             })
             .collect(),
-        missing: result.missing.into_iter().map(Into::into).collect(),
+        missing: result
+            .missing
+            .into_iter()
+            .map(|m| MissingMovementResponse {
+                suggested_counterparty: suggestions.remove(&m.id).map(Into::into),
+                movement: m.into(),
+            })
+            .collect(),
         ignored: result.ignored.into_iter().map(Into::into).collect(),
         extra: result.extra.into_iter().map(Into::into).collect(),
     }))
@@ -268,6 +325,11 @@ pub struct ApplyMovementBody {
     /// New expense (money out) or revenue (money in) account, created by name.
     #[serde(default)]
     pub counterparty_name: Option<String>,
+    /// `true` = Cash chosen explicitly (RF-08 v0.11): booked like no
+    /// counterparty, and remembered for the next suggestion. Sending nothing
+    /// is also Cash but is not remembered. Fails with an id or a name.
+    #[serde(default)]
+    pub counterparty_cash: bool,
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
@@ -347,6 +409,7 @@ pub async fn apply(
             ff3_transactions: state.ff3_transactions.clone(),
         },
         state.app_settings.clone(),
+        state.counterparty_suggestions.clone(),
     );
     let result = uc
         .execute(ApplyMissingInput {
@@ -358,6 +421,7 @@ pub async fn apply(
                     movement_id: MovementId::new(m.movement_id),
                     counterparty_ff3_id: m.counterparty_ff3_id,
                     counterparty_name: m.counterparty_name,
+                    counterparty_cash: m.counterparty_cash,
                     description: m.description,
                     category: m.category,
                     budget: m.budget,

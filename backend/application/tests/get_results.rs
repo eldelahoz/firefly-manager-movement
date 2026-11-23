@@ -3,13 +3,22 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 
+use ffm_application::dtos::{
+    CounterpartyMemoryEntry, CounterpartyRef, NewBatch, NewFf3Account, SuggestedCounterparty,
+    SuggestionSource,
+};
 use ffm_application::dtos::{NewFf3Transaction, NewMatch, NewReconciliation, ReconciliationRun};
 use ffm_application::error::ApplicationError;
 use ffm_application::ports::{
-    DeletedAuditRepository, Ff3TransactionRepository, MatchRepository, MovementRepository,
-    ReconciliationRepository,
+    BatchRepository, CounterpartySuggestionRepository, DeletedAuditRepository,
+    Ff3AccountRepository, Ff3TransactionRepository, InMemoryCounterpartySuggestions,
+    MatchRepository, MovementRepository, ReconciliationRepository,
 };
-use ffm_application::use_cases::get_results::GetResults;
+use ffm_application::use_cases::get_results::{GetResults, SuggestionPorts};
+use ffm_domain::entities::{Batch, Ff3Account};
+use ffm_domain::ids::Ff3AccountId;
+use ffm_domain::transaction_kind::Direction;
+use ffm_domain::value_objects::BatchStatus;
 
 use ffm_domain::entities::{Ff3Transaction, Match, Movement, Reconciliation};
 use ffm_domain::ids::{
@@ -187,6 +196,77 @@ impl DeletedAuditRepository for FakeDeletedAuditRepo {
     }
 }
 
+/// Batch 1 on local account 1 (Firefly III account 7), unless `account_id` is cleared.
+struct FakeBatchRepo {
+    account_id: Mutex<Option<Ff3AccountId>>,
+}
+
+#[async_trait]
+impl BatchRepository for FakeBatchRepo {
+    async fn insert(&self, _batch: NewBatch) -> Result<BatchId, ApplicationError> {
+        unimplemented!()
+    }
+    async fn get(&self, id: BatchId) -> Result<Batch, ApplicationError> {
+        Ok(Batch {
+            id,
+            filename: "stmt.csv".into(),
+            file_hash: "h".into(),
+            format: "csv".into(),
+            currency: "EUR".into(),
+            account_id: *self.account_id.lock().unwrap(),
+            status: BatchStatus::Reconciled,
+            headers: vec![],
+            detected_delimiter: ",".into(),
+            created_at: epoch(),
+        })
+    }
+    async fn list(&self) -> Result<Vec<Batch>, ApplicationError> {
+        unimplemented!()
+    }
+    async fn update_status(&self, _id: BatchId, _s: BatchStatus) -> Result<(), ApplicationError> {
+        unimplemented!()
+    }
+    async fn update_account(
+        &self,
+        _id: BatchId,
+        _account_id: Ff3AccountId,
+    ) -> Result<(), ApplicationError> {
+        unimplemented!()
+    }
+}
+
+/// Account cache: local 1 = Firefly III 7 (the batch account); 10 and 20 known.
+struct FakeAccounts;
+
+fn account(ff3_id: i64) -> Ff3Account {
+    Ff3Account {
+        id: Ff3AccountId::new(if ff3_id == 7 { 1 } else { ff3_id + 100 }),
+        ff3_id,
+        name: format!("current {ff3_id}"),
+        account_type: "expense".into(),
+        currency: "EUR".into(),
+        iban: None,
+        account_number: None,
+        synced_at: epoch(),
+    }
+}
+
+#[async_trait]
+impl Ff3AccountRepository for FakeAccounts {
+    async fn upsert_batch(&self, _a: Vec<NewFf3Account>) -> Result<(), ApplicationError> {
+        unimplemented!()
+    }
+    async fn by_ff3_id(&self, ff3_id: i64) -> Result<Option<Ff3Account>, ApplicationError> {
+        Ok([7, 10, 20].contains(&ff3_id).then(|| account(ff3_id)))
+    }
+    async fn by_id(&self, id: Ff3AccountId) -> Result<Option<Ff3Account>, ApplicationError> {
+        Ok((id == Ff3AccountId::new(1)).then(|| account(7)))
+    }
+    async fn all_asset(&self) -> Result<Vec<Ff3Account>, ApplicationError> {
+        unimplemented!()
+    }
+}
+
 // ── Fixture ─────────────────────────────────────────────────────────────
 
 struct Fx {
@@ -195,6 +275,8 @@ struct Fx {
     matches: FakeMatchRepo,
     movements: FakeMovementRepo,
     audits: FakeDeletedAuditRepo,
+    batches: FakeBatchRepo,
+    suggestions: std::sync::Arc<InMemoryCounterpartySuggestions>,
 }
 
 fn movement(id: i64, status: MovementStatus) -> Movement {
@@ -272,6 +354,10 @@ fn run_fixture() -> Fx {
         audits: FakeDeletedAuditRepo {
             ff3_ids: Mutex::new(vec![]),
         },
+        batches: FakeBatchRepo {
+            account_id: Mutex::new(Some(Ff3AccountId::new(1))),
+        },
+        suggestions: Default::default(),
     }
 }
 
@@ -284,6 +370,9 @@ impl Fx {
         FakeFf3TxRepo,
         FakeMovementRepo,
         FakeDeletedAuditRepo,
+        FakeBatchRepo,
+        FakeAccounts,
+        std::sync::Arc<InMemoryCounterpartySuggestions>,
     > {
         GetResults::new(
             self.rec,
@@ -291,6 +380,11 @@ impl Fx {
             self.txs,
             self.movements,
             self.audits,
+            SuggestionPorts {
+                batches: self.batches,
+                accounts: FakeAccounts,
+                suggestions: self.suggestions,
+            },
         )
     }
 }
@@ -361,4 +455,168 @@ async fn results_exclude_deleted_ff3_transactions_from_extra() {
 
     let extra_ids: Vec<i64> = r.extra.iter().map(|t| t.ff3_id).collect();
     assert_eq!(extra_ids, vec![102]);
+}
+
+// ── Counterparty suggestions (RF-08 v0.11) ──────────────────────────────
+
+fn cp(ff3_id: Option<i64>, name: Option<&str>, cash: bool) -> CounterpartyRef {
+    CounterpartyRef {
+        ff3_id,
+        name: name.map(Into::into),
+        cash,
+    }
+}
+
+impl Fx {
+    async fn learn(&self, account: i64, direction: Direction, key: &str, c: CounterpartyRef) {
+        self.suggestions
+            .remember(CounterpartyMemoryEntry {
+                account_ff3_id: account,
+                direction,
+                desc_key: key.into(),
+                counterparty: c,
+            })
+            .await
+            .unwrap();
+    }
+    async fn history(&self, movement: i64, c: CounterpartyRef) {
+        let mut all = self
+            .suggestions
+            .history_by_batch(BatchId::new(1))
+            .await
+            .unwrap();
+        all.insert(MovementId::new(movement), c);
+        self.suggestions
+            .save_history(BatchId::new(1), all.into_iter().collect())
+            .await
+            .unwrap();
+    }
+}
+
+fn suggested(c: CounterpartyRef, source: SuggestionSource) -> SuggestedCounterparty {
+    SuggestedCounterparty {
+        counterparty: c,
+        source,
+    }
+}
+
+// Movement 2 is the missing one: money in, description "m2".
+
+#[tokio::test]
+async fn learned_suggestion_wins_over_history() {
+    let f = run_fixture();
+    f.learn(
+        7,
+        Direction::In,
+        "m2",
+        cp(Some(10), Some("Acme Motors"), false),
+    )
+    .await;
+    f.history(2, cp(Some(20), Some("Employer"), false)).await;
+    let r = f.uc().execute(BatchId::new(1)).await.unwrap();
+    assert_eq!(
+        r.suggestions[&MovementId::new(2)],
+        suggested(
+            cp(Some(10), Some("Acme Motors"), false),
+            SuggestionSource::Learned
+        )
+    );
+}
+
+#[tokio::test]
+async fn history_is_used_when_nothing_is_learned_for_that_account_and_direction() {
+    let f = run_fixture();
+    f.learn(7, Direction::Out, "m2", cp(Some(10), Some("x"), false))
+        .await;
+    f.learn(8, Direction::In, "m2", cp(Some(10), Some("x"), false))
+        .await;
+    f.history(2, cp(Some(20), Some("Employer"), false)).await;
+    let r = f.uc().execute(BatchId::new(1)).await.unwrap();
+    assert_eq!(
+        r.suggestions[&MovementId::new(2)],
+        suggested(
+            cp(Some(20), Some("Employer"), false),
+            SuggestionSource::History
+        )
+    );
+}
+
+/// Never downgraded to "create by name": an id not in the account cache is
+/// returned as stored, and apply rejects it if the account is really gone.
+#[tokio::test]
+async fn ids_missing_from_the_account_cache_are_kept_with_their_name() {
+    let f = run_fixture();
+    f.movements
+        .rows
+        .lock()
+        .unwrap()
+        .push(movement(4, MovementStatus::Missing));
+    f.learn(
+        7,
+        Direction::In,
+        "m2",
+        cp(Some(99), Some("Car Loan"), false),
+    )
+    .await;
+    f.history(4, cp(Some(98), Some("Old Loan"), false)).await;
+    let r = f.uc().execute(BatchId::new(1)).await.unwrap();
+    assert_eq!(
+        r.suggestions[&MovementId::new(2)],
+        suggested(
+            cp(Some(99), Some("Car Loan"), false),
+            SuggestionSource::Learned
+        )
+    );
+    assert_eq!(
+        r.suggestions[&MovementId::new(4)],
+        suggested(
+            cp(Some(98), Some("Old Loan"), false),
+            SuggestionSource::History
+        )
+    );
+}
+
+#[tokio::test]
+async fn learned_cash_and_name_only_are_suggested_as_is() {
+    let f = run_fixture();
+    f.movements
+        .rows
+        .lock()
+        .unwrap()
+        .push(movement(4, MovementStatus::Missing));
+    f.learn(7, Direction::In, "m2", cp(None, None, true)).await;
+    f.learn(7, Direction::In, "m4", cp(None, Some("Corner Shop"), false))
+        .await;
+    let r = f.uc().execute(BatchId::new(1)).await.unwrap();
+    assert_eq!(
+        r.suggestions[&MovementId::new(2)],
+        suggested(cp(None, None, true), SuggestionSource::Learned)
+    );
+    assert_eq!(
+        r.suggestions[&MovementId::new(4)],
+        suggested(
+            cp(None, Some("Corner Shop"), false),
+            SuggestionSource::Learned
+        )
+    );
+}
+
+#[tokio::test]
+async fn no_learned_entry_and_no_history_gives_no_suggestion() {
+    let f = run_fixture();
+    // Learned for the matched movement's description only.
+    f.learn(7, Direction::In, "m1", cp(Some(10), None, false))
+        .await;
+    let r = f.uc().execute(BatchId::new(1)).await.unwrap();
+    assert!(r.suggestions.is_empty(), "{:?}", r.suggestions);
+}
+
+#[tokio::test]
+async fn batch_without_account_gives_no_suggestion() {
+    let f = run_fixture();
+    *f.batches.account_id.lock().unwrap() = None;
+    f.learn(7, Direction::In, "m2", cp(Some(10), None, false))
+        .await;
+    let r = f.uc().execute(BatchId::new(1)).await.unwrap();
+    assert!(r.suggestions.is_empty());
 }

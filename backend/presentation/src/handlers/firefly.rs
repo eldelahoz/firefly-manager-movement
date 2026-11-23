@@ -71,7 +71,7 @@ pub struct FireflyTransactionResponse {
     #[schema(example = "matched")]
     pub status: Option<String>,
     /// Account on the opposite side of the browsed account (RF-14 v0.2).
-    #[schema(example = "Planautos S A")]
+    #[schema(example = "Acme Motors")]
     pub counterparty_name: Option<String>,
     /// Its Firefly III type: `Expense account`, `Revenue account`, `Asset account`,
     /// `Cash account`, `Loan`, `Debt` or `Mortgage`.

@@ -63,6 +63,7 @@ impl MovementRepository for SqliteMovementRepository {
         movements::table
             .filter(movements::batch_id.eq(batch_id.as_i64()))
             .order(movements::line_no.asc())
+            .select(MovementModel::as_select())
             .load::<MovementModel>(&mut conn)
             .await
             .map(|v| v.into_iter().map(Into::into).collect())

@@ -4,7 +4,7 @@
 use std::fmt;
 
 /// Sense of a statement movement: negative amount = money out.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Direction {
     Out,
     In,
@@ -16,6 +16,13 @@ impl Direction {
             Direction::Out
         } else {
             Direction::In
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Direction::Out => "out",
+            Direction::In => "in",
         }
     }
 }

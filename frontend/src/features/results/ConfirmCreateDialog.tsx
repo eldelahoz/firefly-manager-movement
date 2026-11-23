@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { LoaderCircle } from 'lucide-react';
-import type { Ff3Account } from '@/shared/api/dto';
+import type { Ff3Account, SuggestedCounterparty } from '@/shared/api/dto';
 import type { Customization } from './customization';
-import { transactionType } from './customization';
+import { isSuggested, transactionType } from './customization';
 import { TransactionTypeIcon } from './TransactionTypeIcon';
 import { MoneyText } from '@/shared/ui/MoneyText';
 import { Button } from '@/shared/ui/button';
@@ -27,6 +27,7 @@ export function ConfirmCreateDialog({
     description: string;
     amountCents: number;
     customization: Customization;
+    suggestion?: SuggestedCounterparty | null;
   }[];
   accounts: Ff3Account[];
   currency: string;
@@ -35,12 +36,19 @@ export function ConfirmCreateDialog({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  function counterpartyText(c: Customization, out: boolean) {
+  function counterpartyText(
+    c: Customization,
+    out: boolean,
+    suggestion: SuggestedCounterparty | null | undefined,
+  ) {
     const cp = c.counterparty;
     if (!cp) return t('results.cp.cash');
     if ('name' in cp)
       return t(out ? 'results.cp.newExpense' : 'results.cp.newRevenue', { name: cp.name });
-    return accounts.find((a) => a.id === cp.id)?.name;
+    return (
+      accounts.find((a) => a.id === cp.id)?.name ??
+      (suggestion?.ff3_id === cp.id ? suggestion.name : undefined)
+    );
   }
   return (
     <Dialog
@@ -65,11 +73,20 @@ export function ConfirmCreateDialog({
               <div key={m.id} className="border-b border-border-subtle pb-2 text-sm">
                 <p className="truncate font-medium">{m.description}</p>
                 <MoneyText cents={m.amountCents} currency={currency} />
-                {/* An account missing from the loaded lists: neither its name nor its type is known. */}
+                {/* An account missing from the loaded lists: its type is unknown (the backend decides);
+                    only a suggestion still knows its name. */}
                 <p className="flex items-center gap-1 text-text-2">
                   {type && <TransactionTypeIcon type={type} />}
                   <span className="min-w-0 break-words">
-                    {type ? `${t(`results.cp.type.${type}`)} · ${counterpartyText(c, out)}` : '—'}
+                    {type
+                      ? `${t(`results.cp.type.${type}`)} · ${counterpartyText(c, out, m.suggestion)}`
+                      : (counterpartyText(c, out, m.suggestion) ?? '—')}
+                    {m.suggestion && isSuggested(c, m.suggestion) && (
+                      <span className="text-text-3">
+                        {' · '}
+                        {t(`results.suggest.${m.suggestion.source}`)}
+                      </span>
+                    )}
                   </span>
                 </p>
                 {c.category && (

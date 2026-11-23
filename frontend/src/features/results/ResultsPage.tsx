@@ -27,7 +27,7 @@ import { usePageHeader } from '@/shared/ui/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { useRerun } from '@/app/reconcileContext';
 import type { BulkFields, Customization } from './customization';
-import { applyBulkFillOnly } from './customization';
+import { applyBulkFillOnly, withSuggestion } from './customization';
 import { VirtualList } from './VirtualList';
 import { outsideStatementPeriod, ResultsSkeleton, ResultsSummary } from './ResultsSummary';
 import { BulkBar } from './BulkBar';
@@ -131,15 +131,16 @@ export function ResultsPage() {
 
   const apply = useMutation({
     // Ids are exactly the rows the confirm dialog lists; the backend rejects any that is no longer missing.
-    mutationFn: async (ids: number[]) => {
+    mutationFn: async (rows: { id: number; customization: Customization }[]) => {
       const movements = await Promise.all(
-        ids.map(async (sid) => {
-          const c = customizations[sid] ?? {};
+        rows.map(async ({ id: sid, customization: c }) => {
           const payload: ApplyMovementRequest = { movement_id: sid };
           if (c.counterparty && 'id' in c.counterparty)
             payload.counterparty_ff3_id = c.counterparty.id;
           if (c.counterparty && 'name' in c.counterparty)
             payload.counterparty_name = c.counterparty.name;
+          // null = explicit Cash; undefined = nothing chosen (cleared or never set).
+          if (c.counterparty === null) payload.counterparty_cash = true;
           if (c.description) payload.description = c.description;
           if (c.category) payload.category = c.category;
           if (c.budget) payload.budget = c.budget;
@@ -337,7 +338,8 @@ export function ResultsPage() {
         id: sid,
         description: m.description,
         amountCents: m.amount_cents,
-        customization: customizations[sid] ?? {},
+        customization: withSuggestion(customizations[sid], m.suggested_counterparty),
+        suggestion: m.suggested_counterparty,
       };
     });
   // Not found (e.g. the row was ignored or the batch changed) = the sheet closes.
@@ -356,7 +358,14 @@ export function ResultsPage() {
   };
 
   function handleBulkApply(fields: BulkFields) {
-    setCustomizations((prev) => applyBulkFillOnly(prev, activeSelected, fields));
+    setCustomizations((prev) => {
+      // Seed untouched rows with their own suggestion, so a fill that leaves the account keeps it.
+      const seeded = { ...prev };
+      for (const m of missingRows)
+        if (activeSelected.includes(m.id))
+          seeded[m.id] = withSuggestion(prev[m.id], m.suggested_counterparty);
+      return applyBulkFillOnly(seeded, activeSelected, fields);
+    });
   }
 
   function openPersonalize() {
@@ -520,6 +529,10 @@ export function ResultsPage() {
                         selected={activeSelected.includes(m.id)}
                         isLast={i === counts.missing - 1}
                         report={currentReports.find((r) => r.movement_id === m.id)}
+                        customization={withSuggestion(
+                          customizations[m.id],
+                          m.suggested_counterparty,
+                        )}
                         onToggle={(mid) =>
                           setSelected((s) =>
                             s.includes(mid) ? s.filter((x) => x !== mid) : [...s, mid],
@@ -596,7 +609,11 @@ export function ResultsPage() {
         <EditSheet
           movement={editingMovement}
           position={{ index: editingIndex, total: missingRows.length }}
-          initial={customizations[editingMovement.id] ?? {}}
+          initial={withSuggestion(
+            customizations[editingMovement.id],
+            editingMovement.suggested_counterparty,
+          )}
+          suggestion={editingMovement.suggested_counterparty}
           currency={currency}
           {...sheetLists}
           onNavigate={(step) => setEditingId(missingRows[editingIndex + step]?.id ?? editingId)}
@@ -632,7 +649,7 @@ export function ResultsPage() {
           accounts={allAccounts}
           currency={currency}
           pending={apply.isPending}
-          onConfirm={() => apply.mutate(movementSummaries.map((m) => m.id))}
+          onConfirm={() => apply.mutate(movementSummaries)}
           onClose={() => setConfirmOpen(false)}
         />
       )}

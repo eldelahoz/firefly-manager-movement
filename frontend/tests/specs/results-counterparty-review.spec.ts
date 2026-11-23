@@ -164,6 +164,7 @@ test.describe('Bulk "Leave unchanged"', () => {
     expect(byId(12), 'Book keeps its own account').toMatchObject({ counterparty_ff3_id: 51 });
     expect(byId(15)).not.toHaveProperty('counterparty_ff3_id');
     expect(byId(15)).not.toHaveProperty('counterparty_name');
+    expect(byId(15), 'unchosen is not an explicit Cash').not.toHaveProperty('counterparty_cash');
   });
 
   test('R2b the option only exists in bulk, after Cash', async ({ page }) => {

@@ -13,14 +13,67 @@ use ffm_domain::ids::{BatchId, Ff3TransactionId, MovementId, ReconciliationId};
 use ffm_domain::matching_engine::run_matching;
 use ffm_domain::value_objects::{BatchStatus, MovementStatus};
 
+use ffm_domain::description_key::description_key;
+use ffm_domain::transaction_kind::Direction;
+
 use crate::dtos::{
-    NewFf3Account, NewReconciliation, ReconciliationRun, RunFf3Transaction, RunMatch,
+    CounterpartyRef, Ff3TransactionDto, NewFf3Account, NewReconciliation, ReconciliationRun,
+    RunFf3Transaction, RunMatch,
 };
 use crate::error::ApplicationError;
 use crate::ports::{
-    BatchRepository, Ff3AccountRepository, FireflyClient, MovementRepository,
-    ReconciliationRepository,
+    BatchRepository, CounterpartySuggestionRepository, Ff3AccountRepository, FireflyClient,
+    MovementRepository, ReconciliationRepository,
 };
+
+/// Firefly III history read for counterparty suggestions, ending at the
+/// window's end (RF-08 v0.11).
+pub const HISTORY_LOOKBACK_DAYS: i64 = 180;
+
+/// Most used counterparty per `(direction, description_key)` in the
+/// account's history; ties go to the most recent transaction. Cash and the
+/// account itself are never suggested.
+fn history_counterparties(
+    txs: &[Ff3TransactionDto],
+    account_ff3_id: i64,
+) -> HashMap<(Direction, String), CounterpartyRef> {
+    type Choice = (Option<i64>, Option<String>);
+    let mut tally: HashMap<(Direction, String), HashMap<Choice, (usize, NaiveDate)>> =
+        HashMap::new();
+    for t in txs {
+        let is_cash = t.counterparty_type.as_deref() == Some("Cash account");
+        let unknown = t.counterparty_ff3_id.is_none() && t.counterparty_name.is_none();
+        let key = description_key(&t.description);
+        if is_cash || unknown || t.counterparty_ff3_id == Some(account_ff3_id) || key.is_empty() {
+            continue;
+        }
+        let direction = Direction::from_cents(t.amount_cents.as_i64());
+        let seen = tally
+            .entry((direction, key))
+            .or_default()
+            .entry((t.counterparty_ff3_id, t.counterparty_name.clone()))
+            .or_insert((0, t.date));
+        seen.0 += 1;
+        seen.1 = seen.1.max(t.date);
+    }
+    tally
+        .into_iter()
+        .filter_map(|(key, choices)| {
+            // Id then name break a full tie so the result never depends on hash order.
+            let ((ff3_id, name), _) = choices
+                .into_iter()
+                .max_by_key(|((id, name), (uses, last))| (*uses, *last, *id, name.clone()))?;
+            Some((
+                key,
+                CounterpartyRef {
+                    ff3_id,
+                    name,
+                    cash: false,
+                },
+            ))
+        })
+        .collect()
+}
 
 /// Input for the reconcile use case.
 #[derive(Debug)]
@@ -48,33 +101,43 @@ pub struct ReconcileBatchResult {
     pub duplicate_count: usize,
 }
 
-pub struct ReconcileBatch<F, A, B, M, R> {
+pub struct ReconcileBatch<F, A, B, M, R, S> {
     firefly: F,
     ff3_accounts: A,
     batches: B,
     movements: M,
     reconciliations: R,
+    suggestions: S,
 }
 
-impl<F, A, B, M, R> ReconcileBatch<F, A, B, M, R> {
-    pub fn new(firefly: F, ff3_accounts: A, batches: B, movements: M, reconciliations: R) -> Self {
+impl<F, A, B, M, R, S> ReconcileBatch<F, A, B, M, R, S> {
+    pub fn new(
+        firefly: F,
+        ff3_accounts: A,
+        batches: B,
+        movements: M,
+        reconciliations: R,
+        suggestions: S,
+    ) -> Self {
         Self {
             firefly,
             ff3_accounts,
             batches,
             movements,
             reconciliations,
+            suggestions,
         }
     }
 }
 
-impl<F, A, B, M, R> ReconcileBatch<F, A, B, M, R>
+impl<F, A, B, M, R, S> ReconcileBatch<F, A, B, M, R, S>
 where
     F: FireflyClient,
     A: Ff3AccountRepository,
     B: BatchRepository,
     M: MovementRepository,
     R: ReconciliationRepository,
+    S: CounterpartySuggestionRepository,
 {
     pub async fn execute(
         &self,
@@ -282,6 +345,34 @@ where
             matches,
             movement_status_updates: status_updates,
         };
+
+        // History suggestions (RF-08 v0.11): a failed read does not abort the
+        // run and keeps the batch's previous history suggestions.
+        if let Ok(history) = self
+            .firefly
+            .account_transactions(
+                input.ff3_account_id,
+                Some(input.window_end - chrono::Duration::days(HISTORY_LOOKBACK_DAYS)),
+                Some(input.window_end),
+            )
+            .await
+        {
+            let by_key = history_counterparties(&history, input.ff3_account_id);
+            let suggestions = movements
+                .iter()
+                .filter(|m| missing.contains(&m.id))
+                .filter_map(|m| {
+                    let key = (
+                        Direction::from_cents(m.amount_cents.as_i64()),
+                        description_key(&m.description),
+                    );
+                    by_key.get(&key).map(|cp| (m.id, cp.clone()))
+                })
+                .collect();
+            self.suggestions
+                .save_history(input.batch_id, suggestions)
+                .await?;
+        }
 
         let reconciliation_id = self.reconciliations.save_run(run).await?;
 

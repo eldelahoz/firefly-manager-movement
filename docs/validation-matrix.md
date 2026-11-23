@@ -2,7 +2,7 @@
 
 Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify it.
 
-> **Docs @** PRD `f29667b` · TRD `7c258c6` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
+> **Docs @** PRD `f29667b` · TRD `04a32ca` · audited 2026-09-09 — commits of the spec sources this matrix was last checked against (see [Traceability](#traceability)).
 >
 > **Legend**
 >
@@ -211,8 +211,10 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 
 ## RF-08  Batch-create missing; edit description/category/budget/tags/attachment/notes
 
-**Status:** implemented (spec v0.10) · **Last verified:** 2026-11-22 · **Spec @** `7c258c6`
+**Status:** implemented (spec v0.11) · **Last verified:** 2026-11-22 · **Spec @** `04a32ca`
 
+> **v0.11 amendment delta (2026-11-22, counterparty suggestions, phase B)**: suggest the counterparty of each missing movement, first `learned` in the app (`counterparty_memory`, per batch account, direction and normalized description, latest choice wins) and then from Firefly III history (180-day lookback, most frequent counterparty, Cash and A ignored); generic normalization (no bank rules); `missing[].suggested_counterparty` in the results; single sheet pre-filled with a "Suggested (learned / Firefly III history)" mark, bulk sheet not pre-filled ("Leave unchanged"), row hint, confirm dialog, change and clear; suggestion only. A cleared suggestion is created against Cash but not learned; explicit Cash (`counterparty_cash: true`) is learned; suggestions return id and name and an account that no longer exists is rejected at apply; a failed history read keeps the earlier history suggestions; descriptions differing only by long numbers share a suggestion (documented risk). Verified 2026-11-22 against the `(v0.11)` criteria, each mapped to the tests below; gate green (Rust 314/314, e2e 296/296 twice) and checked live on the local Firefly III: learned suggestion (account and explicit Cash), history, null, and that clearing or not choosing teaches nothing. **No dedicated test**: (a) a batch reconciled before v0.11 (learned shown, history null) is covered only through the "no history stored" and "learned on read" cases, not with a pre-migration row; (b) "reconciling only reads" is covered by the no-creation e2e G13 and the absence of writes in the reconcile tests, not by a test that asserts it; (c) the normalization is broader than the first spec draft (extra folding, noted in RF-08 and TRD section 6).
+>
 > **v0.10 amendment delta (2026-11-22)**: transfers to own accounts (`ccAsset` included) replace "transfers never generated"; liabilities; counterparty created by name; explicit Cash; type derived on the backend from the rules table (one acceptance criterion per row); rejected combinations (A itself, expense on money in, revenue on money out, own asset in another currency, name + id) are reported `failed` with a `reason` and do not fail the batch; report carries `transaction_type`; grouped searchable picker, type line, confirm dialog with type and counterparty, bulk picker, labels "Destination/Source account". Verified against the v0.10 criteria (one per rules-table row); gate green (Rust 273/273, e2e 271/271 twice) and checked end to end on the local Firefly III: transfer to a `ccAsset`, deposit from a revenue account created by name, withdrawal to a liability and to Cash, with counterparty and type shown in Matched right after creation. Known limit: the confirmation dialog shows \"—\" when the counterparty account is not in the loaded lists; it has no e2e test because the UI cannot produce that state. Not asserted by a test: that the client cannot send `transaction_type` (the apply DTO has no such field).
 >
 > **2026-11-22 follow-ups (no spec change)**: currency/decimals, late default tag, Undo with the sheet open, sheet reset. Gate e2e 176/176. Backend distinguishes absent `tags` (→ default creation tag) from explicit `[]` (→ no tags), so a cleared selection replaces the default end to end (criterion "the user's selection replaces it"); R4 covers the request payload, the two backend tests below cover the outcome.
@@ -272,6 +274,18 @@ Maps each **Functional Requirement (RF-01 .. RF-19)** to the tests that verify i
 | **FE** | `results-counterparty-picker.spec.ts` C6–C8b | Payload: id only, name only («Create X», out and in), neither for Cash |
 | **FE** | `results-counterparty-picker.spec.ts` C10, C12 | Confirm dialog states type and account; rejected row keeps its reason, stays in Missing, valid retry creates it |
 | **FE** | `results-counterparty-picker.spec.ts` C11–C11e · `results-counterparty-review.spec.ts` R1–R6 | Bulk picker (one direction; mixed → none), created row shows its translated type, clear-choice option, list interactions |
+| **Domain** | `description_key.rs::normalizes_descriptions_from_any_bank_or_language`, `same_merchant_with_different_references_gets_the_same_key` | v0.11 normalization: spec example, accents (composed and decomposed), digit runs of 4+ dropped and of 3 or fewer kept (`Tienda 24`), empty key, references that differ share the key (documented risk) |
+| **App** | `apply_missing.rs::creation_with_an_existing_account_is_remembered_by_id_and_name`, `creation_by_new_name_is_remembered_with_the_id_firefly_returned`, `creation_with_cash_is_remembered_as_cash_for_money_in` | v0.11: creation teaches id+name, new name (+ id returned), Cash; money in as well |
+| **App** | `apply_missing.rs::no_counterparty_is_created_as_cash_but_teaches_nothing`, `explicit_cash_with_an_id_or_a_name_fails_that_movement`, `a_failing_memory_still_creates_and_reports_the_warning` | v0.11: no counterparty chosen → Cash, not learned; `counterparty_cash` with id/name rejected; memory failure does not block the creation |
+| **App** | `apply_missing.rs::invalid_counterparties_are_rejected_before_firefly` (case "not a known account") | v0.11: a suggested account that no longer exists is rejected at apply with a `reason` |
+| **Infra** | `counterparty_suggestion_repo.rs::remember_upserts_latest_choice_and_counts_uses`, `name_only_choice_round_trips`, `save_history_replaces_the_batch_suggestions` | v0.11: latest choice wins, use count, scope key, name-only round trip, history storage |
+| **App** | `reconcile_batch.rs::reconcile_stores_the_most_used_history_counterparty_of_each_missing_movement`, `failed_history_read_keeps_the_previous_history_suggestions` | v0.11: most used counterparty over 180 days, Cash and A skipped, other direction excluded, tie to the most recent; failed read keeps earlier history |
+| **App** | `get_results.rs::learned_suggestion_wins_over_history`, `history_is_used_when_nothing_is_learned_for_that_account_and_direction`, `learned_cash_and_name_only_are_suggested_as_is`, `no_learned_entry_and_no_history_gives_no_suggestion`, `batch_without_account_gives_no_suggestion` | v0.11: precedence, scope, shapes (id+name, name only, Cash), null |
+| **Pres** | `reconcile_endpoints.rs::results_suggest_the_learned_counterparty_of_a_missing_movement`, `results_suggest_the_history_counterparty_with_its_id_even_when_not_cached`, `openapi_documents_the_suggested_counterparty`; `apply_delete_endpoints.rs::apply_endpoint_learns_only_explicit_cash_and_rejects_cash_with_an_id` | v0.11 contract: `missing[].suggested_counterparty` (learned, history with id), OpenAPI, `counterparty_cash` semantics |
+| **FE** | `results-counterparty-suggestions.spec.ts` G1–G7, G20 | Single sheet pre-fill with learned/history mark (out and in), name-only and Cash, null = no mark and no clear button, row hint, confirm dialog, i18n en/fr/es |
+| **FE** | `results-counterparty-suggestions.spec.ts` G8–G13, G22 | Create without opening the sheet sends the suggestion (id, name, `counterparty_cash`), nothing for null, untouched save keeps it, nothing created by the suggestion alone (O4/O5), id missing from the lists shown by name |
+| **FE** | `results-counterparty-suggestions.spec.ts` G14–G16, G23, G24 | Clear (no account, no Cash), change, explicit Cash over a suggestion, no-suggestion row sends no Cash, untouched Cash suggestion keeps `counterparty_cash` |
+| **FE** | `results-counterparty-suggestions.spec.ts` G17–G19, G21 | Bulk: each row sends its own suggestion, bulk choice replaces all, "Leave unchanged" keeps them, bulk sheet not pre-filled |
 | **FE** | `settings-creation-defaults.spec.ts` S2 | Default creation tag setting saved |
 | **FE** | `results-ignore-undo.spec.ts` U6 | Create shows no Undo (explicit confirmation kept, no optimistic create) |
 
@@ -601,7 +615,7 @@ All RFs are backend-implemented; FE now solo Playwright. `⏳` = pending Playwri
 | 05 | — | ✅ | ✅ | ✅ | — | implemented |
 | 06 | ✅ | ✅ | — | — | — | implemented |
 | 07 | ✅ | ✅ | ✅ | ✅ | ⏳/✅ | implemented (FE ✅ `results-queue`; `virtual-list` still pending) |
-| 08 | — | ✅ | ✅ | ✅ | ✅ | implemented (spec v0.9; FE ✅ `results-edit-sheet`, `results-queue`) |
+| 08 | ✅ | ✅ | ✅ | ✅ | ✅ | implemented (spec v0.11; FE ✅ `results-edit-sheet`, `results-queue`, `results-counterparty-suggestions`) |
 | 09 | — | ✅ | ✅ | ✅ | ⏳ | implemented (FE pending `imports-resume-delete`) |
 | 10 | — | ✅ | ✅ | ✅ | ✅ | implemented (FE ✅ `results-ignore-undo`, `results-queue` Q6) |
 | 11 | — | ✅ | — | — | ⏳ | implemented (FE pending `results-apply-personalize`) |
